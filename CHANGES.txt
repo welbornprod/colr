@@ -1,0 +1,1 @@
+v0.0.2 8/14/15 -- First release, basic working linux version.
