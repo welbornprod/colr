@@ -82,5 +82,3 @@ This library may be a little too flexible, and that may change:
 .. figure:: https://welbornprod.com/static/media/img/colr-warning.png
    :alt: warning
 
-   warning
-
