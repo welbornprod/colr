@@ -30,7 +30,7 @@
 """
 from functools import partial
 
-__version__ = '0.0.2'
+__version__ = '0.0.3'
 
 __all__ = [
     'Colr',
@@ -164,6 +164,30 @@ class Colr(object):
             return the color() function. Otherwise, return known
             attributes and raise AttributeError for others.
         """
+        knownmethod = self._attr_to_method(attr)
+        if knownmethod is not None:
+            return knownmethod
+
+        try:
+            val = self.__getattribute__(attr)
+        except AttributeError as ex:
+            try:
+                val = self.data.__getattribute__(attr)
+            except AttributeError:
+                raise AttributeError(ex)
+        return val
+
+    def __repr__(self):
+        return repr(self.data)
+
+    def __str__(self):
+        return self.data
+
+    def _attr_to_method(self, attr):
+        """ Return the correct color function by method name.
+            Uses `partial` to build kwargs on the `color` func.
+            On failure/unknown name, returns None.
+        """
         if attr in codes['fore']:
             # Fore method
             return partial(self.chained, fore=attr)
@@ -184,21 +208,7 @@ class Colr(object):
             # Fore 256 method
             name = attr[5:]
             return partial(self.chained, fore=name)
-
-        try:
-            val = self.__getattribute__(attr)
-        except AttributeError as ex:
-            try:
-                val = self.data.__getattribute__(attr)
-            except AttributeError:
-                raise AttributeError(ex)
-        return val
-
-    def __repr__(self):
-        return repr(self.data)
-
-    def __str__(self):
-        return self.data
+        return None
 
     def chained(self, text=None, fore=None, back=None, style=None):
         """ Called by the various 'color' methods to colorize a single string.

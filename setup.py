@@ -30,7 +30,7 @@ else:
 
 setup(
     name='Colr',
-    version='0.0.2-1',
+    version='0.0.2-2',
     author='Christopher Welborn',
     author_email='cj@welbornprod.com',
     packages=['colr'],
@@ -40,7 +40,6 @@ setup(
     long_description=longdesc,
     keywords='python module library 3 terminal color colors escape codes',
     classifiers=[
-        'Operating System :: Microsoft :: Windows',
         'Operating System :: POSIX :: Linux',
         'Programming Language :: Python',
         'Programming Language :: Python :: 2.7',
