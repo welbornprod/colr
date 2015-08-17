@@ -29,6 +29,7 @@
 
 """
 from functools import partial
+from types import GeneratorType
 
 __version__ = '0.0.3'
 
@@ -262,19 +263,30 @@ class Colr(object):
         """ Like str.format, except it returns a Colr. """
         return self.__class__(self.data.format(*args, **kwargs))
 
-    def join(self, *colrs):
+    def join(self, *colrs, **colorkwargs):
         """ Like str.join, except it returns a Colr.
             Arguments:
                 colrs  : One or more Colrs. If a list or tuple is passed as an
                          argument it will be flattened.
+            Keyword Arguments:
+                fore, back, style...
+                see color().
         """
         flat = []
-        for c in colrs:
-            if isinstance(c, (list, tuple)):
-                flat.extend(c)
+        for clr in colrs:
+            if isinstance(clr, (list, tuple, GeneratorType)):
+                flat.extend((str(c) for c in clr))
             else:
-                flat.append(str(c))
+                flat.append(str(clr))
 
+        if colorkwargs:
+            fore = colorkwargs.get('fore', None)
+            back = colorkwargs.get('back', None)
+            style = colorkwargs.get('style', None)
+            flat = (
+                self.color(s, fore=fore, back=back, style=style)
+                for s in flat
+            )
         return self.__class__(self.data.join(flat))
 
     def print(self, *args):
