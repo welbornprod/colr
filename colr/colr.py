@@ -78,8 +78,8 @@ def _build_codes():
         built['back'][litename] = codeformat(100 + number)
 
     # Set reset codes for fore/back.
-    built['fore']['reset'] = codeformat('39')
-    built['back']['reset'] = codeformat('49')
+    built['fore']['reset'] = codeformat(39)
+    built['back']['reset'] = codeformat(49)
 
     # Map of code -> style name/alias.
     stylemap = (
@@ -211,6 +211,110 @@ class Colr(object):
             return partial(self.chained, fore=name)
         return None
 
+    def _iter_gradient(self, text, start, step=1, back=None, style=None):
+        """ Yield colorized characters,
+            using one of the 36-length gradients.
+        """
+        # Determine which 36-length gradient to start from.
+        adj = divmod(start - 16, 36)[1]
+        if adj > 0:
+            start = start - adj
+
+        # Build the color numbers needed to make a never-ending gradient.
+        rows = []
+        for c in range(0, 36, 6):
+            rows.append([start + c + i for i in range(6)])
+        numbers = []
+        for i, r in enumerate(rows):
+            if i % 2 != 0:
+                numbers.extend(reversed(rows[i]))
+            else:
+                numbers.extend(rows[i])
+        yield from self._iter_text_wave(
+            text,
+            numbers,
+            step=step,
+            back=back,
+            style=style)
+
+    def _iter_gradient_black(self, text, start, step=1, back=None, style=None):
+        """ Yield colorized characters,
+            within the 24-length black gradient.
+        """
+        if start < 232:
+            start = 232
+        elif start > 255:
+            start = 255
+        yield from self._iter_text_wave(
+            text,
+            list(range(start, 256)),
+            step=step,
+            back=back,
+            style=style)
+
+    def _iter_text_wave(self, text, numbers, step=1, back=None, style=None):
+        """ Yield colorized characters from `text`, using a wave of `numbers`.
+            Arguments:
+                text     : String to be colorized.
+                numbers  : A list/tuple of numbers (256 colors).
+                step     : Number of characters to colorize per color.
+                back     : Background color to use.
+                style    : Style name to use.
+        """
+        pos = 0
+        end = len(text)
+        numbergen = self._iter_wave(numbers)
+        for num in numbergen:
+            lastchar = pos + step
+            yield self.color(
+                text[pos:lastchar],
+                fore=num,
+                back=back,
+                style=style
+            )
+            if lastchar >= end:
+                numbergen.send(True)
+            pos = lastchar
+
+    @staticmethod
+    def _iter_wave(iterable, count=0):
+        """ Move from beginning to end, and then end to beginning, a number of
+            iterations through an iterable (must accept len(iterable)).
+            Example:
+                print(' -> '.join(_iter_wave('ABCD', count=8)))
+                >> A -> B -> C -> D -> C -> B -> A -> B
+
+            If `count` is less than 1, this will run forever.
+            You can stop it by sending a Truthy value into the generator.
+        """
+        up = True
+        pos = 0
+        i = 0
+        end = len(iterable)
+        # Stop on count, or run forever.
+        while (i < count) if count > 0 else True:
+            try:
+                stop = yield iterable[pos]
+                # End of generator (user sent the stop signal)
+                if stop:
+                    break
+            except IndexError:
+                # End of iterable, when len(iterable) is < count.
+                up = False
+
+            # Change directions if needed, otherwise increment/decrement.
+            if up:
+                pos += 1
+                if pos == end:
+                    up = False
+                    pos = end - 2
+            else:
+                pos -= 1
+                if pos < 0:
+                    up = True
+                    pos = 1
+            i += 1
+
     def chained(self, text=None, fore=None, back=None, style=None):
         """ Called by the various 'color' methods to colorize a single string.
             The RESET_ALL code is appended to the string unless text is empty.
@@ -231,11 +335,13 @@ class Colr(object):
     def color(self, text=None, fore=None, back=None, style=None):
         """ A method that colorizes strings, not Colr objects.
             Raises ValueError for invalid color names.
+            The 'reset_all' code is appended if text is given.
         """
         return ''.join((
-            self.color_code(style=style, back=back, fore=fore),
+            self.color_code(fore=fore, back=back, style=style),
             text or '',
-            codes['closing'] if text else ''))
+            codes['closing'] if text else ''
+        ))
 
     def color_code(self, fore=None, back=None, style=None):
         """ Return the codes for this style/colors. """
@@ -263,6 +369,44 @@ class Colr(object):
         """ Like str.format, except it returns a Colr. """
         return self.__class__(self.data.format(*args, **kwargs))
 
+    def gradient(self, text, start=0, step=1, back=None, style=None):
+        """ Colorize a string gradient style, using 256 colors.
+            Arguments:
+                text  : String to colorize.
+                start : Starting 256-color number.
+                        The `start` will be adjusted if it is not within
+                        bounds.
+                        This will always be > 15.
+                        This will be adjusted to fit within a 6-length
+                        gradient, or the 24-length black/white gradient.
+                step  : Number of characters to colorize per color.
+                        This allows a "wider" gradient.
+                        This will always be greater than 0.
+                back  : Background color for this gradient (256 colors).
+                style : Name of style to use for the gradient.
+
+            Returns a Colr object with gradient text.
+        """
+        # The first 16 colors (0->15) are not allowed.
+        if start < 16:
+            start = 16
+
+        step = abs(int(step))
+        if step < 1:
+            step = 1
+
+        if start > 231:
+            # Black gradient.
+            method = self._iter_gradient_black
+        else:
+            method = self._iter_gradient
+
+        return self.__class__(
+            ''.join(
+                method(text, start, step=step, back=back, style=style)
+            )
+        )
+
     def join(self, *colrs, **colorkwargs):
         """ Like str.join, except it returns a Colr.
             Arguments:
@@ -275,6 +419,7 @@ class Colr(object):
         flat = []
         for clr in colrs:
             if isinstance(clr, (list, tuple, GeneratorType)):
+                # Flatten any lists, at least once.
                 flat.extend((str(c) for c in clr))
             else:
                 flat.append(str(clr))
@@ -295,9 +440,23 @@ class Colr(object):
         self.data = ''
         return self
 
-    def str(self, s=None):
+    def str(self):
         """ Alias for self.__str__ """
         return str(self)
 
 # Shortcuts.
 color = Colr().color
+
+if __name__ == '__main__':
+    print(
+        Colr('warning', 'red')
+        .join('[', ']', style='bright')(' ')
+        .green('This module is meant to be imported.')
+    )
+    # 134
+    print(Colr().gradient(
+        'This is not a command-line tool, and should not be treated like one.',
+        start=134,
+        step=10,
+        style='bright'
+    ))
