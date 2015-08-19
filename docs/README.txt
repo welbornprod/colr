@@ -80,5 +80,7 @@ This library may be a little too flexible, and that may change:
     print(warnmsg('The roof is on fire again.'))
 
 .. figure:: https://welbornprod.com/static/media/img/colr-warning.png
-   :alt: warning
+   :alt: The possibilities are endless.
+
+   The possibilities are endless.
 
