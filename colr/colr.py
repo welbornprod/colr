@@ -31,7 +31,7 @@
 from functools import partial
 from types import GeneratorType
 
-__version__ = '0.0.3-1'
+__version__ = '0.0.4'
 
 __all__ = [
     'Colr',
@@ -110,9 +110,7 @@ codes = _build_codes()
 
 class Colr(object):
 
-    """ This class colorizes text for an ansi terminal.
-
-    """
+    """ This class colorizes text for an ansi terminal. """
 
     def __init__(self, text=None, fore=None, back=None, style=None):
         # Can be initialized with colored text, not required though.
@@ -128,7 +126,7 @@ class Colr(object):
 
     def __dir__(self):
         """ Compute the fake method names, and include them in a listing
-            of this classes attributes.
+            of attributes for autocompletion/inspection.
         """
 
         def fmtcode(s):
@@ -178,6 +176,12 @@ class Colr(object):
             except AttributeError:
                 raise AttributeError(ex)
         return val
+
+    def __len__(self):
+        """ Return len() for any built up string data. This will count color
+            codes, so it's not that useful.
+        """
+        return len(self.data)
 
     def __repr__(self):
         return repr(self.data)
@@ -403,9 +407,10 @@ class Colr(object):
             method = self._iter_gradient
 
         return self.__class__(
-            ''.join(
-                method(text, start, step=step, back=back, style=style)
-            )
+            ''.join((
+                self.data,
+                ''.join(method(text, start, step=step, back=back, style=style))
+            ))
         )
 
     def join(self, *colrs, **colorkwargs):
@@ -435,9 +440,9 @@ class Colr(object):
             )
         return self.__class__(self.data.join(flat))
 
-    def print(self, *args):
+    def print(self, *args, **kwargs):
         """ Chainable print method. Prints self.data and then clears it. """
-        print(self, *args)
+        print(self, *args, **kwargs)
         self.data = ''
         return self
 

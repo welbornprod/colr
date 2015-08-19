@@ -27,6 +27,7 @@
 """
 
 from .colr import (
+    __version__,
     Colr,
     codes,
     codeformat,
@@ -36,6 +37,7 @@ from .colr import (
 )
 
 __all__ = [
+    '__version__',
     'Colr',
     'codes',
     'codeformat',
