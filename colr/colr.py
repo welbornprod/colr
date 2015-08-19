@@ -31,7 +31,7 @@
 from functools import partial
 from types import GeneratorType
 
-__version__ = '0.0.3'
+__version__ = '0.0.3-1'
 
 __all__ = [
     'Colr',
@@ -154,6 +154,7 @@ class Colr(object):
             'color',
             'data',
             'format',
+            'gradient',
             'join',
             'print',
             'str'
