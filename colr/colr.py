@@ -457,6 +457,6 @@ if __name__ == '__main__':
     print(Colr().gradient(
         'This is not a command-line tool, and should not be treated like one.',
         start=134,
-        step=10,
+        step=8,
         style='bright'
     ))
