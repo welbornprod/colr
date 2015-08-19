@@ -75,6 +75,6 @@ warnmsg = lambda s: C('warning', 'red').join('[', ']')(' ').green(s)
 print(warnmsg('The roof is on fire again.'))
 ```
 
-![warning](https://welbornprod.com/static/media/img/colr-warning.png)
+![The possibilities are endless.](https://welbornprod.com/static/media/img/colr-warning.png)
 
 
