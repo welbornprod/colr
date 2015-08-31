@@ -28,10 +28,13 @@
     DEALINGS IN THE SOFTWARE.
 
 """
+from contextlib import suppress
 from functools import partial
 from types import GeneratorType
 
-__version__ = '0.0.4'
+import re
+
+__version__ = '0.0.5'
 
 __all__ = [
     'Colr',
@@ -58,6 +61,9 @@ _namemap = (
 codeformat = '\033[{}m'.format
 extforeformat = '\033[38;5;{}m'.format
 extbackformat = '\033[48;5;{}m'.format
+
+# Used to strip codes from a string.
+codepat = re.compile('\033\[([\d;]+)?m')
 
 
 def _build_codes():
@@ -132,14 +138,14 @@ class Colr(object):
         def fmtcode(s):
             try:
                 int(s)
-                return 'f256_{}'.format(s)
+                return 'f_{}'.format(s)
             except ValueError:
                 return s
 
         def fmtbgcode(s):
             try:
                 int(s)
-                return 'b256_{}'.format(s)
+                return 'b_{}'.format(s)
             except ValueError:
                 return 'bg{}'.format(s)
 
@@ -147,6 +153,7 @@ class Colr(object):
         attrs.extend(fmtbgcode(k) for k in codes['back'])
         attrs.extend(k for k in codes['style'])
         attrs.extend((
+            'center',
             'chained',
             'color_code',
             'color',
@@ -154,7 +161,9 @@ class Colr(object):
             'format',
             'gradient',
             'join',
+            'ljust',
             'print',
+            'rjust',
             'str'
         ))
         return attrs
@@ -194,6 +203,7 @@ class Colr(object):
             Uses `partial` to build kwargs on the `color` func.
             On failure/unknown name, returns None.
         """
+
         if attr in codes['fore']:
             # Fore method
             return partial(self.chained, fore=attr)
@@ -205,18 +215,20 @@ class Colr(object):
             name = attr[2:]
             if name in codes['back']:
                 return partial(self.chained, back=name)
-        elif attr.startswith('b256_'):
+        elif attr.startswith(('b256_', 'b_')):
             # Back 256 method
             # Remove the b256_ portion.
-            name = attr[5:]
+            name = attr.partition('_')[2]
             return partial(self.chained, back=name)
-        elif attr.startswith('f256_'):
+        elif attr.startswith(('f256_', 'f_')):
             # Fore 256 method
-            name = attr[5:]
+            name = attr.partition('_')[2]
             return partial(self.chained, fore=name)
         return None
 
-    def _iter_gradient(self, text, start, step=1, back=None, style=None):
+    def _iter_gradient(
+            self, text, start, step=1,
+            fore=None, back=None, style=None, reverse=False):
         """ Yield colorized characters,
             using one of the 36-length gradients.
         """
@@ -235,14 +247,19 @@ class Colr(object):
                 numbers.extend(reversed(rows[i]))
             else:
                 numbers.extend(rows[i])
+
         yield from self._iter_text_wave(
             text,
             numbers,
             step=step,
+            fore=fore,
             back=back,
-            style=style)
+            style=style
+        )
 
-    def _iter_gradient_black(self, text, start, step=1, back=None, style=None):
+    def _iter_gradient_black(
+            self, text, start, step=1,
+            fore=None, back=None, style=None, reverse=False):
         """ Yield colorized characters,
             within the 24-length black gradient.
         """
@@ -250,22 +267,32 @@ class Colr(object):
             start = 232
         elif start > 255:
             start = 255
+
         yield from self._iter_text_wave(
             text,
             list(range(start, 256)),
             step=step,
+            fore=fore,
             back=back,
             style=style)
 
-    def _iter_text_wave(self, text, numbers, step=1, back=None, style=None):
+    def _iter_text_wave(
+            self, text, numbers, step=1,
+            fore=None, back=None, style=None):
         """ Yield colorized characters from `text`, using a wave of `numbers`.
             Arguments:
                 text     : String to be colorized.
                 numbers  : A list/tuple of numbers (256 colors).
                 step     : Number of characters to colorize per color.
-                back     : Background color to use.
+                fore     : Fore color to use (name or number).
+                           (Back will be gradient)
+                back     : Background color to use (name or number).
+                           (Fore will be gradient)
                 style    : Style name to use.
         """
+        if (fore is not None) and (back is not None):
+            raise ValueError('Both fore and back colors cannot be specied.')
+
         pos = 0
         end = len(text)
         numbergen = self._iter_wave(numbers)
@@ -273,8 +300,8 @@ class Colr(object):
             lastchar = pos + step
             yield self.color(
                 text[pos:lastchar],
-                fore=num,
-                back=back,
+                fore=num if fore is None else fore,
+                back=num if fore is not None else back,
                 style=style
             )
             if lastchar >= end:
@@ -319,6 +346,71 @@ class Colr(object):
                     up = True
                     pos = 1
             i += 1
+
+    def _str_just(
+            self, methodname, width, fillchar=' ', squeeze=False,
+            **colorkwargs):
+        """ Perform a str justify method on the text arg, or self.data, before
+            applying color codes.
+            Arguments:
+                methodname  : Name of str method to apply.
+                methodargs  : Arguments for the str method.
+
+            Keyword Arguments:
+                text, fore, back, style  : see color().
+        """
+        try:
+            width = int(width)
+        except ValueError as exint:
+            raise ValueError('Expecting a number for width.') from exint
+
+        newtext = ''
+        with suppress(KeyError):
+            # text argument overrides self.data
+            newtext = str(colorkwargs.pop('text'))
+
+        strfunc = getattr(str, methodname)
+        if newtext:
+            # Operating on text argument, self.data is left alone.
+            codelen = len(newtext) - len(codepat.sub('', newtext))
+            width = width + codelen
+            if squeeze:
+                realoldlen = len(codepat.sub('', self.data or ''))
+                width -= realoldlen
+            return self.__class__().join(
+                self,
+                self.__class__(
+                    strfunc(newtext, width, fillchar),
+                    **colorkwargs
+                )
+            )
+
+        # Operating on self.data.
+        codelen = len(self.data) - len(codepat.sub('', self.data))
+        return self.__class__(
+            strfunc(self.data, width + codelen, fillchar),
+            **colorkwargs
+        )
+
+    def center(self, width, fillchar=' ', squeeze=False, **kwargs):
+        """ s.center() doesn't work well on strings with color codes.
+            This method will use .center() before colorizing the text.
+            Returns a Colr() object.
+            Arguments:
+                width    : The width for the resulting string (before colors)
+                fillchar : The character to pad with. Default: ' '
+                squeeze  : Width applies to existing data and new data.
+                           (self.data and the text arg)
+            Keyword Arguments:
+                text     : The string to left-justify.
+                fore, back, style : see color().
+        """
+        return self._str_just(
+            'center',
+            width,
+            fillchar,
+            squeeze=squeeze,
+            **kwargs)
 
     def chained(self, text=None, fore=None, back=None, style=None):
         """ Called by the various 'color' methods to colorize a single string.
@@ -374,7 +466,8 @@ class Colr(object):
         """ Like str.format, except it returns a Colr. """
         return self.__class__(self.data.format(*args, **kwargs))
 
-    def gradient(self, text, start=0, step=1, back=None, style=None):
+    def gradient(self, text, start=0, step=1,
+                 fore=None, back=None, style=None, reverse=False):
         """ Colorize a string gradient style, using 256 colors.
             Arguments:
                 text  : String to colorize.
@@ -387,7 +480,8 @@ class Colr(object):
                 step  : Number of characters to colorize per color.
                         This allows a "wider" gradient.
                         This will always be greater than 0.
-                back  : Background color for this gradient (256 colors).
+                fore  : Foreground color, background will be gradient.
+                back  : Background color, foreground will be gradient.
                 style : Name of style to use for the gradient.
 
             Returns a Colr object with gradient text.
@@ -409,7 +503,14 @@ class Colr(object):
         return self.__class__(
             ''.join((
                 self.data,
-                ''.join(method(text, start, step=step, back=back, style=style))
+                ''.join(method(
+                    text,
+                    start,
+                    step=step,
+                    fore=fore,
+                    back=back,
+                    style=style,
+                    reverse=reverse))
             ))
         )
 
@@ -426,7 +527,7 @@ class Colr(object):
         for clr in colrs:
             if isinstance(clr, (list, tuple, GeneratorType)):
                 # Flatten any lists, at least once.
-                flat.extend((str(c) for c in clr))
+                flat.extend(str(c) for c in clr)
             else:
                 flat.append(str(clr))
 
@@ -440,11 +541,51 @@ class Colr(object):
             )
         return self.__class__(self.data.join(flat))
 
+    def ljust(self, width, fillchar=' ', squeeze=False, **kwargs):
+        """ s.ljust() doesn't work well on strings with color codes.
+            This method will use .ljust() before colorizing the text.
+            Returns a Colr() object.
+            Arguments:
+                width    : The width for the resulting string (before colors)
+                fillchar : The character to pad with. Default: ' '
+                squeeze  : Width applies to existing data and new data.
+                           (self.data and the text arg)
+            Keyword Arguments:
+                text     : The string to left-justify.
+                fore, back, style : see color().
+        """
+        return self._str_just(
+            'ljust',
+            width,
+            fillchar,
+            squeeze=squeeze,
+            **kwargs)
+
     def print(self, *args, **kwargs):
         """ Chainable print method. Prints self.data and then clears it. """
         print(self, *args, **kwargs)
         self.data = ''
         return self
+
+    def rjust(self, width, fillchar=' ', squeeze=False, **kwargs):
+        """ s.rjust() doesn't work well on strings with color codes.
+            This method will use .rjust() before colorizing the text.
+            Returns a Colr() object.
+            Arguments:
+                width    : The width for the resulting string (before colors)
+                fillchar : The character to pad with. Default: ' '
+                squeeze  : Width applies to existing data and new data.
+                           (self.data and the text arg)
+            Keyword Arguments:
+                text     : The string to left-justify.
+                fore, back, style : see color().
+        """
+        return self._str_just(
+            'rjust',
+            width,
+            fillchar,
+            squeeze=squeeze,
+            **kwargs)
 
     def str(self):
         """ Alias for self.__str__ """
