@@ -76,6 +76,7 @@ def _build_codes():
     }
 
     # Set codes for forecolors (30-37) and backcolors (40-47)
+    # Names are given to some of the 256-color variants as 'light' colors.
     for name, number in _namemap:
         built['fore'][name] = codeformat(30 + number)
         built['back'][name] = codeformat(40 + number)
@@ -87,16 +88,16 @@ def _build_codes():
     built['fore']['reset'] = codeformat(39)
     built['back']['reset'] = codeformat(49)
 
-    # Map of code -> style name/alias.
+    # Map of base code -> style name/alias.
     stylemap = (
-        ('0', ['reset_all']),
-        ('1', ['b', 'bright', 'bold']),
-        ('2', ['d', 'dim']),
-        ('3', ['i', 'italic']),
-        ('4', ['u', 'underline', 'underlined']),
-        ('5', ['f', 'flash']),
-        ('7', ['h', 'highlight', 'hilight', 'hilite', 'reverse']),
-        ('22', ['n', 'normal', 'none'])
+        ('0', ('reset_all',)),
+        ('1', ('b', 'bright', 'bold')),
+        ('2', ('d', 'dim')),
+        ('3', ('i', 'italic')),
+        ('4', ('u', 'underline', 'underlined')),
+        ('5', ('f', 'flash')),
+        ('7', ('h', 'highlight', 'hilight', 'hilite', 'reverse')),
+        ('22', ('n', 'normal', 'none'))
     )
     # Set style codes.
     for code, names in stylemap:
@@ -451,7 +452,7 @@ class Colr(object):
             if not style:
                 continue
             stylename = str(style).lower()
-            # Get code number for this style.
+            # Get escape code for this style.
             code = codes[stype].get(stylename, None)
             if not code:
                 raise ValueError('Invalid color name/number: {}'.format(style))
