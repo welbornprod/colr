@@ -1,3 +1,4 @@
+v0.0.5 09/27/15 -- Added __format__ to Colr objects.
 v0.0.4 08/18/15 -- Docs, len(), and chainable gradient().
 v0.0.3-1 08/18/15 -- Update dir() info.
 v0.0.3 08/18/15 -- Add Colr().gradient(), and clean a bit.

@@ -169,6 +169,10 @@ class Colr(object):
         ))
         return attrs
 
+    def __format__(self, fmt):
+        """ Allow format specs to  apply to self.data """
+        return str(self).__format__(fmt)
+
     def __getattr__(self, attr):
         """ If the attribute matches a fore, back, or style name,
             return the color() function. Otherwise, return known
