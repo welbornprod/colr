@@ -46,9 +46,9 @@ print(color('Hello world', fore=125, back=80))
 
 ```python
 from colr import Colr as C
-# Foreground colors start with 'f256_'
-# Background colors start with 'b256_'
-print(C().f256_125().b256_80('Hello World'))
+# Foreground colors start with 'f_'
+# Background colors start with 'b_'
+print(C().f_125().b_80('Hello World'))
 ```
 
 Notes:
