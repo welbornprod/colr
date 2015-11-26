@@ -33,8 +33,9 @@ from functools import partial
 from types import GeneratorType
 
 import re
+import sys
 
-__version__ = '0.0.5'
+__version__ = '0.0.6'
 
 __all__ = [
     'Colr',
@@ -118,6 +119,9 @@ codes = _build_codes()
 class Colr(object):
 
     """ This class colorizes text for an ansi terminal. """
+    # Automatically disable all color codes when piping output.
+    auto_disable = False
+    should_disable = not (sys.stdout.isatty() and sys.stderr.isatty())
 
     def __init__(self, text=None, fore=None, back=None, style=None):
         # Can be initialized with colored text, not required though.
@@ -296,7 +300,7 @@ class Colr(object):
                 style    : Style name to use.
         """
         if (fore is not None) and (back is not None):
-            raise ValueError('Both fore and back colors cannot be specied.')
+            raise ValueError('Both fore and back colors cannot be specified.')
 
         pos = 0
         end = len(text)
@@ -439,6 +443,9 @@ class Colr(object):
             Raises ValueError for invalid color names.
             The 'reset_all' code is appended if text is given.
         """
+        if self.should_disable and self.auto_disable:
+            return str(text)
+
         return ''.join((
             self.color_code(fore=fore, back=back, style=style),
             text or '',
@@ -600,6 +607,9 @@ class Colr(object):
 color = Colr().color
 
 if __name__ == '__main__':
+    if ('--auto-disable' in sys.argv) or ('-a' in sys.argv):
+        Colr.auto_disable = True
+
     print(
         Colr('warning', 'red')
         .join('[', ']', style='bright')(' ')
