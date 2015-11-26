@@ -51,9 +51,9 @@ Chainable:
 .. code:: python
 
     from colr import Colr as C
-    # Foreground colors start with 'f256_'
-    # Background colors start with 'b256_'
-    print(C().f256_125().b256_80('Hello World'))
+    # Foreground colors start with 'f_'
+    # Background colors start with 'b_'
+    print(C().f_125().b_80('Hello World'))
 
 Notes:
 ------
@@ -64,9 +64,9 @@ concatenation style that other libraries use. The 'clor' javascript
 library uses method chaining because that style suits javascript, but I
 wanted to make it available to Python also, at least as an option.
 
-The reset code is appended to all text. If no text is given, no reset
-code is appended. This makes it possible to build background colors and
-styles, but also have separate styles for separate pieces of text.
+The reset code is appended to all text unless the text is empty. This
+makes it possible to build background colors and styles, but also have
+separate styles for separate pieces of text.
 
 ``Colr`` objects are callable, and when called as a function will append
 text (also with optional color kwargs).

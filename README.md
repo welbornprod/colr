@@ -60,8 +60,8 @@ style that other libraries use. The 'clor' javascript library uses method
 chaining because that style suits javascript, but I wanted to make it available
 to Python also, at least as an option.
 
-The reset code is appended to all text. If no text is given, no reset code is
-appended. This makes it possible to build background colors and styles, but
+The reset code is appended to all text unless the text is empty.
+This makes it possible to build background colors and styles, but
 also have separate styles for separate pieces of text.
 
 `Colr` objects are callable, and when called as a function will append text
