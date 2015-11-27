@@ -1,3 +1,4 @@
+v0.0.7-2 11/26/15 -- Doc typos.
 v0.0.7-1 11/26/15 -- Customizable auto_disable(), and docs.
 v0.0.7 11/26/15 -- Refactor auto_disable into a function that is called once.
 v0.0.6 11/26/15 -- Add auto-color-disable, fixed a typo.
