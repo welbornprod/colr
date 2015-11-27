@@ -35,12 +35,16 @@ from types import GeneratorType
 import re
 import sys
 
-__version__ = '0.0.7'
+__version__ = '0.0.7-1'
 
 __all__ = [
+    '_disabled',
     'Colr',
+    'auto_disable',
     'codes',
     'codeformat',
+    'disable',
+    'enable',
     'extbackformat',
     'extforeformat',
     'color',
@@ -65,9 +69,6 @@ extbackformat = '\033[48;5;{}m'.format
 
 # Used to strip codes from a string.
 codepat = re.compile('\033\[([\d;]+)?m')
-
-# Whether stdout or stderr is not a tty (for auto_disable).
-not_a_tty = not (sys.stdout.isatty() and sys.stderr.isatty())
 
 
 def _build_codes():
@@ -123,14 +124,19 @@ codes = _build_codes()
 _disabled = False
 
 
-def auto_disable(enabled=True):
+def auto_disable(enabled=True, fds=(sys.stdout, sys.stderr)):
     """ Automatically decide whether to disable color codes if stdout or stderr
         are not ttys.
-        This will only disable if either stdout or stderr is not a tty.
-        This will enable if `enabled` is truthy.
+
+        Arguments:
+            enabled  : Whether to automatically disable color codes.
+                       When set to True, the fds will be checked for ttys.
+                       When set to False, enable() is called.
+            fds      : Open file descriptors to check for ttys.
+                       If any non-ttys are found, colors will be disabled.
     """
     if enabled:
-        if not_a_tty:
+        if not all(getattr(f, 'isatty', lambda: False)() for f in fds):
             disable()
     else:
         enable()

@@ -26,11 +26,15 @@
 
 """
 
-from .colr import (
+from .colr import (  # noqa
     __version__,
+    _disabled,       # for debuggig purposes, may be removed from __all__.
     Colr,
+    auto_disable,
     codes,
     codeformat,
+    disable,
+    enable,
     extbackformat,
     extforeformat,
     color
@@ -39,8 +43,11 @@ from .colr import (
 __all__ = [
     '__version__',
     'Colr',
+    'auto_disable',
     'codes',
     'codeformat',
+    'disable',
+    'enable',
     'extbackformat',
     'extforeformat',
     'color',
