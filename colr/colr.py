@@ -35,7 +35,7 @@ from types import GeneratorType
 import re
 import sys
 
-__version__ = '0.0.6'
+__version__ = '0.0.7'
 
 __all__ = [
     'Colr',
@@ -65,6 +65,9 @@ extbackformat = '\033[48;5;{}m'.format
 
 # Used to strip codes from a string.
 codepat = re.compile('\033\[([\d;]+)?m')
+
+# Whether stdout or stderr is not a tty (for auto_disable).
+not_a_tty = not (sys.stdout.isatty() and sys.stderr.isatty())
 
 
 def _build_codes():
@@ -116,12 +119,56 @@ def _build_codes():
 codes = _build_codes()
 
 
+# Set if disable() is called by the user, or automatically.
+_disabled = False
+
+
+def auto_disable(enabled=True):
+    """ Automatically decide whether to disable color codes if stdout or stderr
+        are not ttys.
+        This will only disable if either stdout or stderr is not a tty.
+        This will enable if `enabled` is truthy.
+    """
+    if enabled:
+        if not_a_tty:
+            disable()
+    else:
+        enable()
+
+
+def disable(cls=None):
+    """ Disable color codes for Colr and the convenience color() function.
+        All output will be free of color codes by use of the Colr.color_dummy
+        method where Colr.color would normally be called.
+        Created to be used by auto_disable(), for piping output to file or
+        other commands.
+    """
+    global color, _disabled
+    if cls is None:
+        cls = Colr
+    if not _disabled:
+        _disabled = True
+        cls._old_color = cls.color
+        cls.color = cls.color_dummy
+        color = cls().color
+
+
+def enable(cls=None):
+    """ Enable color codes for Colr and the convenience color() function.
+        This only needs to be called if disable() was called previously.
+    """
+    global color, _disabled
+    if cls is None:
+        cls = Colr
+    if _disabled:
+        _disabled = False
+        cls.color = cls._old_color
+        color = cls().color
+
+
 class Colr(object):
 
     """ This class colorizes text for an ansi terminal. """
-    # Automatically disable all color codes when piping output.
-    auto_disable = False
-    should_disable = not (sys.stdout.isatty() and sys.stderr.isatty())
 
     def __init__(self, text=None, fore=None, back=None, style=None):
         # Can be initialized with colored text, not required though.
@@ -443,9 +490,6 @@ class Colr(object):
             Raises ValueError for invalid color names.
             The 'reset_all' code is appended if text is given.
         """
-        if self.should_disable and self.auto_disable:
-            return str(text)
-
         return ''.join((
             self.color_code(fore=fore, back=back, style=style),
             text or '',
@@ -473,6 +517,12 @@ class Colr(object):
                 colorcodes.append(code)
         # Reset codes come first, to not override colors.
         return ''.join((''.join(resetcodes), ''.join(colorcodes)))
+
+    def color_dummy(self, text=None, **kwargs):
+        """ A wrapper for str() that matches self.color().
+            For overriding when _auto_disable is used.
+        """
+        return str(text or '')
 
     def format(self, *args, **kwargs):
         """ Like str.format, except it returns a Colr. """
@@ -608,7 +658,7 @@ color = Colr().color
 
 if __name__ == '__main__':
     if ('--auto-disable' in sys.argv) or ('-a' in sys.argv):
-        Colr.auto_disable = True
+        auto_disable()
 
     print(
         Colr('warning', 'red')
