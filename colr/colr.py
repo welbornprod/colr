@@ -35,7 +35,7 @@ from types import GeneratorType
 import re
 import sys
 
-__version__ = '0.0.7-1'
+__version__ = '0.0.7-2'
 
 __all__ = [
     '_disabled',
@@ -464,7 +464,7 @@ class Colr(object):
                 squeeze  : Width applies to existing data and new data.
                            (self.data and the text arg)
             Keyword Arguments:
-                text     : The string to left-justify.
+                text     : The string to center.
                 fore, back, style : see color().
         """
         return self._str_just(
@@ -645,7 +645,7 @@ class Colr(object):
                 squeeze  : Width applies to existing data and new data.
                            (self.data and the text arg)
             Keyword Arguments:
-                text     : The string to left-justify.
+                text     : The string to right-justify.
                 fore, back, style : see color().
         """
         return self._str_just(
