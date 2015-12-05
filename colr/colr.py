@@ -35,7 +35,7 @@ from types import GeneratorType
 import re
 import sys
 
-__version__ = '0.0.7-2'
+__version__ = '0.1.0'
 
 __all__ = [
     '_disabled',
@@ -48,6 +48,7 @@ __all__ = [
     'extbackformat',
     'extforeformat',
     'color',
+    'strip_codes'
 ]
 
 # Names and corresponding base code number
@@ -149,27 +150,34 @@ def disable(cls=None):
         Created to be used by auto_disable(), for piping output to file or
         other commands.
     """
-    global color, _disabled
-    if cls is None:
-        cls = Colr
-    if not _disabled:
-        _disabled = True
-        cls._old_color = cls.color
-        cls.color = cls.color_dummy
-        color = cls().color
+    global _disabled  # color, _disabled
+    _disabled = True
+    # if cls is None:
+    #     cls = Colr
+    # if not _disabled:
+    #     _disabled = True
+    #     cls._old_color = cls.color
+    #     cls.color = cls.color_dummy
+    #     color = cls().color
 
 
 def enable(cls=None):
     """ Enable color codes for Colr and the convenience color() function.
         This only needs to be called if disable() was called previously.
     """
-    global color, _disabled
-    if cls is None:
-        cls = Colr
-    if _disabled:
-        _disabled = False
-        cls.color = cls._old_color
-        color = cls().color
+    global _disabled  # color, _disabled
+    _disabled = False
+    # if cls is None:
+    #     cls = Colr
+    # if _disabled:
+    #     _disabled = False
+    #     cls.color = cls._old_color
+    #     color = cls().color
+
+
+def strip_codes(s):
+    """ Strip all color codes from a string. """
+    return codepat.sub('', s or '')
 
 
 class Colr(object):
@@ -434,10 +442,11 @@ class Colr(object):
         strfunc = getattr(str, methodname)
         if newtext:
             # Operating on text argument, self.data is left alone.
-            codelen = len(newtext) - len(codepat.sub('', newtext))
+            strippedtxt = strip_codes(newtext)
+            codelen = len(newtext) - len(strippedtxt)
             width = width + codelen
             if squeeze:
-                realoldlen = len(codepat.sub('', self.data or ''))
+                realoldlen = len(strip_codes(self.data))
                 width -= realoldlen
             return self.__class__().join(
                 self,
@@ -448,9 +457,11 @@ class Colr(object):
             )
 
         # Operating on self.data.
-        codelen = len(self.data) - len(codepat.sub('', self.data))
+        strippedtxt = strip_codes(self.data)
+        codelen = len(self.data) - len(strippedtxt)
+        width = width + codelen
         return self.__class__(
-            strfunc(self.data, width + codelen, fillchar),
+            strfunc(self.data, width, fillchar),
             **colorkwargs
         )
 
@@ -496,9 +507,11 @@ class Colr(object):
             Raises ValueError for invalid color names.
             The 'reset_all' code is appended if text is given.
         """
+        if _disabled:
+            return str(text or '')
         return ''.join((
             self.color_code(fore=fore, back=back, style=style),
-            text or '',
+            str(text or ''),
             codes['closing'] if text else ''
         ))
 
@@ -534,7 +547,7 @@ class Colr(object):
         """ Like str.format, except it returns a Colr. """
         return self.__class__(self.data.format(*args, **kwargs))
 
-    def gradient(self, text, start=0, step=1,
+    def gradient(self, text=None, start=0, step=1,
                  fore=None, back=None, style=None, reverse=False):
         """ Colorize a string gradient style, using 256 colors.
             Arguments:
@@ -568,19 +581,32 @@ class Colr(object):
         else:
             method = self._iter_gradient
 
+        if text:
+            return self.__class__(
+                ''.join((
+                    self.data or '',
+                    ''.join(method(
+                        text,
+                        start,
+                        step=step,
+                        fore=fore,
+                        back=back,
+                        style=style,
+                        reverse=reverse))
+                ))
+            )
+
+        # Operating on self.data (may get messy).
+        # The data must be unstyled to do this.
         return self.__class__(
-            ''.join((
-                self.data,
-                ''.join(method(
-                    text,
-                    start,
-                    step=step,
-                    fore=fore,
-                    back=back,
-                    style=style,
-                    reverse=reverse))
-            ))
-        )
+            ''.join(method(
+                strip_codes(self.data),
+                start,
+                step=step,
+                fore=fore,
+                back=back,
+                style=style,
+                reverse=reverse)))
 
     def join(self, *colrs, **colorkwargs):
         """ Like str.join, except it returns a Colr.

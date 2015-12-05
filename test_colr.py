@@ -3,6 +3,8 @@
 
 """ test_colr.py
     Run a few tests for the Colr library.
+    Actual unit tests are coming, but for now just try the methods and see
+    if anything breaks.
     -Christopher Welborn 08-30-2015
 """
 
@@ -121,6 +123,26 @@ def main(argd):
         'This is regular text.'.ljust(maxwidth // 2 - 1),
         Colr('This is colored.', fore='red').rjust(maxwidth // 2)
     ))
+
+    # Gradient should operate on self.data when no text is provided.
+    print(Colr('This is a gradient self.data.').gradient())
+
+    # Gradient should append to self.data when no text is provided.
+    print(
+        Colr('This is a green self.data', 'green')(' ')
+        .gradient('And this is an appended gradient.', start=132))
+
+    # Gradient should be okay with ljust/center/rjust.
+    print(Colr().gradient('This is a left gradient').ljust(maxwidth))
+    print(Colr().gradient('Center gradient.').center(maxwidth))
+    print(Colr().gradient('Right-aligned gradient.').rjust(maxwidth))
+
+    # Gradient and ljust/center/rjust would be chainable.
+    print(Colr()
+          .ljust(chunkwidth, text='Chained left.').gradient(start=200)
+          .center(chunkwidth, text='Chained center.').gradient(start=50)
+          .rjust(chunkwidth, text='Chained right.').gradient(start=150))
+
     return 0
 
 if __name__ == '__main__':

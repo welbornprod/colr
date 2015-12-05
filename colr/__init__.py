@@ -28,7 +28,6 @@
 
 from .colr import (  # noqa
     __version__,
-    _disabled,       # for debuggig purposes, may be removed from __all__.
     Colr,
     auto_disable,
     codes,
@@ -37,7 +36,8 @@ from .colr import (  # noqa
     enable,
     extbackformat,
     extforeformat,
-    color
+    color,
+    strip_codes
 )
 
 __all__ = [
@@ -51,4 +51,5 @@ __all__ = [
     'extbackformat',
     'extforeformat',
     'color',
+    'strip_codes'
 ]
