@@ -34,9 +34,9 @@ SCRIPTDIR = os.path.abspath(sys.path[0])
 USAGESTR = """{versionstr}
     Usage:
         {script} -h | -v
-        {script} [TEXT] [FORE] [BACK] [STYLE]          [-a] [-e] [-l num] [-n]
-        {script} [TEXT] [-f fore] [-b back] [-s style] [-a] [-e] [-l num] [-n]
-        {script} [TEXT] -g num [-c num]                [-a] [-e] [-l num] [-n]
+        {script} [TEXT] [FORE] [BACK] [STYLE] [-a] [-e] [-c num | -l num | -r num] [-n]
+        {script} [TEXT] [-f fore] [-b back] [-s style] [-a] [-e] [-c num | -l num | -r num] [-n]
+        {script} [TEXT] -g num [-t num] [-a] [-e] [-c num | -l num | -r num] [-n]
         {script} -x [TEXT]
 
     Options:
@@ -47,9 +47,8 @@ USAGESTR = """{versionstr}
         -a,--auto-disable      : Automatically disable colors when output
                                  target is not a terminal.
         -b name,--back name    : Name or number for back color to use.
-        -c num,--count num     : Number of characters per color step when
-                                 using --gradient.
-                                 Default: 1
+        -c num,--center num    : Center justify the text before coloring,
+                                 using `num` as the overall width.
         -e,--err               : Print to stderr instead of stdout.
         -f name,--fore name    : Name or number for fore color to use.
         -g num,--gradient num  : Use the gradient method starting at `num`.
@@ -58,14 +57,19 @@ USAGESTR = """{versionstr}
         -l num,--ljust num     : Left justify the text before coloring,
                                  using `num` as the overall width.
         -n,--newline           : Do not append a newline character (\\n).
+        -r num,--rjust num     : Right justify the text before coloring,
+                                 using `num` as the overall width.
         -s name,--style name   : Name for style to use.
+        -t num,--step num      : Number of characters per color step when
+                                 using --gradient.
+                                 Default: 1
         -x,--stripcodes        : Strip all color codes from text.
         -v,--version           : Show version.
 
     Colors and style names can be given in any order when flags are used.
     Without using the flags, they must be given in order (fore, back, style).
 
-""".format(script=SCRIPT, versionstr=VERSIONSTR)
+""".format(script=SCRIPT, versionstr=VERSIONSTR)  # noqa
 
 
 def main(argd):
@@ -89,7 +93,7 @@ def main(argd):
         clr = gradient(
             txt,
             start=try_int(argd['--gradient'], 17),
-            step=try_int(argd['--count'], 1),
+            step=try_int(argd['--step'], 1),
             fore=fore,
             back=back,
             style=style)
@@ -97,8 +101,13 @@ def main(argd):
         # Normal colored output.
         clr = C(txt, fore=fore, back=back, style=style)
 
+    # Justify options...
     if argd['--ljust']:
         clr = clr.ljust(try_int(argd['--ljust']))
+    elif argd['--rjust']:
+        clr = clr.rjust(try_int(argd['--rjust']))
+    elif argd['--center']:
+        clr = clr.center(try_int(argd['--center']))
 
     print(str(clr), file=fd, end=end)
     return 0
