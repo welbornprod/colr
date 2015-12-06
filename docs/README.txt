@@ -116,7 +116,7 @@ Like ``str.ljust``, except it ignores escape codes.
 
 .. code:: python
 
-    Colr('Hello', 'green').ljust(40)
+    Colr('Hello', 'blue').ljust(40)
 
 Colr.rjust
 ~~~~~~~~~~
@@ -125,7 +125,7 @@ Like ``str.rjust``, except it ignores escape codes.
 
 .. code:: python
 
-    Colr('Hello', 'green').rjust(40)
+    Colr('Hello', 'blue').rjust(40)
 
 Colr.str
 ~~~~~~~~
@@ -134,7 +134,18 @@ The same as calling ``str()`` on a ``Colr`` instance.
 
 .. code:: python
 
-    Colr('test', 'green').str() == str(Colr('test', 'green'))
+    Colr('test', 'blue').str() == str(Colr('test', 'blue'))
+
+Colr.\_\_add\_\_
+~~~~~~~~~~~~~~~~
+
+Strings can be added to a ``Colr`` and the other way around. Both return
+a ``Colr`` instance.
+
+.. code:: python
+
+    Colr('test', 'blue') + 'this' == Colr('').join(Colr('test', 'blue'), 'this')
+    'test' + Colr('this', 'blue') == Colr('').join('test', Colr(' this', 'blue'))
 
 Colr.\_\_call\_\_
 ~~~~~~~~~~~~~~~~~
@@ -144,7 +155,49 @@ append text to it, with the same arguments as ``color()``.
 
 .. code:: python
 
-    Colr('One', 'green')(' formatted', 'red')(' string.', 'blue')
+    Colr('One', 'blue')(' formatted', 'red')(' string.', 'blue')
+
+Colr.\_\_eq\_\_, \_\_ne\_\_
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+``Colr`` instances can also be compared with other ``Colr`` instances.
+They are equal if ``self.data`` is equal to ``other.data``.
+
+.. code:: python
+
+    Colr('test', 'blue') == Colr('test', 'blue')
+    Colr('test', 'blue') != Colr('test', 'red')
+
+Colr.\_\_lt\_\_, \_\_gt\_\_, \_\_le\_\_, \_\_ge\_\_
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Escape codes are stripped for less-than/greater-than comparisons.
+
+.. code:: python
+
+    Colr('test', 'blue') < Colr('testing', 'blue')
+
+Colr.\_\_getitem\_\_
+~~~~~~~~~~~~~~~~~~~~
+
+Escape codes are stripped when subscripting/indexing.
+
+.. code:: python
+
+    Colr('test', 'blue')[2] == Colr('s')
+    Colr('test', 'blue')[1:3] == Colr('es')
+
+Colr.\_\_mul\_\_
+~~~~~~~~~~~~~~~~
+
+``Colr`` instances can be multiplied by an ``int`` to build color
+strings. These are all equal:
+
+.. code:: python
+
+    Colr('*', 'blue') * 2
+    Colr('*', 'blue') + Colr('*', 'blue')
+    Colr('').join(Colr('*', 'blue'), Colr('*', 'blue'))
 
 --------------
 
