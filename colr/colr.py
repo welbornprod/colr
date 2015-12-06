@@ -265,8 +265,13 @@ class Colr(object):
         return len(self.data)
 
     def __lt__(self, other):
+        """ Colr is less another color if self.data < other.data.
+            Colr cannot be compared to any other type.
+        """
         if not isinstance(other, self.__class__):
-            return False
+            raise TypeError('Cannot compare. Expected: {}, got: {}.'.format(
+                self.__class__.__name__,
+                getattr(other, '__class__', type(other)).__name__))
         return self.data < other.data
 
     def __repr__(self):
