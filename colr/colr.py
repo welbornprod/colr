@@ -32,10 +32,13 @@ from contextlib import suppress
 from functools import partial, total_ordering
 from types import GeneratorType
 
+import math
 import re
 import sys
 
-__version__ = '0.1.1'
+from .trans import hex2term
+
+__version__ = '0.2.0'
 
 __all__ = [
     '_disabled',
@@ -154,6 +157,11 @@ def disable():
     _disabled = True
 
 
+def disabled():
+    """ Public access to _disabled. """
+    return _disabled
+
+
 def enable():
     """ Enable color codes for Colr and the convenience color() function.
         This only needs to be called if disable() was called previously.
@@ -164,7 +172,7 @@ def enable():
 
 def strip_codes(s):
     """ Strip all color codes from a string. """
-    return codepat.sub('', s or '')
+    return codepat.sub('', str(s or ''))
 
 
 @total_ordering
@@ -463,6 +471,37 @@ class Colr(object):
                     pos = 1
             i += 1
 
+    def _rainbow_color(self, freq, i):
+        """ Calculate a single hexcode value for a piece of a rainbow.
+            Arguments:
+                freq  : "Tightness" of colors (see self.rainbow())
+                i     : Index of character in string to colorize.
+        """
+        # Borrowed from lolcat, translated from ruby.
+        red = math.sin(freq * i + 0) * 127 + 128
+        green = math.sin(freq * i + 2 * math.pi / 3) * 127 + 128
+        blue = math.sin(freq * i + 4 * math.pi / 3) * 127 + 128
+        return '{:02x}{:02x}{:02x}'.format(int(red), int(green), int(blue))
+
+    def _rainbow_hex(self, s, freq=0.1, spread=3.0, offset=0):
+        """ Iterate over characters in a string to build data needed for a
+            rainbow effect.
+            Yields tuples of (char, hexcode).
+            Arguments:
+                s      : String to colorize.
+                freq   : Frequency/"tightness" of colors in the rainbow.
+                         Best results when in the range 0.0-1.0.
+                         Default: 0.1
+                spread : Spread/width of colors.
+                         Default: 3.0
+                offset : Offset for start of rainbow.
+                         Default: 0
+        """
+        return (
+            (c, self._rainbow_color(freq, offset + i / spread))
+            for i, c in enumerate(s)
+        )
+
     def _str_just(
             self, methodname, width, fillchar=' ', squeeze=False,
             **colorkwargs):
@@ -593,8 +632,9 @@ class Colr(object):
         """ Like str.format, except it returns a Colr. """
         return self.__class__(self.data.format(*args, **kwargs))
 
-    def gradient(self, text=None, start=0, step=1,
-                 fore=None, back=None, style=None, reverse=False):
+    def gradient(
+            self, text=None, fore=None, back=None, style=None,
+            start=0, step=1, reverse=False):
         """ Colorize a string gradient style, using 256 colors.
             Arguments:
                 text  : String to colorize.
@@ -613,6 +653,7 @@ class Colr(object):
 
             Returns a Colr object with gradient text.
         """
+        # TODO: use rainbow() with preset names.
         # The first 16 colors (0->15) are not allowed.
         if start < 16:
             start = 16
@@ -707,6 +748,70 @@ class Colr(object):
         self.data = ''
         return self
 
+    def rainbow(
+            self, text=None, fore=None, back=None, style=None,
+            freq=0.1, offset=0, spread=3.0):
+        """ Make rainbow gradient text.
+            Arguments:
+                text   : Text to make gradient.
+                         Default: self.data
+                fore   : Fore color to use (makes back the rainbow).
+                         Default: None
+                back   : Back color to use (makes fore the rainbow).
+                         Default: None
+                style  : Style for the rainbow.
+                         Default: None
+                freq   : Frequency of color change, a higher value means more
+                         colors. Best results when in the range 0.0-1.0.
+                         Default: 0.1
+                offset : Offset for start of rainbow.
+                         Default: 0
+                spread : Spread/width of each color.
+                         Default: 3.0
+        """
+        if fore and back:
+            raise ValueError('Cannot use both fore and back with rainbow()')
+
+        if fore:
+            color_args = (lambda hexval: {
+                'back': hex2term(hexval),
+                'style': style,
+                'fore': fore
+            })
+        else:
+            color_args = (lambda hexval: {
+                'fore': hex2term(hexval),
+                'style': style,
+                'back': back
+            })
+
+        if text:
+            # Prepend existing self.data to the rainbow text.
+            return self.__class__(
+                ''.join((
+                    self.data,
+                    ''.join(
+                        self.color(c, **color_args(hval))
+                        for c, hval in self._rainbow_hex(
+                            text, freq=freq,
+                            spread=spread,
+                            offset=offset)
+                    )
+                ))
+            )
+
+        # Operate on self.data.
+        return self.__class__(
+            ''.join(
+                self.color(c, **color_args(hval))
+                for c, hval in self._rainbow_hex(
+                    strip_codes(self.data),
+                    freq=freq,
+                    spread=spread,
+                    offset=offset)
+            )
+        )
+
     def rjust(self, width, fillchar=' ', squeeze=False, **kwargs):
         """ s.rjust() doesn't work well on strings with color codes.
             This method will use .rjust() before colorizing the text.
@@ -741,12 +846,5 @@ if __name__ == '__main__':
     print(
         Colr('warning', 'red')
         .join('[', ']', style='bright')(' ')
-        .green('This module is meant to be imported.')
+        .green('This module is meant to be ran with `python -m colr.`')
     )
-    # 134
-    print(Colr().gradient(
-        'This is not a command-line tool, and should not be treated like one.',
-        start=134,
-        step=8,
-        style='bright'
-    ))

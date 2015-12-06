@@ -33,6 +33,7 @@ from .colr import (  # noqa
     codes,
     codeformat,
     disable,
+    disabled,
     enable,
     extbackformat,
     extforeformat,
@@ -40,16 +41,43 @@ from .colr import (  # noqa
     strip_codes
 )
 
+from .trans import (
+    ColorCode,
+    hex2rgb,
+    hex2term,
+    hex2term_map,
+    hex2termhex,
+    rgb2hex,
+    rgb2term,
+    rgb2termhex,
+    term2hex,
+    term2hex_map,
+    term2rgb
+)
+
 __all__ = [
     '__version__',
     'Colr',
+    'ColorCode',
     'auto_disable',
     'codes',
     'codeformat',
     'disable',
+    'disabled',
     'enable',
     'extbackformat',
     'extforeformat',
     'color',
-    'strip_codes'
+    'strip_codes',
+    # trans functions made available.
+    'hex2rgb',
+    'hex2term',
+    'hex2term_map',
+    'hex2termhex',
+    'rgb2hex',
+    'rgb2term',
+    'rgb2termhex',
+    'term2hex',
+    'term2hex_map',
+    'term2rgb'
 ]
