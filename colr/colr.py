@@ -274,6 +274,19 @@ class Colr(object):
                 getattr(other, '__class__', type(other)).__name__))
         return self.data < other.data
 
+    def __mul__(self, n):
+        """ Allow the same multiplication operator as str,
+            except return a Colr.
+        """
+        if not isinstance(n, int):
+            raise TypeError('Cannot multiply Colr by non-int type: {}'.format(
+                getattr(n, '__class__', type(n)).__name__))
+
+        return self.__class__(self.data * n)
+
+    def __rmul__(self, n):
+        return self * n
+
     def __repr__(self):
         return repr(self.data)
 
