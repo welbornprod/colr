@@ -176,6 +176,16 @@ class Colr(object):
         # Can be initialized with colored text, not required though.
         self.data = self.color(text or '', fore=fore, back=back, style=style)
 
+    def __add__(self, other):
+        """ Allow the old string concat methods through addition. """
+        if isinstance(other, self.__class__):
+            return self.__class__(''.join((self.data, other.data)))
+        elif isinstance(other, str):
+            return self.__class__(''.join((self.data, other)))
+
+        raise TypeError('Colr cannot be added to non Colr/str type: {}'.format(
+            getattr(other, '__class__', type(other)).__name__))
+
     def __bool__(self):
         """ A Colr is truthy if it has some .data. """
         return bool(self.data)
@@ -255,6 +265,7 @@ class Colr(object):
     def __getitem__(self, key):
         """ Allow subscripting self.data. This will ignore any escape codes,
             because otherwise it would be just about useless.
+            Returns another Colr instance.
         """
         return self.__class__(strip_codes(self.data)[key])
 
@@ -283,6 +294,16 @@ class Colr(object):
                 getattr(n, '__class__', type(n)).__name__))
 
         return self.__class__(self.data * n)
+
+    def __radd__(self, other):
+        """ Allow a Colr to be added to a str. """
+        if isinstance(other, self.__class__):
+            return self.__class__(''.join((other.data, self.data)))
+        elif isinstance(other, str):
+            return self.__class__(''.join((other, self.data)))
+
+        raise TypeError('Colr cannot be added to non Colr/str type: {}'.format(
+            getattr(other, '__class__', type(other)).__name__))
 
     def __rmul__(self, n):
         return self * n
