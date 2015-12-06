@@ -29,13 +29,13 @@
 
 """
 from contextlib import suppress
-from functools import partial
+from functools import partial, total_ordering
 from types import GeneratorType
 
 import re
 import sys
 
-__version__ = '0.1.0'
+__version__ = '0.1.1'
 
 __all__ = [
     '_disabled',
@@ -167,6 +167,7 @@ def strip_codes(s):
     return codepat.sub('', s or '')
 
 
+@total_ordering
 class Colr(object):
 
     """ This class colorizes text for an ansi terminal. """
@@ -174,6 +175,10 @@ class Colr(object):
     def __init__(self, text=None, fore=None, back=None, style=None):
         # Can be initialized with colored text, not required though.
         self.data = self.color(text or '', fore=fore, back=back, style=style)
+
+    def __bool__(self):
+        """ A Colr is truthy if it has some .data. """
+        return bool(self.data)
 
     def __call__(self, text=None, fore=None, back=None, style=None):
         """ Append text to this Colr object. """
@@ -221,6 +226,10 @@ class Colr(object):
         ))
         return attrs
 
+    def __eq__(self, other):
+        """ Colrs are equal if their .data is the same. """
+        return isinstance(other, self.__class__) and other.data == self.data
+
     def __format__(self, fmt):
         """ Allow format specs to  apply to self.data """
         return str(self).__format__(fmt)
@@ -243,11 +252,22 @@ class Colr(object):
                 raise AttributeError(ex)
         return val
 
+    def __getitem__(self, key):
+        """ Allow subscripting self.data. This will ignore any escape codes,
+            because otherwise it would be just about useless.
+        """
+        return self.__class__(strip_codes(self.data)[key])
+
     def __len__(self):
         """ Return len() for any built up string data. This will count color
             codes, so it's not that useful.
         """
         return len(self.data)
+
+    def __lt__(self, other):
+        if not isinstance(other, self.__class__):
+            return False
+        return self.data < other.data
 
     def __repr__(self):
         return repr(self.data)
