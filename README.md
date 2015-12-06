@@ -6,6 +6,8 @@ A python module for using terminal colors in linux. It contains a simple
 with escape codes, but also has all colors and styles as chainable methods
 on the `Colr` object.
 
+_______________________________________________________________________________
+
 Examples:
 ---------
 
@@ -51,6 +53,88 @@ from colr import Colr as C
 print(C().f_125().b_80('Hello World'))
 ```
 
+_______________________________________________________________________________
+
+
+Other methods:
+--------------
+
+The `Colr` object has several helper methods.
+The `color()` method returns a `str`, but the rest return a `Colr` instance
+so they can be chained. A chainable version of `color()` does exist (`chainable()`),
+but it's not really needed outside of the `colr` module itself.
+
+###Colr.center
+
+Like `str.center`, except it ignores escape codes.
+
+```python
+Colr('Hello', fore='green').center(40)
+```
+
+###Colr.format
+
+Like `str.format`, except it operates on `Colr.data`.
+
+```python
+Colr('Hello').blue(' {}').red(' {}').format('my', 'friend').center(40)
+```
+
+###Colr.gradient
+
+Builds gradient text, with optional start code and step.
+The method for building gradients may change in the future.
+
+```python
+(Colr('Wow man, ').gradient(start=232)
+.gradient('what a neat feature that is.', start=49))
+```
+
+###Colr.join
+
+Joins `Colr` instances or other types together.
+If anything except a `Colr` is passed, `str(thing)` is called before
+joining. `join` accepts multiple args, and any list-like arguments are
+flattened at least once (simulating str.join args).
+
+```python
+Colr('alert', 'red').join('[', ']').yellow(' This is neat.')
+```
+
+###Colr.ljust
+
+Like `str.ljust`, except it ignores escape codes.
+
+```python
+Colr('Hello', 'green').ljust(40)
+```
+
+###Colr.rjust
+
+Like `str.rjust`, except it ignores escape codes.
+
+```python
+Colr('Hello', 'green').rjust(40)
+```
+
+###Colr.str
+
+The same as calling `str()` on a `Colr` instance.
+```python
+Colr('test', 'green').str() == str(Colr('test', 'green'))
+```
+
+###Colr.\_\_call\_\_
+
+`Colr` instances are callable themselves.
+Calling a `Colr` will append text to it, with the same arguments as `color()`.
+
+```python
+Colr('One', 'green')(' formatted', 'red')(' string.', 'blue')
+```
+
+_______________________________________________________________________________
+
 Notes:
 ------
 
@@ -63,9 +147,6 @@ to Python also, at least as an option.
 The reset code is appended to all text unless the text is empty.
 This makes it possible to build background colors and styles, but
 also have separate styles for separate pieces of text.
-
-`Colr` objects are callable, and when called as a function will append text
-(also with optional color kwargs).
 
 This library may be a little too flexible, and that may change:
 

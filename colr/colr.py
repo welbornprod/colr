@@ -143,36 +143,23 @@ def auto_disable(enabled=True, fds=(sys.stdout, sys.stderr)):
         enable()
 
 
-def disable(cls=None):
+def disable():
     """ Disable color codes for Colr and the convenience color() function.
         All output will be free of color codes by use of the Colr.color_dummy
         method where Colr.color would normally be called.
         Created to be used by auto_disable(), for piping output to file or
         other commands.
     """
-    global _disabled  # color, _disabled
+    global _disabled
     _disabled = True
-    # if cls is None:
-    #     cls = Colr
-    # if not _disabled:
-    #     _disabled = True
-    #     cls._old_color = cls.color
-    #     cls.color = cls.color_dummy
-    #     color = cls().color
 
 
-def enable(cls=None):
+def enable():
     """ Enable color codes for Colr and the convenience color() function.
         This only needs to be called if disable() was called previously.
     """
-    global _disabled  # color, _disabled
+    global _disabled
     _disabled = False
-    # if cls is None:
-    #     cls = Colr
-    # if _disabled:
-    #     _disabled = False
-    #     cls.color = cls._old_color
-    #     color = cls().color
 
 
 def strip_codes(s):

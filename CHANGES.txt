@@ -1,3 +1,4 @@
+v0.1.0 12/05/15 -- colr tool, strip_codes, other improvements.
 v0.0.7-2 11/26/15 -- Doc typos.
 v0.0.7-1 11/26/15 -- Customizable auto_disable(), and docs.
 v0.0.7 11/26/15 -- Refactor auto_disable into a function that is called once.
