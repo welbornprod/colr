@@ -388,15 +388,17 @@ class Colr(object):
         """ Yield colorized characters,
             within the 24-length black gradient.
         """
-        # TODO: This func was for the old gradient() method. Not used anymore.
         if start < 232:
             start = 232
         elif start > 255:
             start = 255
-
+        if reverse:
+            codes = list(range(start, 231, -1))
+        else:
+            codes = list(range(start, 256))
         yield from self._iter_text_wave(
             text,
-            list(range(start, 256)),
+            codes,
             step=step,
             fore=fore,
             back=back,
@@ -416,8 +418,7 @@ class Colr(object):
                            (Fore will be gradient)
                 style    : Style name to use.
         """
-        # TODO: This func was for the old gradient() method. Not used anymore.
-        if (fore is not None) and (back is not None):
+        if fore and back:
             raise ValueError('Both fore and back colors cannot be specified.')
 
         pos = 0
@@ -452,7 +453,6 @@ class Colr(object):
                         gen.send(True)
                     print(c)
         """
-        # TODO: This func was for the old gradient() method. Not used anymore.
         up = True
         pos = 0
         i = 0
@@ -643,9 +643,77 @@ class Colr(object):
         return self.__class__(self.data.format(*args, **kwargs))
 
     def gradient(
+            self, text=None, name=None, fore=None, back=None, style=None,
+            freq=0.1, spread=None):
+        """ Return a gradient by color name. Uses rainbow() underneath to
+            build the gradients, starting at a known offset.
+            Arguments:
+                text   : Text to make gradient (self.data when not given).
+                         The gradient text is joined to self.data when this is
+                         used.
+                name   : Color name for the gradient (same as fore names).
+                         Default: black
+                fore   : Fore color. Back will be gradient when used.
+                         Default: None (fore is gradient)
+                back   : Back color. Fore will be gradient when used.
+                         Default: None (back=reset/normal)
+                style  : Style for the gradient.
+                         Default: None (reset/normal)
+                freq   : Frequency of color change. Higher means more colors.
+                         Best when in the 0.0-1.0 range.
+                         Default: 0.1
+                spread : Spread/width of each color (in characters).
+                         Default: 3.0 for colors, 1 for black/white
+        """
+        try:
+            # Try explicit offset (passed in with `name`).
+            offset = int(name)
+        except (TypeError, ValueError):
+            name = name.lower().strip() if name else 'black'
+            # Black and white are separate methods.
+            if name == 'black':
+                return self.gradient_black(
+                    text=text,
+                    fore=fore,
+                    back=back,
+                    style=style,
+                    step=int(spread) if spread else 1)
+            elif name == 'white':
+                return self.gradient_black(
+                    text=text,
+                    fore=fore,
+                    back=back,
+                    style=style,
+                    step=int(spread) if spread else 1,
+                    reverse=True)
+            try:
+                # Get rainbow offset from known name.
+                offset = {
+                    'green': 0,
+                    'orange': 9,
+                    'lightred': 15,
+                    'magenta': 20,
+                    'red': 80,
+                    'yellow': 62,
+                    'blue': 34,
+                    'cyan': 48,
+                }[name]
+            except KeyError:
+                raise ValueError('Unknown gradient name: {}'.format(name))
+
+        return self.rainbow(
+            text=text,
+            fore=fore,
+            back=back,
+            style=style,
+            offset=offset,
+            freq=freq,
+            spread=spread or 3.0)
+
+    def gradient_black(
             self, text=None, fore=None, back=None, style=None,
-            start=0, step=1, reverse=False):
-        """ Colorize a string gradient style, using 256 colors.
+            start=None, step=1, reverse=False):
+        """ Return a black and white gradient.
             Arguments:
                 text  : String to colorize.
                 start : Starting 256-color number.
@@ -660,50 +728,39 @@ class Colr(object):
                 fore  : Foreground color, background will be gradient.
                 back  : Background color, foreground will be gradient.
                 style : Name of style to use for the gradient.
-
-            Returns a Colr object with gradient text.
         """
-        # TODO: use rainbow() with preset names.
-        # The first 16 colors (0->15) are not allowed.
-        if start < 16:
-            start = 16
-
-        step = abs(int(step))
-        if step < 1:
-            step = 1
-
-        if start > 231:
-            # Black gradient.
-            method = self._iter_gradient_black
-        else:
-            method = self._iter_gradient
-
         if text:
             return self.__class__(
                 ''.join((
                     self.data or '',
-                    ''.join(method(
-                        text,
-                        start,
-                        step=step,
-                        fore=fore,
-                        back=back,
-                        style=style,
-                        reverse=reverse))
+                    ''.join((
+                        self._iter_gradient_black(
+                            text,
+                            start or (255 if reverse else 232),
+                            step=step,
+                            fore=fore,
+                            back=back,
+                            style=style,
+                            reverse=reverse
+                        )
+                    ))
                 ))
             )
 
-        # Operating on self.data (may get messy).
-        # The data must be unstyled to do this.
+        # Operating on self.data.
         return self.__class__(
-            ''.join(method(
-                strip_codes(self.data),
-                start,
-                step=step,
-                fore=fore,
-                back=back,
-                style=style,
-                reverse=reverse)))
+            ''.join((
+                self._iter_gradient_black(
+                    strip_codes(self.data),
+                    start or (255 if reverse else 232),
+                    step=step,
+                    fore=fore,
+                    back=back,
+                    style=style,
+                    reverse=reverse
+                )
+            ))
+        )
 
     def join(self, *colrs, **colorkwargs):
         """ Like str.join, except it returns a Colr.
@@ -760,7 +817,7 @@ class Colr(object):
 
     def rainbow(
             self, text=None, fore=None, back=None, style=None,
-            freq=0.1, offset=0, spread=3.0):
+            freq=0.1, offset=30, spread=3.0):
         """ Make rainbow gradient text.
             Arguments:
                 text   : Text to make gradient.
@@ -775,7 +832,7 @@ class Colr(object):
                          colors. Best results when in the range 0.0-1.0.
                          Default: 0.1
                 offset : Offset for start of rainbow.
-                         Default: 0
+                         Default: 30
                 spread : Spread/width of each color.
                          Default: 3.0
         """
