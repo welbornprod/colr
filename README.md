@@ -245,6 +245,11 @@ print(color('Testing', hex2term('#FF0000')))
 
 Converts a hex color to it's closest terminal color in hex.
 
+```python
+from colr import hex2termhex
+hex2termhex('005500') == '005f00'
+```
+
 ###rgb2hex
 
 Converts an RGB value `(0, 0, 0)` to it's hex value (`000000`).
@@ -262,6 +267,11 @@ print(color('Testing', rgb2term(0, 255, 0)))
 
 Converts an RGB value to it's closest terminal color in hex.
 
+```python
+from colr import rgb2termhex
+rgb2termhex(0, 55, 0) == '005f00'
+```
+
 ###term2hex
 
 Converts a terminal code number to it's hex value.
@@ -276,6 +286,7 @@ term2hex(30) == '008787'
 Converts a terminal code number to it's RGB value.
 
 ```python
+from colr import term2rgb
 term2rgb(30) == (0, 135, 135)
 ```
 _______________________________________________________________________________
@@ -292,6 +303,10 @@ python3 -m colr --help
 It will do fore, back, style, gradients, rainbows, justification,
 translation, and code stripping of input (as an argument or stdin).
 
+lolcat emulation:
+```
+fortune | python3 -m colr --rainbow
+```
 _______________________________________________________________________________
 
 Notes:
