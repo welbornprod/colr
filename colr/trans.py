@@ -317,10 +317,15 @@ def hex2rgb(hexval, allow_short=False):
     hexval = hexval.strip().lstrip('#')
     if allow_short:
         hexval = fix_hex(hexval)
-    return tuple(
-        int(''.join(hexval[i:i + 2]), 16)
-        for i in range(0, len(hexval), 2)
-    )
+    try:
+        val = tuple(
+            int(''.join(hexval[i:i + 2]), 16)
+            for i in range(0, len(hexval), 2)
+        )
+    except ValueError:
+        # Bad hex string.
+        raise ValueError('Invalid hex value: {}'.format(hexval))
+    return val
 
 
 def hex2term(hexval, allow_short=False):
