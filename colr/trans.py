@@ -503,7 +503,7 @@ if __name__ == '__main__':
     from sys import exit, stderr
     print(
         ' '.join((
-            'This module is part of the Colr package,'
+            'This module is part of the Colr package,',
             'and is meant to be imported.'
         )),
         file=stderr)
