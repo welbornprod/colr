@@ -83,12 +83,23 @@ Colr('Hello').blue(' {}').red(' {}').format('my', 'friend').center(40)
 
 ###Colr.gradient
 
-Builds gradient text, with optional start code and step.
-The method for building gradients may change in the future.
+Like `rainbow()`, except a known name can be passed to choose the color
+(same names as the basic fore colors).
 
 ```python
-(Colr('Wow man, ').gradient(start=232)
-.gradient('what a neat feature that is.', start=49))
+(Colr('Wow man, ').gradient(name='red')
+.gradient('what a neat feature that is.', name='blue'))
+```
+
+###Colr.gradient_black
+
+Builds a black and white gradient. The default starting color is black, but
+white will be used if `reverse=True` is passed. Like the other `gradient/rainbow`
+functions, if you pass a `fore` color, the background will be gradient.
+
+```python
+(C('Why does it have to be black or white?').gradient_black(step=3)
+.gradient_black(' ' * 10, fore='reset', reverse=True))
 ```
 
 ###Colr.join
@@ -108,6 +119,15 @@ Like `str.ljust`, except it ignores escape codes.
 
 ```python
 Colr('Hello', 'blue').ljust(40)
+```
+
+###Colr.rainbow
+
+Beautiful rainbow gradients in the same style as [lolcat](https://github.com/busyloop/lolcat).
+This method is incapable of doing black and white gradients. That's what
+`gradient_black()` is for.
+```python
+C('This is really pretty.').rainbow(freq=.5)
 ```
 
 ###Colr.rjust
@@ -182,23 +202,116 @@ Colr('*', 'blue') + Colr('*', 'blue')
 Colr('').join(Colr('*', 'blue'), Colr('*', 'blue'))
 ```
 
+_______________________________________________________________________________
+
+Color Translation:
+------------------
+
+The `colr` module also includes several tools for converting from one color
+value to another:
+
+###ColorCode
+
+A class that automatically converts hex, rgb, or terminal codes to the other
+types. They can be accessed through the attributes `code`, `hexval`, and `rgb`.
+
+```python
+from colr import ColorCode
+print(ColorCode(30))
+# Terminal:  30, Hex: 008787, RGB:   0, 135, 135
+
+print(ColorCode('de00fa'))
+# Terminal: 165, Hex: de00fa, RGB: 222,   0, 250
+
+print(ColorCode((75, 50, 178)))
+# Terminal:  61, Hex: 4b32b2, RGB:  75,  50, 178
+```
+
+Printing `ColorCode(45).example()` will show the actual color in the terminal.
+
+###hex2rgb
+
+Converts a hex color (`#000000`) to RGB `(0, 0, 0)`.
+
+###hex2term
+
+Converts a hex color to terminal code number.
+
+```python
+from colr import color, hex2term
+print(color('Testing', hex2term('#FF0000')))
+```
+###hex2termhex
+
+Converts a hex color to it's closest terminal color in hex.
+
+###rgb2hex
+
+Converts an RGB value `(0, 0, 0)` to it's hex value (`000000`).
+
+###rgb2term
+
+Converts an RGB value to terminal code number.
+
+```python
+from colr import color, rgb2term
+print(color('Testing', rgb2term(0, 255, 0)))
+```
+
+###rgb2termhex
+
+Converts an RGB value to it's closest terminal color in hex.
+
+###term2hex
+
+Converts a terminal code number to it's hex value.
+
+```python
+from colr import term2hex
+term2hex(30) == '008787'
+```
+
+###term2rgb
+
+Converts a terminal code number to it's RGB value.
+
+```python
+term2rgb(30) == (0, 135, 135)
+```
+_______________________________________________________________________________
+
+
+Colr Tool:
+----------
+
+The `colr` package can be used as a command line tool:
+```
+python3 -m colr --help
+```
+
+It will do fore, back, style, gradients, rainbows, justification,
+translation, and code stripping of input (as an argument or stdin).
 
 _______________________________________________________________________________
 
 Notes:
 ------
 
-Windows is not supported yet, but I'm working on it. In the past, I used
-a simple `color()` function because I'm not fond of the string concatenation
-style that other libraries use. The 'clor' javascript library uses method
-chaining because that style suits javascript, but I wanted to make it available
-to Python also, at least as an option.
+* In the past, I used a simple `color()` function because I'm not fond of the
+    string concatenation style that other libraries use. The 'clor' javascript
+    library uses method chaining because that style suits javascript, but I wanted
+    to make it available to Python also, at least as an option.
 
-The reset code is appended to all text unless the text is empty.
-This makes it possible to build background colors and styles, but
-also have separate styles for separate pieces of text.
+* The reset code is appended to all text unless the text is empty.
+    This makes it possible to build background colors and styles, but
+    also have separate styles for separate pieces of text.
 
-This library may be a little too flexible, and that may change:
+* I don't really have the desire to back-port this to Python 2. It wouldn't need
+    too many changes, but I like the Python 3 features (`yield from`, `str/bytes`).
+
+* Windows is not supported yet, but I'm working on it.
+
+* This library may be a little too flexible, and that may change:
 
 ```python
 from colr import Colr as C
