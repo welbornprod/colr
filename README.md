@@ -303,10 +303,18 @@ python3 -m colr --help
 It will do fore, back, style, gradients, rainbows, justification,
 translation, and code stripping of input (as an argument or stdin).
 
-lolcat emulation:
+[lolcat](https://github.com/busyloop/lolcat) emulation:
 ```
 fortune | python3 -m colr --rainbow
 ```
+
+The colr tool does not read files, but it's not a problem:
+```
+cat myfile.txt | python3 -m colr --gradient red
+```
+
+Also see [ccat](https://github.com/welbornprod/ccat).
+
 _______________________________________________________________________________
 
 Notes:
