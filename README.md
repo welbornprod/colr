@@ -61,8 +61,9 @@ Other methods:
 
 The `Colr` object has several helper methods.
 The `color()` method returns a `str`, but the rest return a `Colr` instance
-so they can be chained. A chainable version of `color()` does exist (`chainable()`),
-but it's not really needed outside of the `colr` module itself.
+so they can be chained.
+A chainable version of `color()` does exist (`chained()`), but it's not really
+needed outside of the `colr` module itself.
 
 ###Colr.center
 

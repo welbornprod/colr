@@ -1,26 +1,22 @@
 #! /usr/bin/env python
 
-""" Convert values between RGB hex codes and xterm-256 color codes.
+""" Convert color code between hex value, terminal escape code, and rgb.
 
-Nice long listing of all 256 colors and their codes. Useful for
-developing console color themes, or even script output schemes.
+Original name: colortrans.py
+Original author: Micah Elliott http://MicahElliott.com
+Original version: 0.1
+
+This module has been modified for use with Python 3 and the Colr library.
+The original can be found here: https://gist.github.com/MicahElliott/719710
+-Christopher Welborn 12-06-15
 
 Resources:
 * http://en.wikipedia.org/wiki/8-bit_color
 * http://en.wikipedia.org/wiki/ANSI_escape_code
 * /usr/share/X11/rgb.txt
 
-I'm not sure where this script was inspired from. I think I must have
-written it from scratch, though it's been several years now.
-
-Original name: colortrans.py
-Original author: Micah Elliott http://MicahElliott.com
-Original version: 0.1
 -------------------------------------------------------------------------------
 
-This module has been modified for use with Python 3 and the Colr library.
-The original can be found here: https://gist.github.com/MicahElliott/719710
--Christopher Welborn 12-06-15
 
 """
 
@@ -339,11 +335,11 @@ def hex2termhex(hexval, allow_short=False):
 
 def print_all():
     """ Print all 256 xterm color codes. """
-    for code, hexval in term2hex_map:
+    for code in sorted(term2hex_map):
         print(' '.join((
-            '\033[48;5;{code}m{code}:{hexval}\033[0m',
-            '\033[38;5;{code}m{code}:{hexval}\033[0m'
-        )).format(code=code, hexval=hexval))
+            '\033[48;5;{code}m{code:<3}:{hexval:<6}\033[0m',
+            '\033[38;5;{code}m{code:<3}:{hexval:<6}\033[0m'
+        )).format(code=code, hexval=term2hex_map[code]))
 
 
 def rgb2hex(r, g, b):

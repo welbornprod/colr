@@ -324,7 +324,7 @@ class Colr(object):
 
     def _attr_to_method(self, attr):
         """ Return the correct color function by method name.
-            Uses `partial` to build kwargs on the `color` func.
+            Uses `partial` to build kwargs on the `chained` func.
             On failure/unknown name, returns None.
         """
 
@@ -356,6 +356,7 @@ class Colr(object):
         """ Yield colorized characters,
             using one of the 36-length gradients.
         """
+        # TODO: This func was for the old gradient() method. Not used anymore.
         # Determine which 36-length gradient to start from.
         adj = divmod(start - 16, 36)[1]
         if adj > 0:
@@ -387,6 +388,7 @@ class Colr(object):
         """ Yield colorized characters,
             within the 24-length black gradient.
         """
+        # TODO: This func was for the old gradient() method. Not used anymore.
         if start < 232:
             start = 232
         elif start > 255:
@@ -414,6 +416,7 @@ class Colr(object):
                            (Fore will be gradient)
                 style    : Style name to use.
         """
+        # TODO: This func was for the old gradient() method. Not used anymore.
         if (fore is not None) and (back is not None):
             raise ValueError('Both fore and back colors cannot be specified.')
 
@@ -441,8 +444,15 @@ class Colr(object):
                 >> A -> B -> C -> D -> C -> B -> A -> B
 
             If `count` is less than 1, this will run forever.
-            You can stop it by sending a Truthy value into the generator.
+            You can stop it by sending a Truthy value into the generator:
+                gen = self._iter_wave('test')
+                for c in gen:
+                    if c == 's':
+                        # Stop the generator early.
+                        gen.send(True)
+                    print(c)
         """
+        # TODO: This func was for the old gradient() method. Not used anymore.
         up = True
         pos = 0
         i = 0
