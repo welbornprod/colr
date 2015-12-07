@@ -78,7 +78,7 @@ USAGESTR = """{versionstr}
                                     using `num` as the overall width.
         -n,--newline              : Do not append a newline character (\\n).
         -o num,--offset           : Offset for start of rainbow.
-                                    Default: 0
+                                    Default: 30
         -q num,--frequency num    : Frequency of colors in the rainbow.
                                     Higher value means more colors.
                                     Best when in the range 0.0-1.0.
@@ -155,7 +155,7 @@ def get_colr(txt, argd):
             back=back,
             style=style,
             freq=try_float(argd['--frequency'], 0.1, minimum=0),
-            offset=try_int(argd['--offset'], 0, minimum=0),
+            offset=try_int(argd['--offset'], 30, minimum=0),
             spread=try_float(argd['--spread'], 3.0, minimum=0)
         )
 
