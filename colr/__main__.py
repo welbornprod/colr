@@ -48,9 +48,9 @@ USAGESTR = """{versionstr}
         {script} [TEXT] [-f fore] [-b back] [-s style]
                  [-a] [-e] [-c num | -l num | -r num] [-n]
         {script} [TEXT] [FORE] [BACK] [STYLE]
-                 [-a] [-e] [-c num | -l num | -r num] [-n] -g num [-p num]
+                 [-a] [-e] [-c num | -l num | -r num] [-n] -g name [-q num] [-w num]
         {script} [TEXT] [-f fore] [-b back] [-s style ]
-                 [-a] [-e] [-c num | -l num | -r num] [-n] -g num [-p num]
+                 [-a] [-e] [-c num | -l num | -r num] [-n] -g name [-q num] [-w num]
         {script} [TEXT] [FORE] [BACK] [STYLE]
                  [-a] [-e] [-c num | -l num | -r num] [-n] -R [-o num] [-q num] [-w num]
         {script} [TEXT] [-f fore] [-b back] [-s style]
@@ -71,20 +71,18 @@ USAGESTR = """{versionstr}
                                     using `num` as the overall width.
         -e,--err                  : Print to stderr instead of stdout.
         -f name,--fore name       : Name or number for fore color to use.
-        -g num,--gradient num     : Use the gradient method starting at `num`.
-                                    Default: 17
+        -g name,--gradient name   : Use the gradient method by color name.
+                                    Default: black
         -h,--help                 : Show this help message.
         -l num,--ljust num        : Left justify the text before coloring,
                                     using `num` as the overall width.
         -n,--newline              : Do not append a newline character (\\n).
         -o num,--offset           : Offset for start of rainbow.
                                     Default: 0
-        -p num,--step num         : Number of characters per color step when
-                                    using --gradient.
-                                    Default: 1
         -q num,--frequency num    : Frequency of colors in the rainbow.
                                     Higher value means more colors.
                                     Best when in the range 0.0-1.0.
+                                    This does not affect black and white.
                                     Default: 0.1
         -r num,--rjust num        : Right justify the text before coloring,
                                     using `num` as the overall width.
@@ -92,7 +90,8 @@ USAGESTR = """{versionstr}
         -s name,--style name      : Name for style to use.
         -t,--translate            : Translate one or more term codes,
                                     hex values, or rgb values.
-        -w num,--spread num       : Spread/width of each color in the rainbow.
+        -w num,--spread num       : Spread/width of each color in the rainbow
+                                    or gradient.
                                     Default: 3.0
         -x,--stripcodes           : Strip all color codes from text.
         -v,--version              : Show version.
@@ -117,19 +116,39 @@ def main(argd):
     fd = sys.stderr if argd['--err'] else sys.stdout
     end = '' if argd['--newline'] else '\n'
 
+    if argd['--stripcodes']:
+        txt = justify(strip_codes(txt), argd)
+        print(txt, file=fd, end=end)
+        return 0
+
+    clr = get_colr(txt, argd)
+
+    # Justify options...
+    clr = justify(clr, argd)
+
+    print(str(clr), file=fd, end=end)
+    return 0
+
+
+def get_colr(txt, argd):
+    """ Return a Colr instance based on user args. """
     fore = get_name_arg(argd, '--fore', 'FORE', default=None)
     back = get_name_arg(argd, '--back', 'BACK', default=None)
     style = get_name_arg(argd, '--style', 'STYLE', default=None)
 
     if argd['--gradient']:
         # Build a gradient from user args.
-        clr = C(txt).gradient(
-            start=try_int(argd['--gradient'], 17, minimum=0),
-            step=try_int(argd['--step'], 1, minimum=0),
-            fore=fore,
-            back=back,
-            style=style
-        )
+        try:
+            clr = C(txt).gradient(
+                name=argd['--gradient'],
+                spread=try_int(argd['--spread'], 1, minimum=0),
+                fore=fore,
+                back=back,
+                style=style
+            )
+        except ValueError as ex:
+            print('Error: {}'.format(ex), file=sys.stderr)
+            return None
     elif argd['--rainbow']:
         clr = C(txt).rainbow(
             fore=fore,
@@ -139,20 +158,11 @@ def main(argd):
             offset=try_int(argd['--offset'], 0, minimum=0),
             spread=try_float(argd['--spread'], 3.0, minimum=0)
         )
-    elif argd['--stripcodes']:
-        txt = justify(strip_codes(txt), argd)
-        print(txt, file=fd, end=end)
-        return 0
 
     else:
         # Normal colored output.
         clr = C(txt, fore=fore, back=back, style=style)
-
-    # Justify options...
-    clr = justify(clr, argd)
-
-    print(str(clr), file=fd, end=end)
-    return 0
+    return clr
 
 
 def get_name_arg(argd, *argnames, default=None):
