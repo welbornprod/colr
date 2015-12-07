@@ -125,11 +125,13 @@ def main(argd):
 
     clr = get_colr(txt, argd)
 
-    # Justify options...
+    # Center, ljust, rjust, or not.
     clr = justify(clr, argd)
-
-    print(str(clr), file=fd, end=end)
-    return 0
+    if clr:
+        print(str(clr), file=fd, end=end)
+        return 0
+    # Error while building Colr.
+    return 1
 
 
 def get_colr(txt, argd):
