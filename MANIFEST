@@ -7,5 +7,6 @@ setup.py
 colr/__init__.py
 colr/__main__.py
 colr/colr.py
+colr/trans.py
 docs/README.txt
 docs/mit.txt
