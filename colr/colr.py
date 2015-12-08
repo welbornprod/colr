@@ -67,6 +67,7 @@ if platform.system() == 'Windows':
     else:
         colorama_init()
 
+
 # Names and corresponding base code number
 _namemap = (
     ('black', 0),
@@ -135,6 +136,7 @@ def _build_codes():
 
 # Raw code map, available to users.
 codes = _build_codes()
+
 
 def auto_disable(enabled=True, fds=(sys.stdout, sys.stderr)):
     """ Automatically decide whether to disable color codes if stdout or stderr
