@@ -8,6 +8,26 @@ on the `Colr` object.
 
 _______________________________________________________________________________
 
+Dependencies:
+-------------
+
+###System
+
+* **Python 3.3+** -
+    This library uses `yield from`.
+    [Python 2 support is not planned.](#user-content-python2)
+
+###Modules
+
+*There are no dependencies required for importing this library on Linux*, however:
+
+* [Docopt](https://github.com/docopt/docopt) -
+    Only required for the [command line tool](#colr-tool), not the library itself.
+* [Colorama](https://github.com/tartley/colorama) -
+    [Windows only](#user-content-windows).
+    This is not required on linux.
+    It provides a helper for basic color support for Windows.
+
 Examples:
 ---------
 
@@ -317,6 +337,16 @@ Also see [ccat](https://github.com/welbornprod/ccat).
 
 _______________________________________________________________________________
 
+Contributing:
+-------------
+
+As always contributions are welcome here. If you think you can improve something,
+or have a good idea for a feature, please file an
+[issue](https://github.com/welbornprod/colr/issues/new) or a
+[pull request](https://github.com/welbornprod/colr/compare).
+
+_______________________________________________________________________________
+
 Notes:
 ------
 
@@ -329,10 +359,20 @@ Notes:
     This makes it possible to build background colors and styles, but
     also have separate styles for separate pieces of text.
 
-* I don't really have the desire to back-port this to Python 2. It wouldn't need
-    too many changes, but I like the Python 3 features (`yield from`, `str/bytes`).
+* <a name='python2'></a>I don't really have the desire to back-port this to Python 2.
+    It wouldn't need too many changes, but I like the Python 3 features
+    (`yield from`, `str/bytes`).
 
-* Windows is not supported yet, but I'm working on it.
+* <a name='windows'></a>Basic colors are supported on Windows through the
+    [colorama](https://github.com/tartley/colorama) library.
+    It is only imported if `platform.system() == 'Windows'`.
+    It provides a wrapper around `stdout` and `stderr` to make basic ansi codes
+    work. If the import fails, then all color codes are disabled
+    (as if `colr.disable()` was called).
+    I booted into Windows 8 for the first time in months to make this little
+    feature happen, only to discover that the color situation for CMD and
+    PowerShell really sucks. If you think you can help improve the `colr` package
+    for windows, please see the [contributing](#contributing) section.
 
 * This library may be a little too flexible, and that may change:
 
