@@ -9,7 +9,6 @@
         python3 -m colr "Hello World" -s "bright" -f "green"
     -Christopher Welborn 12-05-2015
 """
-# TODO: rainbow().
 
 import os
 import sys

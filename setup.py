@@ -7,8 +7,9 @@ Colr Setup
 -Christopher Welborn 08-14-2015
 """
 
+import sys
 from distutils.core import setup
-defaultdesc = 'Terminal colors for linux.'
+defaultdesc = 'Easy terminal colors, with chainable methods.'
 try:
     import pypandoc
 except ImportError:
@@ -24,7 +25,7 @@ else:
             with open('docs/README.txt') as f:
                 longdesc = f.read()
         except EnvironmentError:
-            print('\nREADME.md and README.txt failed!')
+            print('\nREADME.md and README.txt failed!', file=sys.stderr)
             longdesc = defaultdesc
 
 
@@ -34,16 +35,18 @@ setup(
     author='Christopher Welborn',
     author_email='cj@welbornprod.com',
     packages=['colr'],
-    url='http://pypi.python.org/pypi/Colr/',
+    url='https://github.com/welbornprod/colr',
     license='LICENSE.txt',
     description=open('DESC.txt').read(),
     long_description=longdesc,
     keywords='python module library 3 terminal color colors escape codes',
     classifiers=[
+        'Operating System :: Microsoft :: Windows',
         'Operating System :: POSIX :: Linux',
-        'Programming Language :: Python',
-        'Programming Language :: Python :: 2.7',
-        'Programming Language :: Python :: 3',
+        'Programming Language :: Python :: 3.3',
+        'Programming Language :: Python :: 3.4',
+        'Programming Language :: Python :: 3.5',
+        'Programming Language :: Python :: 3 :: Only',
         'Topic :: Software Development :: Libraries',
         'Topic :: Software Development :: Libraries :: Python Modules'
     ],
