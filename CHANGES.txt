@@ -1,3 +1,4 @@
+v0.2.1 12/07/15 -- Basic Windows support.
 v0.2.0 12/06/15 -- rainbow(), better gradient(), and more tool features.
 v0.1.1 12/05/15 -- New dunder methods to offer more str-like behavior.
 v0.1.0 12/05/15 -- colr tool, strip_codes, other improvements.
