@@ -1,1 +1,1 @@
-Easy terminal colors for linux, with chainable methods.
+Easy terminal colors, with chainable methods.
