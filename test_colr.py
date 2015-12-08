@@ -9,10 +9,11 @@
 """
 
 from docopt import docopt
+import platform
 import os
 import sys
 
-from colr import __version__, color, Colr
+from colr import __version__, color, disable, Colr
 
 NAME = 'Test Colr'
 VERSIONSTR = '{} v. {}'.format(NAME, __version__)
@@ -28,27 +29,21 @@ USAGESTR = """{versionstr}
         -v,--version  : Show version.
 """.format(script=SCRIPT, versionstr=VERSIONSTR)
 
-
 def main(argd):
     """ Main entry point, expects doctopt arg dict as argd. """
     print('Running {}'.format(color(VERSIONSTR, fore='red', style='bright')))
     maxwidth = 78
     chunkwidth = maxwidth / 3
     # Gradient back color.
-    print(Colr().gradient(' ' * maxwidth, start=232, fore='reset'))
+    print(Colr().gradient(' ' * maxwidth, name='black', fore='reset'))
     # Explicit gradient fore color.
-    print(Colr().gradient('-' * maxwidth, start=232, step=2, back='blue'))
+    print(Colr().gradient('-' * maxwidth, name='white', spread=2, back='blue'))
     # Implicit gradient fore color.
-    print(Colr().gradient('_' * maxwidth, start=235), end='\n\n')
+    print(Colr().gradient('_' * maxwidth, name='white'), end='\n\n')
 
     try:
         # Both fore and back are not allowed in a gradient.
-        print(
-            Colr().gradient(
-                ' ' * maxwidth,
-                start=232,
-                fore='white',
-                back='white'))
+        print(Colr().gradient(' ' * maxwidth, fore='reset', back='reset'))
     except ValueError:
         pass
 
@@ -129,8 +124,8 @@ def main(argd):
 
     # Gradient should append to self.data when no text is provided.
     print(
-        Colr('This is a green self.data', 'green')(' ')
-        .gradient('And this is an appended gradient.', start=132))
+        Colr('This is a green self.data', fore='green')(' ')
+        .gradient('And this is an appended gradient.', name='blue'))
 
     # Gradient should be okay with ljust/center/rjust.
     print(Colr().gradient('This is a left gradient').ljust(maxwidth))
@@ -139,9 +134,9 @@ def main(argd):
 
     # Gradient and ljust/center/rjust would be chainable.
     print(Colr()
-          .ljust(chunkwidth, text='Chained left.').gradient(start=200)
-          .center(chunkwidth, text='Chained center.').gradient(start=50)
-          .rjust(chunkwidth, text='Chained right.').gradient(start=150))
+          .ljust(chunkwidth, text='Chained left.').gradient(name='red')
+          .center(chunkwidth, text='Chained center.').gradient(name='white')
+          .rjust(chunkwidth, text='Chained right.').gradient(name='blue'))
 
     return 0
 

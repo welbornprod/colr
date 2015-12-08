@@ -33,6 +33,7 @@ from functools import partial, total_ordering
 from types import GeneratorType
 
 import math
+import platform
 import re
 import sys
 
@@ -53,6 +54,18 @@ __all__ = [
     'color',
     'strip_codes'
 ]
+# Set with the enable/disable functions, or on Windows without colorama.
+_disabled = False
+
+# Windows support relies on colorama (for now).
+if platform.system() == 'Windows':
+    try:
+        from colorama import init as colorama_init
+    except ImportError:
+        # Windows colors won't work without colorama (for now).
+        _disabled = True
+    else:
+        colorama_init()
 
 # Names and corresponding base code number
 _namemap = (
@@ -122,11 +135,6 @@ def _build_codes():
 
 # Raw code map, available to users.
 codes = _build_codes()
-
-
-# Set if disable() is called by the user, or automatically.
-_disabled = False
-
 
 def auto_disable(enabled=True, fds=(sys.stdout, sys.stderr)):
     """ Automatically decide whether to disable color codes if stdout or stderr
