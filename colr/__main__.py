@@ -39,7 +39,7 @@ except ImportError as eximp:
 
 NAME = 'Colr Tool'
 VERSIONSTR = '{} v. {}'.format(NAME, __version__)
-SCRIPT = os.path.split(os.path.abspath(sys.argv[0]))[1]
+SCRIPT = 'colr'
 SCRIPTDIR = os.path.abspath(sys.path[0])
 
 USAGESTR = """{versionstr}

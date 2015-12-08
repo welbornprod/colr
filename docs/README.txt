@@ -9,13 +9,13 @@ chainable methods on the ``Colr`` object.
 --------------
 
 Dependencies:
--------------
+=============
 
 System
 ~~~~~~
 
 -  **Python 3.3+** - This library uses ``yield from``. `Python 2 support
-   is not planned. <#user-content-python2>`__
+   is not planned. <#python-2>`__
 
 Modules
 ~~~~~~~
@@ -26,11 +26,31 @@ Linux*, however:
 -  `Docopt <https://github.com/docopt/docopt>`__ - Only required for the
    `command line tool <#colr-tool>`__, not the library itself.
 -  `Colorama <https://github.com/tartley/colorama>`__ - `Windows
-   only <#user-content-windows>`__. This is not required on linux. It
-   provides a helper for basic color support for Windows.
+   only <#windows>`__. This is not required on linux. It provides a
+   helper for basic color support for Windows.
+
+Installation:
+=============
+
+Colr is listed on `PyPi <https://pypi.python.org/pypi/Colr>`__, and can
+be installed using `pip <https://pip.pypa.io/en/stable/installing/>`__:
+
+::
+
+    pip install colr
+
+Or you can clone the repo on
+`GitHub <https://github.com/welbornprod/colr>`__ and install it from the
+command line:
+
+::
+
+    git clone https://github.com/welbornprod/colr.git
+    cd colr
+    python3 setup.py install
 
 Examples:
----------
+=========
 
 Simple:
 ~~~~~~~
@@ -57,7 +77,7 @@ Chainable:
     print(C('Hello ', fore='red').bgwhite().blue('World'))
 
 Examples (256 Colors):
-----------------------
+======================
 
 Simple:
 ~~~~~~~
@@ -81,7 +101,7 @@ Chainable:
 --------------
 
 Other methods:
---------------
+==============
 
 The ``Colr`` object has several helper methods. The ``color()`` method
 returns a ``str``, but the rest return a ``Colr`` instance so they can
@@ -248,7 +268,7 @@ strings. These are all equal:
 --------------
 
 Color Translation:
-------------------
+==================
 
 The ``colr`` module also includes several tools for converting from one
 color value to another:
@@ -348,7 +368,7 @@ Converts a terminal code number to it's RGB value.
 --------------
 
 Colr Tool:
-----------
+==========
 
 The ``colr`` package can be used as a command line tool:
 
@@ -376,7 +396,7 @@ Also see `ccat <https://github.com/welbornprod/ccat>`__.
 --------------
 
 Contributing:
--------------
+=============
 
 As always contributions are welcome here. If you think you can improve
 something, or have a good idea for a feature, please file an
@@ -386,34 +406,49 @@ request <https://github.com/welbornprod/colr/compare>`__.
 --------------
 
 Notes:
-------
+======
 
--  In the past, I used a simple ``color()`` function because I'm not
-   fond of the string concatenation style that other libraries use. The
-   'clor' javascript library uses method chaining because that style
-   suits javascript, but I wanted to make it available to Python also,
-   at least as an option.
+Reasons
+~~~~~~~
 
--  The reset code is appended to all text unless the text is empty. This
-   makes it possible to build background colors and styles, but also
-   have separate styles for separate pieces of text.
+In the past, I used a simple ``color()`` function because I'm not fond
+of the string concatenation style that other libraries use. The 'clor'
+javascript library uses method chaining because that style suits
+javascript, but I wanted to make it available to Python also, at least
+as an option.
 
--  I don't really have the desire to back-port this to Python 2. It
-   wouldn't need too many changes, but I like the Python 3 features
-   (``yield from``, ``str/bytes``).
+Reset Codes
+~~~~~~~~~~~
 
--  Basic colors are supported on Windows through the
-   `colorama <https://github.com/tartley/colorama>`__ library. It is
-   only imported if ``platform.system() == 'Windows'``. It provides a
-   wrapper around ``stdout`` and ``stderr`` to make basic ansi codes
-   work. If the import fails, then all color codes are disabled (as if
-   ``colr.disable()`` was called). I booted into Windows 8 for the first
-   time in months to make this little feature happen, only to discover
-   that the color situation for CMD and PowerShell really sucks. If you
-   think you can help improve the ``colr`` package for windows, please
-   see the `contributing <#contributing>`__ section.
+The reset code is appended to all text unless the text is empty. This
+makes it possible to build background colors and styles, but also have
+separate styles for separate pieces of text.
 
--  This library may be a little too flexible, and that may change:
+Python 2
+~~~~~~~~
+
+I don't really have the desire to back-port this to Python 2. It
+wouldn't need too many changes, but I like the Python 3 features
+(``yield from``, ``str/bytes``).
+
+Windows
+~~~~~~~
+
+Basic colors are supported on Windows through the
+`colorama <https://github.com/tartley/colorama>`__ library. It is only
+imported if ``platform.system() == 'Windows'``. It provides a wrapper
+around ``stdout`` and ``stderr`` to make basic ansi codes work. If the
+import fails, then all color codes are disabled (as if
+``colr.disable()`` was called). I booted into Windows 8 for the first
+time in months to make this little feature happen, only to discover that
+the color situation for CMD and PowerShell really sucks. If you think
+you can help improve the ``colr`` package for windows, please see the
+`contributing <#contributing>`__ section.
+
+Misc.
+~~~~~
+
+This library may be a little too flexible, and that may change:
 
 .. code:: python
 
