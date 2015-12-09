@@ -9,11 +9,10 @@
 """
 
 from docopt import docopt
-import platform
 import os
 import sys
 
-from colr import __version__, color, disable, Colr
+from colr import __version__, color, Colr
 
 NAME = 'Test Colr'
 VERSIONSTR = '{} v. {}'.format(NAME, __version__)
@@ -29,11 +28,53 @@ USAGESTR = """{versionstr}
         -v,--version  : Show version.
 """.format(script=SCRIPT, versionstr=VERSIONSTR)
 
+# Max widths, 1/3 width, for justification tests.
+maxwidth = 78
+chunkwidth = maxwidth / 3
+
+
 def main(argd):
     """ Main entry point, expects doctopt arg dict as argd. """
     print('Running {}'.format(color(VERSIONSTR, fore='red', style='bright')))
-    maxwidth = 78
-    chunkwidth = maxwidth / 3
+
+    justify_tests()
+    join_tests()
+    gradient_override_tests()
+    gradient_mix_tests()
+    rainbow_tests()
+    return 0
+
+
+def gradient_mix_tests():
+    """ Test display of the gradient options. """
+    # Gradient should operate on self.data when no text is provided.
+    print(Colr('This is a gradient self.data.').gradient())
+
+    # Gradient should append to self.data when no text is provided.
+    print(
+        Colr('This is a green self.data', fore='green')(' ')
+        .gradient('And this is an appended gradient.', name='blue'))
+
+    # Gradient should be okay with ljust/center/rjust.
+    print(Colr().gradient('This is a left gradient').ljust(maxwidth))
+    print(Colr().gradient('Center gradient.').center(maxwidth))
+    print(Colr().gradient('Right-aligned gradient.').rjust(maxwidth))
+
+    # Gradient and ljust/center/rjust would be chainable.
+    print(Colr()
+          .ljust(chunkwidth, text='Chained left.').gradient(name='red')
+          .center(chunkwidth, text='Chained center.').gradient(name='white')
+          .rjust(chunkwidth, text='Chained right.').gradient(name='blue'))
+
+
+def gradient_override_tests():
+    """ Test gradient with explicit fore, back, and styles. """
+    try:
+        # Both fore and back are not allowed in a gradient.
+        print(Colr().gradient(' ' * maxwidth, fore='reset', back='reset'))
+    except ValueError:
+        pass
+
     # Gradient back color.
     print(Colr().gradient(' ' * maxwidth, name='black', fore='reset'))
     # Explicit gradient fore color.
@@ -41,12 +82,42 @@ def main(argd):
     # Implicit gradient fore color.
     print(Colr().gradient('_' * maxwidth, name='white'), end='\n\n')
 
-    try:
-        # Both fore and back are not allowed in a gradient.
-        print(Colr().gradient(' ' * maxwidth, fore='reset', back='reset'))
-    except ValueError:
-        pass
 
+def join_tests():
+    """ Test join mixed with other methods. """
+    def fancy_log(label, msg, tag):
+        """ Squeezed justification with complex joins should account for
+            existing text width.
+        """
+        return (
+            Colr(label, fore='green')
+            .center(
+                # Centering on maxwidth would ruin the next rjust because
+                # the spaces created by .center will not be overwritten.
+                maxwidth - (len(tag) + 2),
+                text=msg,
+                fore='yellow',
+                squeeze=True
+            )
+            .rjust(
+                maxwidth,
+                text=Colr(tag, fore='red').join(
+                    '[', ']',
+                    fore='blue'
+                ),
+                squeeze=True)
+        )
+    print(fancy_log('This is a label:', 'This is centered.', 'Status: Okay'))
+
+    print(Colr('|', fore='blue').join(
+        'This is regular text.'.ljust(maxwidth // 2 - 1),
+        Colr('This is colored.', fore='red').rjust(maxwidth // 2)
+    ))
+
+
+def justify_tests():
+    """ Test the justification methods, alone and mixed with other methods.
+    """
     # Justified text should be chainable.
     print(
         Colr()
@@ -54,6 +125,7 @@ def main(argd):
         .center(chunkwidth, text='Middle', fore=255, back='blue', style='b')
         .rjust(chunkwidth, text='Right', fore=255, back='red', style='b')
     )
+
     # Chained formatting must provide the 'text' argument,
     # otherwise the string is built up and the entire string width grows.
     # This built up string would then be padded, instead of each individual
@@ -90,55 +162,13 @@ def main(argd):
         )
     )
 
-    def fancy_log(label, msg, tag):
-        """ Squeezed justification with complex joins should account for
-            existing text width.
-        """
-        return (
-            Colr(label, fore='green')
-            .center(
-                # Centering on maxwidth would ruin the next rjust because
-                # the spaces created by .center will not be overwritten.
-                maxwidth - (len(tag) + 2),
-                text=msg,
-                fore='yellow',
-                squeeze=True
-            )
-            .rjust(
-                maxwidth,
-                text=Colr(tag, fore='red').join(
-                    '[', ']',
-                    fore='blue'
-                ),
-                squeeze=True)
-        )
-    print(fancy_log('This is a label:', 'This is centered.', 'Status: Okay'))
 
-    print(Colr('|', fore='blue').join(
-        'This is regular text.'.ljust(maxwidth // 2 - 1),
-        Colr('This is colored.', fore='red').rjust(maxwidth // 2)
-    ))
-
-    # Gradient should operate on self.data when no text is provided.
-    print(Colr('This is a gradient self.data.').gradient())
-
-    # Gradient should append to self.data when no text is provided.
-    print(
-        Colr('This is a green self.data', fore='green')(' ')
-        .gradient('And this is an appended gradient.', name='blue'))
-
-    # Gradient should be okay with ljust/center/rjust.
-    print(Colr().gradient('This is a left gradient').ljust(maxwidth))
-    print(Colr().gradient('Center gradient.').center(maxwidth))
-    print(Colr().gradient('Right-aligned gradient.').rjust(maxwidth))
-
-    # Gradient and ljust/center/rjust would be chainable.
-    print(Colr()
-          .ljust(chunkwidth, text='Chained left.').gradient(name='red')
-          .center(chunkwidth, text='Chained center.').gradient(name='white')
-          .rjust(chunkwidth, text='Chained right.').gradient(name='blue'))
-
-    return 0
+def rainbow_tests():
+    """ Test rainbow output, with or without linemode (short/long output)
+    """
+    print(Colr('This is a rainbow. It is very pretty.').rainbow())
+    lines = ['This is a block of text made into a rainbow' for _ in range(10)]
+    print(Colr('\n'.join(lines)).rainbow())
 
 if __name__ == '__main__':
     mainret = main(docopt(USAGESTR, version=VERSIONSTR))
