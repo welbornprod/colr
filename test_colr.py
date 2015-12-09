@@ -77,6 +77,8 @@ def gradient_mix_tests():
     print(Colr('\n'.join(lines)).gradient(name='black'))
     lines = ['This is a block made into a long sad rainbow' for _ in range(5)]
     print(Colr('\n'.join(lines)).gradient(name='white', linemode=False))
+    lines = ['This is a block made into a better rainbow' for _ in range(5)]
+    print(Colr('\n'.join(lines)).gradient(name='red'))
 
 
 def gradient_override_tests():
