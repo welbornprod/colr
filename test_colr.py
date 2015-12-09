@@ -170,6 +170,11 @@ def rainbow_tests():
     lines = ['This is a block of text made into a rainbow' for _ in range(10)]
     print(Colr('\n'.join(lines)).rainbow())
 
+    # Rainbow should honor fore,back,styles.
+    print(Colr(' ' * maxwidth).rainbow(fore='reset', spread=.5))
+    print(Colr('-' * maxwidth).rainbow(back='black', offset=30))
+    print(Colr('Rainbow bright.').rainbow(style='bright').center(maxwidth))
+
 if __name__ == '__main__':
     mainret = main(docopt(USAGESTR, version=VERSIONSTR))
     sys.exit(mainret)
