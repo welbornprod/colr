@@ -592,8 +592,8 @@ class Colr(object):
         return '\n'.join(
             self._rainbow_line(
                 line,
-                freq=0.1,
-                spread=3.0,
+                freq=freq,
+                spread=spread,
                 offset=factor(i),
                 **colorargs)
             for i, line in enumerate(s.splitlines()))
