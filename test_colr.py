@@ -12,7 +12,7 @@ from docopt import docopt
 import os
 import sys
 
-from colr import __version__, color, Colr
+from colr import __version__, auto_disable, color, disabled, Colr
 
 NAME = 'Test Colr'
 VERSIONSTR = '{} v. {}'.format(NAME, __version__)
@@ -32,6 +32,9 @@ USAGESTR = """{versionstr}
 maxwidth = 78
 chunkwidth = maxwidth / 3
 
+# Automatically disable colors when piping output.
+auto_disable()
+
 
 def main(argd):
     """ Main entry point, expects doctopt arg dict as argd. """
@@ -42,6 +45,9 @@ def main(argd):
     gradient_override_tests()
     gradient_mix_tests()
     rainbow_tests()
+
+    if disabled():
+        print('\nColr was disabled.')
     return 0
 
 
@@ -65,6 +71,12 @@ def gradient_mix_tests():
           .ljust(chunkwidth, text='Chained left.').gradient(name='red')
           .center(chunkwidth, text='Chained center.').gradient(name='white')
           .rjust(chunkwidth, text='Chained right.').gradient(name='blue'))
+
+    # Black/white gradient should work in linemode or non-linemode.
+    lines = ['This is a block made into a sad rainbow' for _ in range(5)]
+    print(Colr('\n'.join(lines)).gradient(name='black'))
+    lines = ['This is a block made into a long sad rainbow' for _ in range(5)]
+    print(Colr('\n'.join(lines)).gradient(name='white', linemode=False))
 
 
 def gradient_override_tests():
@@ -167,8 +179,10 @@ def rainbow_tests():
     """ Test rainbow output, with or without linemode (short/long output)
     """
     print(Colr('This is a rainbow. It is very pretty.').rainbow())
-    lines = ['This is a block of text made into a rainbow' for _ in range(10)]
-    print(Colr('\n'.join(lines)).rainbow())
+    lines = ['This is a block of text made into a rainbow' for _ in range(5)]
+    print(Colr('\n'.join(lines)).rainbow(movefactor=5))
+    lines = ['This is a block made into a long rainbow' for _ in range(5)]
+    print(Colr('\n'.join(lines)).rainbow(linemode=False))
 
     # Rainbow should honor fore,back,styles.
     print(Colr(' ' * maxwidth).rainbow(fore='reset', spread=.5))
