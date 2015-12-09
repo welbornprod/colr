@@ -1,3 +1,4 @@
+v0.2.2 12/08/15 -- Prettier rainbow/gradient, linemode, and more tests.
 v0.2.1-1 12/07/15 -- Fix for help, and doc changes.
 v0.2.1 12/07/15 -- Basic Windows support.
 v0.2.0 12/06/15 -- rainbow(), better gradient(), and more tool features.
