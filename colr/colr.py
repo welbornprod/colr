@@ -158,8 +158,6 @@ def auto_disable(enabled=True, fds=(sys.stdout, sys.stderr)):
 
 def disable():
     """ Disable color codes for Colr and the convenience color() function.
-        All output will be free of color codes by use of the Colr.color_dummy
-        method where Colr.color would normally be called.
         Created to be used by auto_disable(), for piping output to file or
         other commands.
     """
@@ -392,7 +390,7 @@ class Colr(object):
             style=style
         )
 
-    def _iter_gradient_black(
+    def _gradient_black_line(
             self, text, start, step=1,
             fore=None, back=None, style=None, reverse=False):
         """ Yield colorized characters,
@@ -406,13 +404,40 @@ class Colr(object):
             codes = list(range(start, 231, -1))
         else:
             codes = list(range(start, 256))
-        yield from self._iter_text_wave(
-            text,
-            codes,
-            step=step,
-            fore=fore,
-            back=back,
-            style=style)
+        return ''.join((
+            self._iter_text_wave(
+                text,
+                codes,
+                step=step,
+                fore=fore,
+                back=back,
+                style=style)
+        ))
+
+    def _gradient_black_lines(
+            self, text, start, step=1,
+            fore=None, back=None, style=None, reverse=False,
+            movefactor=2):
+        """ Yield colorized characters,
+            within the 24-length black gradient,
+            treating each line separately.
+        """
+        if not movefactor:
+            factor = lambda i: start
+        else:
+            # Increase the start for each line.
+            factor = lambda i: start + (i * movefactor)
+        return '\n'.join((
+            self._gradient_black_line(
+                line,
+                start=factor(i),
+                step=step,
+                fore=fore,
+                back=back,
+                style=style,
+                reverse=reverse)
+            for i, line in enumerate(text.splitlines())
+        ))
 
     def _iter_text_wave(
             self, text, numbers, step=1,
@@ -522,10 +547,10 @@ class Colr(object):
             for i, c in enumerate(s)
         )
 
-    def _rainbow_line(self, s, freq=0.1, spread=3.0, offset=0, **colorargs):
+    def _rainbow_line(self, text, freq=0.1, spread=3.0, offset=0, **colorargs):
         """ Create rainbow using the same offset for all text.
             Arguments:
-                s          : String to colorize.
+                text       : String to colorize.
                 freq       : Frequency/"tightness" of colors in the rainbow.
                              Best results when in the range 0.0-1.0.
                              Default: 0.1
@@ -559,18 +584,18 @@ class Colr(object):
         return ''.join(
             self.color(c, **color_args(hval))
             for c, hval in self._rainbow_hex(
-                s,
+                text,
                 freq=freq,
                 spread=spread,
                 offset=offset)
         )
 
     def _rainbow_lines(
-            self, s, freq=0.1, spread=3.0, offset=0, movefactor=0,
+            self, text, freq=0.1, spread=3.0, offset=0, movefactor=0,
             **colorargs):
         """ Create rainbow text, using the same offset for each line.
             Arguments:
-                s          : String to colorize.
+                text       : String to colorize.
                 freq       : Frequency/"tightness" of colors in the rainbow.
                              Best results when in the range 0.0-1.0.
                              Default: 0.1
@@ -596,7 +621,7 @@ class Colr(object):
                 spread=spread,
                 offset=factor(i),
                 **colorargs)
-            for i, line in enumerate(s.splitlines()))
+            for i, line in enumerate(text.splitlines()))
 
     def _str_just(
             self, methodname, width, fillchar=' ', squeeze=False,
@@ -730,26 +755,33 @@ class Colr(object):
 
     def gradient(
             self, text=None, name=None, fore=None, back=None, style=None,
-            freq=0.1, spread=None):
+            freq=0.1, spread=None, linemode=True, movefactor=2):
         """ Return a gradient by color name. Uses rainbow() underneath to
             build the gradients, starting at a known offset.
             Arguments:
-                text   : Text to make gradient (self.data when not given).
-                         The gradient text is joined to self.data when this is
-                         used.
-                name   : Color name for the gradient (same as fore names).
-                         Default: black
-                fore   : Fore color. Back will be gradient when used.
-                         Default: None (fore is gradient)
-                back   : Back color. Fore will be gradient when used.
-                         Default: None (back=reset/normal)
-                style  : Style for the gradient.
-                         Default: None (reset/normal)
-                freq   : Frequency of color change. Higher means more colors.
-                         Best when in the 0.0-1.0 range.
-                         Default: 0.1
-                spread : Spread/width of each color (in characters).
-                         Default: 3.0 for colors, 1 for black/white
+                text       : Text to make gradient (self.data when not given).
+                             The gradient text is joined to self.data when this
+                             is used.
+                name       : Color name for the gradient (same as fore names).
+                             Default: black
+                fore       : Fore color. Back will be gradient when used.
+                             Default: None (fore is gradient)
+                back       : Back color. Fore will be gradient when used.
+                             Default: None (back=reset/normal)
+                style      : Style for the gradient.
+                             Default: None (reset/normal)
+                freq       : Frequency of color change.
+                             Higher means more colors.
+                             Best when in the 0.0-1.0 range.
+                             Default: 0.1
+                spread     : Spread/width of each color (in characters).
+                             Default: 3.0 for colors, 1 for black/white
+                linemode   : Colorize each line in the input.
+                             Default: True
+                movefactor : Factor for offset increase on each line when using
+                             linemode.
+                             Minimum value: 0
+                             Default: 2
         """
         try:
             # Try explicit offset (passed in with `name`).
@@ -763,7 +795,9 @@ class Colr(object):
                     fore=fore,
                     back=back,
                     style=style,
-                    step=int(spread) if spread else 1)
+                    step=int(spread) if spread else 1,
+                    linemode=linemode,
+                    movefactor=movefactor)
             elif name == 'white':
                 return self.gradient_black(
                     text=text,
@@ -771,6 +805,8 @@ class Colr(object):
                     back=back,
                     style=style,
                     step=int(spread) if spread else 1,
+                    linemode=linemode,
+                    movefactor=movefactor,
                     reverse=True)
             try:
                 # Get rainbow offset from known name.
@@ -794,11 +830,14 @@ class Colr(object):
             style=style,
             offset=offset,
             freq=freq,
-            spread=spread or 3.0)
+            spread=spread or 3.0,
+            linemode=linemode,
+            movefactor=movefactor)
 
     def gradient_black(
             self, text=None, fore=None, back=None, style=None,
-            start=None, step=1, reverse=False):
+            start=None, step=1, reverse=False,
+            linemode=True, movefactor=2):
         """ Return a black and white gradient.
             Arguments:
                 text  : String to colorize.
@@ -814,38 +853,44 @@ class Colr(object):
                 fore  : Foreground color, background will be gradient.
                 back  : Background color, foreground will be gradient.
                 style : Name of style to use for the gradient.
+                linemode   : Colorize each line in the input.
+                             Default: True
+                movefactor : Factor for offset increase on each line when using
+                             linemode.
+                             Minimum value: 0
+                             Default: 2
         """
+        gradargs = {
+            'step': step,
+            'fore': fore,
+            'back': back,
+            'style': style,
+            'reverse': reverse
+        }
+
+        if linemode:
+            gradargs['movefactor'] = 2 if movefactor is None else movefactor
+            method = self._gradient_black_lines
+        else:
+            method = self._gradient_black_line
+
         if text:
             return self.__class__(
                 ''.join((
                     self.data or '',
-                    ''.join((
-                        self._iter_gradient_black(
-                            text,
-                            start or (255 if reverse else 232),
-                            step=step,
-                            fore=fore,
-                            back=back,
-                            style=style,
-                            reverse=reverse
-                        )
-                    ))
+                    method(
+                        text,
+                        start or (255 if reverse else 232),
+                        **gradargs)
                 ))
             )
 
         # Operating on self.data.
         return self.__class__(
-            ''.join((
-                self._iter_gradient_black(
-                    strip_codes(self.data),
-                    start or (255 if reverse else 232),
-                    step=step,
-                    fore=fore,
-                    back=back,
-                    style=style,
-                    reverse=reverse
-                )
-            ))
+            method(
+                strip_codes(self.data),
+                start or (255 if reverse else 232),
+                **gradargs)
         )
 
     def join(self, *colrs, **colorkwargs):
