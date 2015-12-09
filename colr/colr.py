@@ -39,7 +39,7 @@ import sys
 
 from .trans import hex2term
 
-__version__ = '0.2.1-1'
+__version__ = '0.2.2'
 
 __all__ = [
     '_disabled',
@@ -522,6 +522,82 @@ class Colr(object):
             for i, c in enumerate(s)
         )
 
+    def _rainbow_line(self, s, freq=0.1, spread=3.0, offset=0, **colorargs):
+        """ Create rainbow using the same offset for all text.
+            Arguments:
+                s          : String to colorize.
+                freq       : Frequency/"tightness" of colors in the rainbow.
+                             Best results when in the range 0.0-1.0.
+                             Default: 0.1
+                spread     : Spread/width of colors.
+                             Default: 3.0
+                offset     : Offset for start of rainbow.
+                             Default: 0
+
+            Keyword Arguments:
+                colorargs  : Any extra arguments for the color function,
+                             such as fore, back, style.
+                             These need to be treated carefully to not
+                            'overwrite' the rainbow codes.
+        """
+        fore = colorargs.get('fore', None)
+        back = colorargs.get('back', None)
+        style = colorargs.get('style', None)
+        if fore:
+            color_args = (lambda hexval: {
+                'back': hex2term(hexval),
+                'style': style,
+                'fore': fore
+            })
+        else:
+            color_args = (lambda hexval: {
+                'fore': hex2term(hexval),
+                'style': style,
+                'back': back
+            })
+
+        return ''.join(
+            self.color(c, **color_args(hval))
+            for c, hval in self._rainbow_hex(
+                s,
+                freq=freq,
+                spread=spread,
+                offset=offset)
+        )
+
+    def _rainbow_lines(
+            self, s, freq=0.1, spread=3.0, offset=0, movefactor=0,
+            **colorargs):
+        """ Create rainbow text, using the same offset for each line.
+            Arguments:
+                s          : String to colorize.
+                freq       : Frequency/"tightness" of colors in the rainbow.
+                             Best results when in the range 0.0-1.0.
+                             Default: 0.1
+                spread     : Spread/width of colors.
+                             Default: 3.0
+                offset     : Offset for start of rainbow.
+                             Default: 0
+                movefactor : Factor for offset increase on each new line.
+                             Default: 0
+
+            Keyword Arguments:
+                fore, back, style  : Other args for the color() function.
+        """
+        if not movefactor:
+            factor = lambda i: offset
+        else:
+            # Increase the offset for each line.
+            factor = lambda i: offset + (i * movefactor)
+        return '\n'.join(
+            self._rainbow_line(
+                line,
+                freq=0.1,
+                spread=3.0,
+                offset=factor(i),
+                **colorargs)
+            for i, line in enumerate(s.splitlines()))
+
     def _str_just(
             self, methodname, width, fillchar=' ', squeeze=False,
             **colorkwargs):
@@ -827,66 +903,62 @@ class Colr(object):
 
     def rainbow(
             self, text=None, fore=None, back=None, style=None,
-            freq=0.1, offset=30, spread=3.0):
+            freq=0.1, offset=30, spread=3.0,
+            linemode=True, movefactor=2):
         """ Make rainbow gradient text.
             Arguments:
-                text   : Text to make gradient.
-                         Default: self.data
-                fore   : Fore color to use (makes back the rainbow).
-                         Default: None
-                back   : Back color to use (makes fore the rainbow).
-                         Default: None
-                style  : Style for the rainbow.
-                         Default: None
-                freq   : Frequency of color change, a higher value means more
-                         colors. Best results when in the range 0.0-1.0.
-                         Default: 0.1
-                offset : Offset for start of rainbow.
-                         Default: 30
-                spread : Spread/width of each color.
-                         Default: 3.0
+                text       : Text to make gradient.
+                             Default: self.data
+                fore       : Fore color to use (makes back the rainbow).
+                             Default: None
+                back       : Back color to use (makes fore the rainbow).
+                             Default: None
+                style      : Style for the rainbow.
+                             Default: None
+                freq       : Frequency of color change, a higher value means
+                             more colors.
+                             Best results when in the range 0.0-1.0.
+                             Default: 0.1
+                offset     : Offset for start of rainbow.
+                             Default: 30
+                spread     : Spread/width of each color.
+                             Default: 3.0,
+                linemode   : Colorize each line in the input.
+                             Default: True
+                movefactor : Factor for offset increase on each line when using
+                             linemode.
+                             Minimum value: 0
+                             Default: 2
         """
         if fore and back:
             raise ValueError('Cannot use both fore and back with rainbow()')
 
-        if fore:
-            color_args = (lambda hexval: {
-                'back': hex2term(hexval),
-                'style': style,
-                'fore': fore
-            })
+        rainbowargs = {
+            'freq': freq,
+            'spread': spread,
+            'offset': offset,
+            'fore': fore,
+            'back': back,
+            'style': style
+        }
+        if linemode:
+            rainbowargs['movefactor'] = movefactor
+            method = self._rainbow_lines
         else:
-            color_args = (lambda hexval: {
-                'fore': hex2term(hexval),
-                'style': style,
-                'back': back
-            })
+            method = self._rainbow_line
 
         if text:
             # Prepend existing self.data to the rainbow text.
             return self.__class__(
                 ''.join((
                     self.data,
-                    ''.join(
-                        self.color(c, **color_args(hval))
-                        for c, hval in self._rainbow_hex(
-                            text, freq=freq,
-                            spread=spread,
-                            offset=offset)
-                    )
+                    method(text, **rainbowargs)
                 ))
             )
 
         # Operate on self.data.
         return self.__class__(
-            ''.join(
-                self.color(c, **color_args(hval))
-                for c, hval in self._rainbow_hex(
-                    strip_codes(self.data),
-                    freq=freq,
-                    spread=spread,
-                    offset=offset)
-            )
+            method(strip_codes(self.data), **rainbowargs)
         )
 
     def rjust(self, width, fillchar=' ', squeeze=False, **kwargs):
