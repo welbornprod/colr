@@ -11,7 +11,8 @@ import inspect
 import sys
 import unittest
 
-from colr import (
+from .. import (
+    __version__,
     color,
     Colr,
     ColorCode,
@@ -239,6 +240,6 @@ class ColrTest(unittest.TestCase):
                     hex2termhex(*argset),
                     msg=test_msg('Failed on close match.', *argset))
 
-
+print('Running tests for Colr v. {}'.format(__version__))
 if __name__ == '__main__':
     sys.exit(unittest.main(argv=sys.argv))

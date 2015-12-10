@@ -8,13 +8,15 @@
     -Christopher Welborn 08-30-2015
 """
 
-from docopt import docopt
 import os
 import sys
 
-from colr import __version__, auto_disable, color, disabled, Colr
+from docopt import docopt
 
-NAME = 'Test Colr'
+# Run this with `python3 -m colr.tests.run
+from ..colr import __version__, auto_disable, color, disabled, Colr
+
+NAME = 'Colr Test Run'
 VERSIONSTR = '{} v. {}'.format(NAME, __version__)
 SCRIPT = os.path.split(os.path.abspath(sys.argv[0]))[1]
 SCRIPTDIR = os.path.abspath(sys.path[0])
