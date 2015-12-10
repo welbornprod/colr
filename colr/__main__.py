@@ -110,7 +110,11 @@ def main(argd):
 
     if argd['--translate']:
         # Just translate a simple code and exit.
-        print('\n'.join(translate(argd['CODE'] or read_stdin().split())))
+        try:
+            print('\n'.join(translate(argd['CODE'] or read_stdin().split())))
+        except ValueError as ex:
+            print('Translation error: {}'.format(ex), file=sys.stderr)
+            return 1
         return 0
 
     txt = argd['TEXT'] or read_stdin()

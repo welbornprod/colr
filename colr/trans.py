@@ -317,6 +317,10 @@ def hex2rgb(hexval, allow_short=False):
     hexval = hexval.strip().lstrip('#')
     if allow_short:
         hexval = fix_hex(hexval)
+    if not len(hexval) == 6:
+        raise ValueError(
+            'Expecting a hex string (#RGB, #RRGGBB), got: {}'.format(
+                hexval))
     try:
         val = tuple(
             int(''.join(hexval[i:i + 2]), 16)
@@ -388,7 +392,14 @@ def term2hex(code, default=None):
         Accepts strs or ints in the form of: 1, 01, 123.
         Returns `default` if the code is not found.
     """
-    return term2hex_map.get('{:02}'.format(code), default)
+    try:
+        val = term2hex_map.get('{:02}'.format(int(code), default))
+    except ValueError:
+        raise ValueError(
+            'Expecting an int or number string, got: {} ({})'.format(
+                code,
+                getattr(code, '__class__', type(code)).__name__))
+    return val
 
 
 def term2rgb(code):
@@ -470,7 +481,7 @@ class ColorCode(object):
     def _init_rgb(self, r, g, b):
         """ Initialize from red, green, blue args. """
         self.rgb = (r, g, b)
-        self.hexval = rgb2hex(r, g, b)
+        self.hexval = rgb2termhex(r, g, b)
         self.code = hex2term(self.hexval)
 
     def example(self):
@@ -498,6 +509,10 @@ class ColorCode(object):
         c = cls()
         c._init_rgb(r, g, b)
         return c
+
+    def to_dict(self):
+        """ Return a dict of code, hexval, and rgb values. """
+        return {'code': self.code, 'hexval': self.hexval, 'rgb': self.rgb}
 
 if __name__ == '__main__':
     from sys import exit, stderr

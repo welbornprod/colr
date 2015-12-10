@@ -43,6 +43,7 @@ from .colr import (  # noqa
 
 from .trans import (
     ColorCode,
+    fix_hex,
     hex2rgb,
     hex2term,
     hex2term_map,
@@ -70,6 +71,7 @@ __all__ = [
     'color',
     'strip_codes',
     # trans functions made available.
+    'fix_hex',
     'hex2rgb',
     'hex2term',
     'hex2term_map',
