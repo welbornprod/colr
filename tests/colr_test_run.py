@@ -3,9 +3,8 @@
 
 """ test_colr.py
     Run a few tests for the Colr library.
-    I know these are not good tests. They do catch bugs though.
-    Actual unit tests are coming, but for now just try all the methods and see
-    if anything breaks.
+    Besides unit tests, just running this script will display any obvious
+    display bugs.
     -Christopher Welborn 08-30-2015
 """
 
