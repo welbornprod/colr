@@ -139,8 +139,8 @@ codes = _build_codes()
 
 
 def auto_disable(enabled=True, fds=(sys.stdout, sys.stderr)):
-    """ Automatically decide whether to disable color codes if stdout or stderr
-        are not ttys.
+    """ Automatically decide whether to disable color codes if stdout or
+        stderr are not ttys.
 
         Arguments:
             enabled  : Whether to automatically disable color codes.
@@ -148,6 +148,7 @@ def auto_disable(enabled=True, fds=(sys.stdout, sys.stderr)):
                        When set to False, enable() is called.
             fds      : Open file descriptors to check for ttys.
                        If any non-ttys are found, colors will be disabled.
+                       Objects must have a isatty() method.
     """
     if enabled:
         if not all(getattr(f, 'isatty', lambda: False)() for f in fds):
