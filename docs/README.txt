@@ -460,4 +460,3 @@ This library may be a little too flexible, and that may change:
    :alt: The possibilities are endless.
 
    The possibilities are endless.
-

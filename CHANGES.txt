@@ -1,3 +1,4 @@
+v0.2.5 04/20/16 -- Cleanups/linting.
 v0.2.4 12/09/15 -- Include tests in package.
 v0.2.3 12/09/15 -- Tests added, gotchas fixed.
 v0.2.2 12/08/15 -- Prettier rainbow/gradient, linemode, and more tests.
