@@ -8,8 +8,8 @@ colr/__init__.py
 colr/__main__.py
 colr/colr.py
 colr/trans.py
-colr/tests/__init__.py
-colr/tests/run.py
-colr/tests/test_colr.py
 docs/README.txt
 docs/mit.txt
+test/__init__.py
+test/run.py
+test/test_colr.py

@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """ colr.py
-    A terminal color library for python, inspired by the javascript lib "clor".
+    A terminal color library for python, inspired by 'clor' (javascript lib).
     -Christopher Welborn 08-12-2015
 
     The MIT License (MIT)
@@ -21,8 +21,8 @@
 
     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
     IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+    THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
     LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
     DEALINGS IN THE SOFTWARE.
@@ -39,7 +39,7 @@ import sys
 
 from .trans import hex2term
 
-__version__ = '0.2.3'
+__version__ = '0.2.5'
 
 __all__ = [
     '_disabled',
@@ -199,8 +199,11 @@ class Colr(object):
         elif isinstance(other, str):
             return self.__class__(''.join((self.data, other)))
 
-        raise TypeError('Colr cannot be added to non Colr/str type: {}'.format(
-            getattr(other, '__class__', type(other)).__name__))
+        raise TypeError(
+            'Colr cannot be added to non Colr/str type: {}'.format(
+                getattr(other, '__name__', type(other).__name__)
+            )
+        )
 
     def __bool__(self):
         """ A Colr is truthy if it has some .data. """
@@ -298,7 +301,7 @@ class Colr(object):
         if not isinstance(other, self.__class__):
             raise TypeError('Cannot compare. Expected: {}, got: {}.'.format(
                 self.__class__.__name__,
-                getattr(other, '__class__', type(other)).__name__))
+                getattr(other, '__name__', type(other).__name__)))
         return self.data < other.data
 
     def __mul__(self, n):
@@ -306,8 +309,11 @@ class Colr(object):
             except return a Colr.
         """
         if not isinstance(n, int):
-            raise TypeError('Cannot multiply Colr by non-int type: {}'.format(
-                getattr(n, '__class__', type(n)).__name__))
+            raise TypeError(
+                'Cannot multiply Colr by non-int type: {}'.format(
+                    getattr(n, '__name__', type(n).__name__)
+                )
+            )
 
         return self.__class__(self.data * n)
 
@@ -318,8 +324,11 @@ class Colr(object):
         elif isinstance(other, str):
             return self.__class__(''.join((other, self.data)))
 
-        raise TypeError('Colr cannot be added to non Colr/str type: {}'.format(
-            getattr(other, '__class__', type(other)).__name__))
+        raise TypeError(
+            'Colr cannot be added to non Colr/str type: {}'.format(
+                getattr(other, '__name__', type(other).__name__)
+            )
+        )
 
     def __rmul__(self, n):
         return self * n
@@ -423,10 +432,12 @@ class Colr(object):
             treating each line separately.
         """
         if not movefactor:
-            factor = lambda i: start
+            def factor(i):
+                return start
         else:
             # Increase the start for each line.
-            factor = lambda i: start + (i * movefactor)
+            def factor(i):
+                return start + (i * movefactor)
         return '\n'.join((
             self._gradient_black_line(
                 line,
@@ -547,7 +558,8 @@ class Colr(object):
             for i, c in enumerate(s)
         )
 
-    def _rainbow_line(self, text, freq=0.1, spread=3.0, offset=0, **colorargs):
+    def _rainbow_line(
+            self, text, freq=0.1, spread=3.0, offset=0, **colorargs):
         """ Create rainbow using the same offset for all text.
             Arguments:
                 text       : String to colorize.
@@ -610,10 +622,12 @@ class Colr(object):
                 fore, back, style  : Other args for the color() function.
         """
         if not movefactor:
-            factor = lambda i: offset
+            def factor(i):
+                return offset
         else:
             # Increase the offset for each line.
-            factor = lambda i: offset + (i * movefactor)
+            def factor(i):
+                return offset + (i * movefactor)
         return '\n'.join(
             self._rainbow_line(
                 line,
@@ -735,7 +749,9 @@ class Colr(object):
             # Get escape code for this style.
             code = codes[stype].get(stylename, None)
             if not code:
-                raise ValueError('Invalid color name/number: {}'.format(style))
+                raise ValueError(
+                    'Invalid color name/number: {}'.format(style)
+                )
             if stylename.startswith('reset'):
                 resetcodes.append(code)
             else:
@@ -760,8 +776,8 @@ class Colr(object):
             build the gradients, starting at a known offset.
             Arguments:
                 text       : Text to make gradient (self.data when not given).
-                             The gradient text is joined to self.data when this
-                             is used.
+                             The gradient text is joined to self.data when
+                             this is used.
                 name       : Color name for the gradient (same as fore names).
                              Default: black
                 fore       : Fore color. Back will be gradient when used.
@@ -778,8 +794,8 @@ class Colr(object):
                              Default: 3.0 for colors, 1 for black/white
                 linemode   : Colorize each line in the input.
                              Default: True
-                movefactor : Factor for offset increase on each line when using
-                             linemode.
+                movefactor : Factor for offset increase on each line when
+                             using linemode.
                              Minimum value: 0
                              Default: 2
         """
@@ -840,23 +856,23 @@ class Colr(object):
             linemode=True, movefactor=2):
         """ Return a black and white gradient.
             Arguments:
-                text  : String to colorize.
-                start : Starting 256-color number.
-                        The `start` will be adjusted if it is not within
-                        bounds.
-                        This will always be > 15.
-                        This will be adjusted to fit within a 6-length
-                        gradient, or the 24-length black/white gradient.
-                step  : Number of characters to colorize per color.
-                        This allows a "wider" gradient.
-                        This will always be greater than 0.
-                fore  : Foreground color, background will be gradient.
-                back  : Background color, foreground will be gradient.
-                style : Name of style to use for the gradient.
+                text       : String to colorize.
+                start      : Starting 256-color number.
+                             The `start` will be adjusted if it is not within
+                             bounds.
+                             This will always be > 15.
+                             This will be adjusted to fit within a 6-length
+                             gradient, or the 24-length black/white gradient.
+                step       : Number of characters to colorize per color.
+                             This allows a "wider" gradient.
+                             This will always be greater than 0.
+                fore       : Foreground color, background will be gradient.
+                back       : Background color, foreground will be gradient.
+                style      : Name of style to use for the gradient.
                 linemode   : Colorize each line in the input.
                              Default: True
-                movefactor : Factor for offset increase on each line when using
-                             linemode.
+                movefactor : Factor for offset increase on each line when
+                             using linemode.
                              Minimum value: 0
                              Default: 2
         """
@@ -970,8 +986,8 @@ class Colr(object):
                              Default: 3.0,
                 linemode   : Colorize each line in the input.
                              Default: True
-                movefactor : Factor for offset increase on each line when using
-                             linemode.
+                movefactor : Factor for offset increase on each line when
+                             using linemode.
                              Minimum value: 0
                              Default: 2
         """

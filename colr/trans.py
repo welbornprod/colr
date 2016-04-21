@@ -398,7 +398,7 @@ def term2hex(code, default=None):
         raise ValueError(
             'Expecting an int or number string, got: {} ({})'.format(
                 code,
-                getattr(code, '__class__', type(code)).__name__))
+                getattr(code, '__name__', type(code).__name__)))
     return val
 
 
@@ -445,8 +445,7 @@ class ColorCode(object):
             self._init_code(code)
         else:
             raise TypeError('Expecting hex, term-code, or rgb. Got: {}'.format(
-                getattr(code, '__class__', type(code)).__name__)
-            )
+                getattr(code, '__name__', type(code).__name__)))
 
     def __format__(self, fmt):
         """ Pass on any format calls to str(self). """
@@ -470,7 +469,7 @@ class ColorCode(object):
             raise ValueError(' '.join((
                 'Code must be in the range 0-255, inclusive.',
                 'Got: {} ({})'
-            )).format(code, getattr(code, '__class__', type(code)).__name__))
+            )).format(code, getattr(code, '__name__', type(code).__name__)))
 
     def _init_hex(self, hexval):
         """ Initialize from a hex value string. """
