@@ -21,116 +21,121 @@ Resources:
 """
 
 from types import GeneratorType
+from typing import cast, Any, Optional, Sequence, TypeVar
+
+# Custom types.
+Numeric = TypeVar('Numeric', int, str)
+RGB = Sequence[int]
 
 # Original lookup table provided by Micah Elliott (colortrans.py).
 # Modified to dict by Christopher Welborn.
 term2hex_map = {
     #    8-bit, RGB hex
     # Primary 3-bit (8 colors). Unique representation!
-    '00':  '000000',
-    '01':  '800000',
-    '02':  '008000',
-    '03':  '808000',
-    '04':  '000080',
-    '05':  '800080',
-    '06':  '008080',
-    '07':  'c0c0c0',
+    '00': '000000',
+    '01': '800000',
+    '02': '008000',
+    '03': '808000',
+    '04': '000080',
+    '05': '800080',
+    '06': '008080',
+    '07': 'c0c0c0',
 
     # Equivalent "bright" versions of original 8 colors.
-    '08':  '808080',
-    '09':  'ff0000',
-    '10':  '00ff00',
-    '11':  'ffff00',
-    '12':  '0000ff',
-    '13':  'ff00ff',
-    '14':  '00ffff',
-    '15':  'ffffff',
+    '08': '808080',
+    '09': 'ff0000',
+    '10': '00ff00',
+    '11': 'ffff00',
+    '12': '0000ff',
+    '13': 'ff00ff',
+    '14': '00ffff',
+    '15': 'ffffff',
 
     # Strictly ascending.
-    '16':  '000000',
-    '17':  '00005f',
-    '18':  '000087',
-    '19':  '0000af',
-    '20':  '0000d7',
-    '21':  '0000ff',
-    '22':  '005f00',
-    '23':  '005f5f',
-    '24':  '005f87',
-    '25':  '005faf',
-    '26':  '005fd7',
-    '27':  '005fff',
-    '28':  '008700',
-    '29':  '00875f',
-    '30':  '008787',
-    '31':  '0087af',
-    '32':  '0087d7',
-    '33':  '0087ff',
-    '34':  '00af00',
-    '35':  '00af5f',
-    '36':  '00af87',
-    '37':  '00afaf',
-    '38':  '00afd7',
-    '39':  '00afff',
-    '40':  '00d700',
-    '41':  '00d75f',
-    '42':  '00d787',
-    '43':  '00d7af',
-    '44':  '00d7d7',
-    '45':  '00d7ff',
-    '46':  '00ff00',
-    '47':  '00ff5f',
-    '48':  '00ff87',
-    '49':  '00ffaf',
-    '50':  '00ffd7',
-    '51':  '00ffff',
-    '52':  '5f0000',
-    '53':  '5f005f',
-    '54':  '5f0087',
-    '55':  '5f00af',
-    '56':  '5f00d7',
-    '57':  '5f00ff',
-    '58':  '5f5f00',
-    '59':  '5f5f5f',
-    '60':  '5f5f87',
-    '61':  '5f5faf',
-    '62':  '5f5fd7',
-    '63':  '5f5fff',
-    '64':  '5f8700',
-    '65':  '5f875f',
-    '66':  '5f8787',
-    '67':  '5f87af',
-    '68':  '5f87d7',
-    '69':  '5f87ff',
-    '70':  '5faf00',
-    '71':  '5faf5f',
-    '72':  '5faf87',
-    '73':  '5fafaf',
-    '74':  '5fafd7',
-    '75':  '5fafff',
-    '76':  '5fd700',
-    '77':  '5fd75f',
-    '78':  '5fd787',
-    '79':  '5fd7af',
-    '80':  '5fd7d7',
-    '81':  '5fd7ff',
-    '82':  '5fff00',
-    '83':  '5fff5f',
-    '84':  '5fff87',
-    '85':  '5fffaf',
-    '86':  '5fffd7',
-    '87':  '5fffff',
-    '88':  '870000',
-    '89':  '87005f',
-    '90':  '870087',
-    '91':  '8700af',
-    '92':  '8700d7',
-    '93':  '8700ff',
-    '94':  '875f00',
-    '95':  '875f5f',
-    '96':  '875f87',
-    '97':  '875faf',
-    '98':  '875fd7',
-    '99':  '875fff',
+    '16': '000000',
+    '17': '00005f',
+    '18': '000087',
+    '19': '0000af',
+    '20': '0000d7',
+    '21': '0000ff',
+    '22': '005f00',
+    '23': '005f5f',
+    '24': '005f87',
+    '25': '005faf',
+    '26': '005fd7',
+    '27': '005fff',
+    '28': '008700',
+    '29': '00875f',
+    '30': '008787',
+    '31': '0087af',
+    '32': '0087d7',
+    '33': '0087ff',
+    '34': '00af00',
+    '35': '00af5f',
+    '36': '00af87',
+    '37': '00afaf',
+    '38': '00afd7',
+    '39': '00afff',
+    '40': '00d700',
+    '41': '00d75f',
+    '42': '00d787',
+    '43': '00d7af',
+    '44': '00d7d7',
+    '45': '00d7ff',
+    '46': '00ff00',
+    '47': '00ff5f',
+    '48': '00ff87',
+    '49': '00ffaf',
+    '50': '00ffd7',
+    '51': '00ffff',
+    '52': '5f0000',
+    '53': '5f005f',
+    '54': '5f0087',
+    '55': '5f00af',
+    '56': '5f00d7',
+    '57': '5f00ff',
+    '58': '5f5f00',
+    '59': '5f5f5f',
+    '60': '5f5f87',
+    '61': '5f5faf',
+    '62': '5f5fd7',
+    '63': '5f5fff',
+    '64': '5f8700',
+    '65': '5f875f',
+    '66': '5f8787',
+    '67': '5f87af',
+    '68': '5f87d7',
+    '69': '5f87ff',
+    '70': '5faf00',
+    '71': '5faf5f',
+    '72': '5faf87',
+    '73': '5fafaf',
+    '74': '5fafd7',
+    '75': '5fafff',
+    '76': '5fd700',
+    '77': '5fd75f',
+    '78': '5fd787',
+    '79': '5fd7af',
+    '80': '5fd7d7',
+    '81': '5fd7ff',
+    '82': '5fff00',
+    '83': '5fff5f',
+    '84': '5fff87',
+    '85': '5fffaf',
+    '86': '5fffd7',
+    '87': '5fffff',
+    '88': '870000',
+    '89': '87005f',
+    '90': '870087',
+    '91': '8700af',
+    '92': '8700d7',
+    '93': '8700ff',
+    '94': '875f00',
+    '95': '875f5f',
+    '96': '875f87',
+    '97': '875faf',
+    '98': '875fd7',
+    '99': '875fff',
     '100': '878700',
     '101': '87875f',
     '102': '878787',
@@ -295,7 +300,7 @@ term2hex_map = {
 hex2term_map = {v: k for k, v in term2hex_map.items()}
 
 
-def fix_hex(hexval):
+def fix_hex(hexval: str) -> str:
     hexval = hexval.strip().lstrip('#').lower()
     hexlen = len(hexval)
     if hexlen == 3:
@@ -308,7 +313,7 @@ def fix_hex(hexval):
     return hexval
 
 
-def hex2rgb(hexval, allow_short=False):
+def hex2rgb(hexval: str, allow_short: bool=False) -> Sequence[int]:
     """ Return a tuple of (R, G, B) from a hex color. """
     if not hexval:
         raise ValueError(
@@ -332,17 +337,17 @@ def hex2rgb(hexval, allow_short=False):
     return val
 
 
-def hex2term(hexval, allow_short=False):
+def hex2term(hexval: str, allow_short: bool=False) -> str:
     """ Convert a hex value into the nearest terminal code number. """
     return rgb2term(*hex2rgb(hexval, allow_short=allow_short))
 
 
-def hex2termhex(hexval, allow_short=False):
+def hex2termhex(hexval: str, allow_short: bool=False) -> str:
     """ Convert a hex value into the nearest terminal color matched hex. """
     return rgb2termhex(*hex2rgb(hexval, allow_short=allow_short))
 
 
-def print_all():
+def print_all() -> None:
     """ Print all 256 xterm color codes. """
     for code in sorted(term2hex_map):
         print(' '.join((
@@ -351,21 +356,21 @@ def print_all():
         )).format(code=code, hexval=term2hex_map[code]))
 
 
-def rgb2hex(r, g, b):
+def rgb2hex(r: int, g: int, b: int) -> str:
     """ Convert rgb values to a hex code. """
     return '{:02x}{:02x}{:02x}'.format(r, g, b)
 
 
-def rgb2term(r, g, b):
+def rgb2term(r: int, g: int, b: int) -> str:
     """ Convert an rgb value to a terminal code. """
     return hex2term_map[rgb2termhex(r, g, b)]
 
 
-def rgb2termhex(r, g, b):
+def rgb2termhex(r: int, g: int, b: int) -> str:
     """ Convert an rgb value to the nearest hex value that matches a term code.
         The hex value will be one in `hex2term_map`.
     """
-    incs = (0x00, 0x5f, 0x87, 0xaf, 0xd7, 0xff)
+    incs = [0x00, 0x5f, 0x87, 0xaf, 0xd7, 0xff]
 
     res = []
     for part in (r, g, b):
@@ -387,7 +392,7 @@ def rgb2termhex(r, g, b):
     return rgb2hex(*res)
 
 
-def term2hex(code, default=None):
+def term2hex(code: Numeric, default: Optional[str]=None) -> str:
     """ Convenience function for term2hex_map.get(code, None).
         Accepts strs or ints in the form of: 1, 01, 123.
         Returns `default` if the code is not found.
@@ -402,7 +407,7 @@ def term2hex(code, default=None):
     return val
 
 
-def term2rgb(code):
+def term2rgb(code: Numeric) -> Sequence[int]:
     """ Convert a terminal code to an rgb value. """
     return hex2rgb(term2hex(code))
 
@@ -418,13 +423,21 @@ class ColorCode(object):
     """
     __slots__ = ['code', 'hexval', 'rgb']
 
-    def __init__(self, code=None):
-        self.rgb = tuple()
-        self.hexval = None
-        self.code = None
-
+    def __init__(self, code: Any=None) -> None:
+        self.rgb = tuple()  # type: Sequence[int]
+        self.hexval = None  # type: str
+        self.code = None  # type: str
+        # Init tries to be smart about converting code types.
+        typeerrmsg = 'Expecting hex, term-code, or rgb. Got: {}'.format(
+            getattr(code, '__name__', type(code).__name__)
+        )
         if isinstance(code, (list, tuple, GeneratorType)):
-            self._init_rgb(*code)
+            try:
+                # cast is only needed to satisfy mypy. 'code' would work fine.
+                r, g, b = cast(Sequence[int], code)
+            except ValueError:
+                raise TypeError(typeerrmsg)
+            self._init_rgb(r, g, b)
         elif isinstance(code, str):
             try:
                 # Try hex str.
@@ -444,14 +457,13 @@ class ColorCode(object):
             # Term code was passed.
             self._init_code(code)
         else:
-            raise TypeError('Expecting hex, term-code, or rgb. Got: {}'.format(
-                getattr(code, '__name__', type(code).__name__)))
+            raise TypeError(typeerrmsg)
 
-    def __format__(self, fmt):
+    def __format__(self, fmt: str) -> str:
         """ Pass on any format calls to str(self). """
-        return str(self).__format__(fmt)
+        return format(str(self), fmt)
 
-    def __str__(self):
+    def __str__(self) -> str:
         """ A console friendly representation. """
         return ', '.join((
             'Terminal: {s.code:>3}',
@@ -459,7 +471,7 @@ class ColorCode(object):
             'RGB: {rgb}'
         )).format(s=self, rgb=', '.join('{:>3}'.format(i) for i in self.rgb))
 
-    def _init_code(self, code):
+    def _init_code(self, code: int) -> None:
         """ Initialize from an int terminal code. """
         if -1 < code < 256:
             self.code = '{:02}'.format(code)
@@ -471,54 +483,54 @@ class ColorCode(object):
                 'Got: {} ({})'
             )).format(code, getattr(code, '__name__', type(code).__name__)))
 
-    def _init_hex(self, hexval):
+    def _init_hex(self, hexval: str) -> None:
         """ Initialize from a hex value string. """
         self.hexval = hex2termhex(fix_hex(hexval))
         self.code = hex2term(self.hexval)
         self.rgb = hex2rgb(self.hexval)
 
-    def _init_rgb(self, r, g, b):
+    def _init_rgb(self, r: int, g: int, b: int) -> None:
         """ Initialize from red, green, blue args. """
         self.rgb = (r, g, b)
         self.hexval = rgb2termhex(r, g, b)
         self.code = hex2term(self.hexval)
 
-    def example(self):
+    def example(self) -> str:
         """ Same as str(self), except the color codes are actually used. """
 
         return '\033[38;5;{s.code}m{s}\033[0m'.format(s=self)
 
     @classmethod
-    def from_code(cls, code):
+    def from_code(cls, code: int) -> ColorCode:
         """ Return a ColorCode from a terminal code. """
         c = cls()
         c._init_code(code)
         return c
 
     @classmethod
-    def from_hex(cls, hexval):
+    def from_hex(cls, hexval: str) -> ColorCode:
         """ Return a ColorCode from a hex string. """
         c = cls()
         c._init_hex(hexval)
         return c
 
     @classmethod
-    def from_rgb(cls, r, g, b):
+    def from_rgb(cls, r: int, g: int, b: int) -> ColorCode:
         """ Return a ColorCode from a RGB tuple. """
         c = cls()
         c._init_rgb(r, g, b)
         return c
 
-    def to_dict(self):
+    def to_dict(self) -> dict:
         """ Return a dict of code, hexval, and rgb values. """
         return {'code': self.code, 'hexval': self.hexval, 'rgb': self.rgb}
 
 if __name__ == '__main__':
-    from sys import exit, stderr
+    import sys
     print(
         ' '.join((
             'This module is part of the Colr package,',
             'and is meant to be imported.'
         )),
-        file=stderr)
-    exit(1)
+        file=sys.stderr)
+    sys.exit(1)

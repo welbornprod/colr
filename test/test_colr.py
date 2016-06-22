@@ -11,6 +11,8 @@ import inspect
 import sys
 import unittest
 
+from typing import Any, Callable, Mapping, Optional, no_type_check
+
 from colr import (
     __version__,
     color,
@@ -29,7 +31,7 @@ from colr import (
 )
 
 
-def func_name(level=1, parent=None):
+def func_name(level: Optional[int]=1, parent: Optional[Callable]=None) -> str:
     """ Return the name of the function that is calling this function. """
     frame = inspect.currentframe()
     # Go back a number of frames (usually 1).
@@ -44,7 +46,7 @@ def func_name(level=1, parent=None):
     return frame.f_code.co_name
 
 
-def test_msg(s, *args, **kwargs):
+def test_msg(s: str, *args: Any, **kwargs: Mapping[Any, Any]):
     """ Return a message suitable for the `msg` arg in asserts,
         including the calling function name.
     """
@@ -57,6 +59,7 @@ def test_msg(s, *args, **kwargs):
         s)
 
 
+@no_type_check
 class ColrTest(unittest.TestCase):
 
     def setUp(self):
@@ -77,8 +80,8 @@ class ColrTest(unittest.TestCase):
         # known conversion conflicts
         self.conv_conflicts = (
             (
-                {'code':  '15', 'hexval': 'ffffff', 'rgb': (255, 255, 255)},
-                {'code':  '231', 'hexval': 'ffffff', 'rgb': (255, 255, 255)}
+                {'code': '15', 'hexval': 'ffffff', 'rgb': (255, 255, 255)},
+                {'code': '231', 'hexval': 'ffffff', 'rgb': (255, 255, 255)}
             ),
         )
 
@@ -161,7 +164,7 @@ class ColrTest(unittest.TestCase):
         self.assertEqual(
             'hello world',
             strip_codes(
-                color('hello world', fore='green', back='blue', style='bright')
+                color('hello world', fore='red', back='blue', style='bright')
             ),
             msg=test_msg('Failed to strip codes from color string.'))
 
@@ -240,6 +243,8 @@ class ColrTest(unittest.TestCase):
                     hex2termhex(*argset),
                     msg=test_msg('Failed on close match.', *argset))
 
-print('Running tests for Colr v. {}'.format(__version__))
+
 if __name__ == '__main__':
-    sys.exit(unittest.main(argv=sys.argv))
+    print('Running tests for Colr v. {}'.format(__version__))
+    # unittest.main() calls sys.exit(status_code).
+    unittest.main(argv=sys.argv, verbosity=2)  # type: ignore

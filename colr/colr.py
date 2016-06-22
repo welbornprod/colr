@@ -28,9 +28,11 @@
     DEALINGS IN THE SOFTWARE.
 
 """
-from contextlib import suppress
+from contextlib import suppress  # type: ignore
 from functools import partial, total_ordering
 from types import GeneratorType
+from typing import Callable, Dict, Optional, Sequence, Tuple, Union
+from typing.io import IO
 
 import math
 import platform
@@ -39,7 +41,13 @@ import sys
 
 from .trans import hex2term
 
-__version__ = '0.2.5'
+# Types for the type checker.
+CodeFormatArg = Union[str, int]
+CodeFormatFunc = Callable[[CodeFormatArg], str]
+ColorType = Union[str, int]
+
+
+__version__ = '0.3.0'
 
 __all__ = [
     '_disabled',
@@ -78,32 +86,31 @@ _namemap = (
     ('magenta', 5),
     ('cyan', 6),
     ('white', 7)
-)
+)  # type: Tuple[Tuple[str, int], ...]
 
 # Build a module-level map of fore, back, and style names to escape code.
-codeformat = '\033[{}m'.format
-extforeformat = '\033[38;5;{}m'.format
-extbackformat = '\033[48;5;{}m'.format
+codeformat = '\033[{}m'.format  # type: CodeFormatFunc
+extforeformat = '\033[38;5;{}m'.format  # type: CodeFormatFunc
+extbackformat = '\033[48;5;{}m'.format  # type: CodeFormatFunc
 
 # Used to strip codes from a string.
 codepat = re.compile('\033\[([\d;]+)?m')
 
 
-def _build_codes():
+def _build_codes() -> Dict[str, Dict[str, str]]:
     """ Build code map, encapsulated to reduce module-level globals. """
     built = {
         'fore': {},
         'back': {},
         'style': {},
-        'closing': '\033[m'
-    }
+    }  # type: Dict[str, Dict[str, str]]
 
     # Set codes for forecolors (30-37) and backcolors (40-47)
     # Names are given to some of the 256-color variants as 'light' colors.
     for name, number in _namemap:
         built['fore'][name] = codeformat(30 + number)
         built['back'][name] = codeformat(40 + number)
-        litename = 'light{}'.format(name)
+        litename = 'light{}'.format(name)  # type: str
         built['fore'][litename] = codeformat(90 + number)
         built['back'][litename] = codeformat(100 + number)
 
@@ -121,7 +128,7 @@ def _build_codes():
         ('5', ('f', 'flash')),
         ('7', ('h', 'highlight', 'hilight', 'hilite', 'reverse')),
         ('22', ('n', 'normal', 'none'))
-    )
+    )  # type: Tuple[Tuple[str, Tuple[str, ...]], ...]
     # Set style codes.
     for code, names in stylemap:
         for alias in names:
@@ -136,9 +143,12 @@ def _build_codes():
 
 # Raw code map, available to users.
 codes = _build_codes()
+closing_code = '\033[m'
 
 
-def auto_disable(enabled=True, fds=(sys.stdout, sys.stderr)):
+def auto_disable(
+        enabled: Optional[bool]=True,
+        fds: Optional[Sequence[IO]]=(sys.stdout, sys.stderr)) -> None:
     """ Automatically decide whether to disable color codes if stdout or
         stderr are not ttys.
 
@@ -157,7 +167,7 @@ def auto_disable(enabled=True, fds=(sys.stdout, sys.stderr)):
         enable()
 
 
-def disable():
+def disable() -> None:
     """ Disable color codes for Colr and the convenience color() function.
         Created to be used by auto_disable(), for piping output to file or
         other commands.
@@ -166,12 +176,12 @@ def disable():
     _disabled = True
 
 
-def disabled():
+def disabled() -> bool:
     """ Public access to _disabled. """
     return _disabled
 
 
-def enable():
+def enable() -> None:
     """ Enable color codes for Colr and the convenience color() function.
         This only needs to be called if disable() was called previously.
     """
@@ -179,7 +189,7 @@ def enable():
     _disabled = False
 
 
-def strip_codes(s):
+def strip_codes(s: str) -> str:
     """ Strip all color codes from a string. """
     return codepat.sub('', str(s or ''))
 
@@ -189,11 +199,17 @@ class Colr(object):
 
     """ This class colorizes text for an ansi terminal. """
 
-    def __init__(self, text=None, fore=None, back=None, style=None):
+    def __init__(
+            self,
+            text: Optional[str]=None,
+            fore: Optional[ColorType]=None,
+            back: Optional[ColorType]=None,
+            style: Optional[str]=None) -> None:
+        """ Initialize a Colr object with text and color options. """
         # Can be initialized with colored text, not required though.
         self.data = self.color(text or '', fore=fore, back=back, style=style)
 
-    def __add__(self, other):
+    def __add__(self, other: 'Colr') -> 'Colr':
         """ Allow the old string concat methods through addition. """
         if isinstance(other, self.__class__):
             return self.__class__(''.join((self.data, other.data)))
@@ -206,7 +222,7 @@ class Colr(object):
             )
         )
 
-    def __bool__(self):
+    def __bool__(self) -> bool:
         """ A Colr is truthy if it has some .data. """
         return bool(self.data)
 
@@ -733,7 +749,7 @@ class Colr(object):
         return ''.join((
             self.color_code(fore=fore, back=back, style=style),
             str(text or ''),
-            codes['closing'] if text else ''
+            closing_code if text else ''
         ))
 
     def color_code(self, fore=None, back=None, style=None):
