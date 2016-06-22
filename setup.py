@@ -31,7 +31,7 @@ else:
 
 setup(
     name='Colr',
-    version='0.2.5',
+    version='0.3.0',
     author='Christopher Welborn',
     author_email='cj@welbornprod.com',
     packages=['colr'],
@@ -43,8 +43,6 @@ setup(
     classifiers=[
         'Operating System :: Microsoft :: Windows',
         'Operating System :: POSIX :: Linux',
-        'Programming Language :: Python :: 3.3',
-        'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3 :: Only',
         'Topic :: Software Development :: Libraries',

@@ -13,8 +13,8 @@ Dependencies:
 
 ###System
 
-* **Python 3.3+** -
-    This library uses `yield from`.
+* **Python 3.5+** -
+    This library uses `yield from` and the `typing` module.
     [Python 2 support is not planned.](#python-2)
 
 ###Modules
@@ -411,5 +411,3 @@ print(warnmsg('The roof is on fire again.'))
 ```
 
 ![The possibilities are endless.](https://welbornprod.com/static/media/img/colr-warning.png)
-
-
