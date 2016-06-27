@@ -1073,5 +1073,5 @@ if __name__ == '__main__':
     print(
         Colr('warning', 'red')
         .join('[', ']', style='bright')(' ')
-        .green('This module is meant to be ran with `python -m colr.`')
+        .green('This module is meant to be ran with `python -m colr`.')
     )
