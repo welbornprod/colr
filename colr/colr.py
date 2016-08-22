@@ -56,7 +56,7 @@ CodeFormatFunc = Callable[[CodeFormatArg], str]
 ColorType = Union[str, int]
 
 
-__version__ = '0.3.0'
+__version__ = '0.4.0'
 
 __all__ = [
     '_disabled',
@@ -163,7 +163,7 @@ def _build_codes_reverse(
     """ Build a reverse escape-code to name map, based on an existing
         name to escape-code map.
     """
-    built = {}
+    built = {}  # type: Dict[str, Dict[str, str]]
     for codetype, codemap in codes.items():
         for name, escapecode in codemap.items():
             # Skip shorcut aliases to avoid overwriting long names.
@@ -256,8 +256,7 @@ def get_codes(s: str) -> List[str]:
 
 
 def get_known_codes(s):
-    """ Get all known escape codes from a string, and print them
-        with explanations.
+    """ Get all known escape codes from a string, and yield the explanations.
     """
 
     isdisabled = disabled()
