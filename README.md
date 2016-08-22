@@ -340,7 +340,9 @@ python3 -m colr --help
 ```
 
 It will do fore, back, style, gradients, rainbows, justification,
-translation, and code stripping of input (as an argument or stdin).
+and translation.
+It can strip codes from text (as an argument or stdin), or explain the
+codes found in the text.
 
 [lolcat](https://github.com/busyloop/lolcat) emulation:
 ```

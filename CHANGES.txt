@@ -1,3 +1,4 @@
+v0.4.0 08/21/16 -- Better translation, and escape code explainer for the cmdline tool.
 v0.3.0 06/21/16 -- Type checking with typing/mypy.
 v0.2.5 04/20/16 -- Cleanups/linting.
 v0.2.4 12/09/15 -- Include tests in package.
