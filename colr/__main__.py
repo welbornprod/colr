@@ -64,8 +64,8 @@ USAGESTR = """{versionstr}
         {script} [TEXT] [-f fore] [-b back] [-s style]
                  [-a] [-e] [-c num | -l num | -r num] [-n] -R [-o num] [-q num] [-w num]
         {script} -x [TEXT] [-a] [-e] [-c num | -l num | -r num] [-n]
-        {script} -t [CODE...]
-        {script} -z [-u] [TEXT]
+        {script} -t [-a] [CODE...]
+        {script} -z [-a] [-u] [TEXT]
 
     Options:
         CODE                      : One or more codes to translate.
