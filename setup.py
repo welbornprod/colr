@@ -31,7 +31,7 @@ else:
 
 setup(
     name='Colr',
-    version='0.4.1',
+    version='0.4.2',
     author='Christopher Welborn',
     author_email='cj@welbornprod.com',
     packages=['colr'],

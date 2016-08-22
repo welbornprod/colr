@@ -1,3 +1,4 @@
+v0.4.2 08/21/16 -- Small message change for --listcodes.
 v0.4.1 08/21/16 -- Allow option of unique/all codes when listing escape codes in text.
 v0.4.0 08/21/16 -- Better translation, and escape code explainer for the cmdline tool.
 v0.3.0 06/21/16 -- Type checking with typing/mypy.
