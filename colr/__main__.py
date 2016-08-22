@@ -220,7 +220,8 @@ def list_known_codes(s, unique=True):
         total += 1
         print(codedesc)
     plural = 'code' if total == 1 else 'codes'
-    print('\nFound {} unique escape {}.'.format(total, plural))
+    codetype = ' unique' if unique else ''
+    print('\nFound {}{} escape {}.'.format(total, codetype, plural))
     return 0 if total > 0 else 1
 
 
