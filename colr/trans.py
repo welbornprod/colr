@@ -491,7 +491,7 @@ class ColorCode(object):
 
     def _init_rgb(self, r: int, g: int, b: int) -> None:
         """ Initialize from red, green, blue args. """
-        self.rgb = (r, g, b)
+        self.rgb = hex2rgb(rgb2termhex(r, g, b))
         self.hexval = rgb2termhex(r, g, b)
         self.code = hex2term(self.hexval)
 
@@ -501,21 +501,21 @@ class ColorCode(object):
         return '\033[38;5;{s.code}m{s}\033[0m'.format(s=self)
 
     @classmethod
-    def from_code(cls, code: int) -> ColorCode:
+    def from_code(cls, code: int) -> 'ColorCode':
         """ Return a ColorCode from a terminal code. """
         c = cls()
         c._init_code(code)
         return c
 
     @classmethod
-    def from_hex(cls, hexval: str) -> ColorCode:
+    def from_hex(cls, hexval: str) -> 'ColorCode':
         """ Return a ColorCode from a hex string. """
         c = cls()
         c._init_hex(hexval)
         return c
 
     @classmethod
-    def from_rgb(cls, r: int, g: int, b: int) -> ColorCode:
+    def from_rgb(cls, r: int, g: int, b: int) -> 'ColorCode':
         """ Return a ColorCode from a RGB tuple. """
         c = cls()
         c._init_rgb(r, g, b)

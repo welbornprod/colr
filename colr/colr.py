@@ -31,7 +31,16 @@
 from contextlib import suppress  # type: ignore
 from functools import partial, total_ordering
 from types import GeneratorType
-from typing import Callable, Dict, Optional, Sequence, Tuple, Union
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    List,
+    Optional,
+    Sequence,
+    Tuple,
+    Union
+)
 from typing.io import IO
 
 import math
@@ -39,7 +48,7 @@ import platform
 import re
 import sys
 
-from .trans import hex2term
+from .trans import hex2term, ColorCode
 
 # Types for the type checker.
 CodeFormatArg = Union[str, int]
@@ -54,12 +63,17 @@ __all__ = [
     'Colr',
     'auto_disable',
     'codes',
+    'codes_reverse',
     'codeformat',
+    'color',
     'disable',
     'enable',
     'extbackformat',
     'extforeformat',
-    'color',
+    'get_code_num',
+    'get_codes',
+    'get_known_codes',
+    'get_known_name',
     'strip_codes'
 ]
 # Set with the enable/disable functions, or on Windows without colorama.
@@ -95,6 +109,8 @@ extbackformat = '\033[48;5;{}m'.format  # type: CodeFormatFunc
 
 # Used to strip codes from a string.
 codepat = re.compile('\033\[([\d;]+)?m')
+# Used to grab codes from a string.
+codegrabpat = re.compile('\033\[[\d;]+?m')
 
 
 def _build_codes() -> Dict[str, Dict[str, str]]:
@@ -141,8 +157,26 @@ def _build_codes() -> Dict[str, Dict[str, str]]:
 
     return built
 
+
+def _build_codes_reverse(
+        codes: Dict[str, Dict[str, str]]) -> Dict[str, Dict[str, str]]:
+    """ Build a reverse escape-code to name map, based on an existing
+        name to escape-code map.
+    """
+    built = {}
+    for codetype, codemap in codes.items():
+        for name, escapecode in codemap.items():
+            # Skip shorcut aliases to avoid overwriting long names.
+            if len(name) < 2:
+                continue
+            if built.get(codetype, None) is None:
+                built[codetype] = {}
+            built[codetype][escapecode] = name
+    return built
+
 # Raw code map, available to users.
 codes = _build_codes()
+codes_reverse = _build_codes_reverse(codes)
 closing_code = '\033[m'
 
 
@@ -189,9 +223,137 @@ def enable() -> None:
     _disabled = False
 
 
+def get_code_num(s: str) -> Optional[int]:
+    """ Get code number from an escape code.
+        Raises ValueError if an invalid number is found.
+    """
+    if ';' in s:
+        # Extended fore/back codes.
+        numberstr = s.rpartition(';')[-1][:-1]
+    else:
+        # Fore, back, style, codes.
+        numberstr = s.rpartition('[')[-1][:-1]
+
+    num = try_parse_int(
+        numberstr,
+        default=None,
+        minimum=0,
+        maximum=255
+    )
+    if num is None:
+        raise ValueError('\n'.join((
+            'Color code was not in the acceptable range: {}',
+            'Expecting 0-255.'
+        )).format(numberstr))
+    return num
+
+
+def get_codes(s: str) -> List[str]:
+    """ Grab all escape codes from a string.
+        Returns a list of all escape codes.
+    """
+    return codegrabpat.findall(s)
+
+
+def get_known_codes(s):
+    """ Get all known escape codes from a string, and print them
+        with explanations.
+    """
+
+    isdisabled = disabled()
+    strcodes = {c: get_known_name(c) for c in get_codes(s)}
+    for code, codeinfo in strcodes.items():
+        if codeinfo is None:
+            continue
+        codetype, name = codeinfo
+
+        typedesc = '{:>13}: {!r:<16}'.format(codetype.title(), code)
+        if codetype.startswith('extended'):
+            if isdisabled:
+                codedesc = str(ColorCode(int(name)))
+            else:
+                codedesc = ColorCode(int(name)).example()
+        else:
+            codedesc = ''.join((
+                code,
+                name,
+                codes['style']['reset_all']
+            ))
+
+        yield ' '.join((
+            typedesc,
+            codedesc
+        ))
+
+
+def get_known_name(s: str) -> Optional[Tuple[str, str]]:
+    """ Reverse translate a terminal code to a known color name, if possible.
+        Returns a tuple of (codetype, knownname) on success.
+        Returns None on failure.
+    """
+    if not s.endswith('m'):
+        # All codes end with 'm', so...
+        return None
+    if s.startswith('\033[38;5;'):
+        # Extended fore.
+        name = codes_reverse['fore'].get(s, None)
+        if name is not None:
+            return ('extended fore', name)
+    elif s.startswith('\033[48;5;'):
+        # Extended back.
+        name = codes_reverse['back'].get(s, None)
+        if name is not None:
+            return ('extended back', name)
+    elif s.startswith('\033['):
+        # Fore, back, style.
+        number = get_code_num(s)
+        # Get code type based on number.
+        if (number <= 7) or (number == 22):
+            codetype = 'style'
+        elif (((number >= 30) and (number < 40)) or
+                ((number >= 90) and (number < 100))):
+            codetype = 'fore'
+        elif (((number >= 40) and (number < 50)) or
+                ((number >= 100) and (number < 110))):
+            codetype = 'back'
+        else:
+            raise ValueError('\n'.join((
+                'Color code was not in the acceptable range: {}',
+                'Expecting 0-7, 22, 30-39, or 40-49'
+            )).format(number))
+
+        name = codes_reverse[codetype].get(s, None)
+        if name is not None:
+            return (codetype, name)
+    # Not a known escape code.
+    return None
+
+
 def strip_codes(s: str) -> str:
     """ Strip all color codes from a string. """
     return codepat.sub('', str(s or ''))
+
+
+def try_parse_int(
+        s: str,
+        default: Optional[Any]=None,
+        minimum: Optional[int]=None,
+        maximum: Optional[int]=None) -> Optional[Any]:
+    """ Try parsing a string into an integer.
+        On failure, return `default`.
+        If the number is less then `minimum` or greater than `maximum`,
+        return `default`.
+        Returns an integer on success.
+    """
+    try:
+        n = int(s)
+    except ValueError:
+        return None
+    if (minimum is not None) and (n < minimum):
+        return None
+    elif (maximum is not None) and (n > maximum):
+        return None
+    return n
 
 
 @total_ordering

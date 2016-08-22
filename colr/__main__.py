@@ -17,9 +17,16 @@ from random import randint
 
 from .colr import (
     __version__,
+    codes,
     Colr as C,
     auto_disable,
+    codeformat,
     disabled,
+    extforeformat,
+    get_code_num,
+    get_codes,
+    get_known_codes,
+    get_known_name,
     strip_codes,
 )
 
@@ -58,6 +65,7 @@ USAGESTR = """{versionstr}
                  [-a] [-e] [-c num | -l num | -r num] [-n] -R [-o num] [-q num] [-w num]
         {script} -x [TEXT] [-a] [-e] [-c num | -l num | -r num] [-n]
         {script} -t [CODE...]
+        {script} -z [TEXT]
 
     Options:
         CODE                      : One or more codes to translate.
@@ -96,6 +104,7 @@ USAGESTR = """{versionstr}
                                     Default: 3.0
         -x,--stripcodes           : Strip all color codes from text.
         -v,--version              : Show version.
+        -z,--listcodes            : List all escape codes found in text.
 
     Colors and style names can be given in any order when flags are used.
     Without using the flags, they must be given in order (fore, back, style).
@@ -116,6 +125,9 @@ def main(argd):
             print('Translation error: {}'.format(ex), file=sys.stderr)
             return 1
         return 0
+    elif argd['--listcodes']:
+        # List all escape codes found in some text and exit.
+        return list_known_codes(argd['TEXT'] or read_stdin())
 
     txt = argd['TEXT'] or read_stdin()
     fd = sys.stderr if argd['--err'] else sys.stdout
@@ -195,6 +207,19 @@ def justify(clr, argd):
     return clr
 
 
+def list_known_codes(s):
+    """ Find and print all known escape codes in a string,
+        using get_known_codes.
+    """
+    total = 0
+    for codedesc in get_known_codes(s):
+        total += 1
+        print(codedesc)
+    plural = 'code' if total == 1 else 'codes'
+    print('\nFound {} unique escape {}.'.format(total, plural))
+    return 0 if total > 0 else 1
+
+
 def read_stdin():
     """ Read text from stdin, and print a helpful message for ttys. """
     if sys.stdin.isatty() and sys.stdout.isatty():
@@ -203,23 +228,42 @@ def read_stdin():
     return sys.stdin.read()
 
 
-def translate(codes):
+def translate(usercodes):
     """ Translate one or more hex, term, or rgb value into the others.
         Yields strings with the results for each code translated.
     """
-    for code in codes:
-        if ',' in code:
-            try:
-                r, g, b = (int(c.strip()) for c in code.split(','))
-            except (TypeError, ValueError):
-                raise InvalidNumber(code, label='Invalid rgb value:')
-            code = (r, g, b)
+    for code in usercodes:
+        code = code.strip().lower()
+        if code.isalpha() and (code in codes['fore']):
+            # Basic color name.
+            yield translate_basic(code)
+        else:
+            if ',' in code:
+                try:
+                    r, g, b = (int(c.strip()) for c in code.split(','))
+                except (TypeError, ValueError):
+                    raise InvalidNumber(code, label='Invalid rgb value:')
+                code = (r, g, b)
 
-        colorcode = ColorCode(code)
-        if disabled():
-            yield str(colorcode)
+            colorcode = ColorCode(code)
 
-        yield colorcode.example()
+            if disabled():
+                yield str(colorcode)
+            yield colorcode.example()
+
+
+def translate_basic(usercode):
+    """ Translate a basic color name to color with explanation. """
+    codenum = get_code_num(codes['fore'][usercode])
+    colorcode = codeformat(codenum)
+    msg = 'Name: {:>10}, Number: {:>3}, EscapeCode: {!r}'.format(
+        usercode,
+        codenum,
+        colorcode
+    )
+    if disabled():
+        return msg
+    return str(C(msg, fore=usercode))
 
 
 def try_float(s, default=None, minimum=None):
