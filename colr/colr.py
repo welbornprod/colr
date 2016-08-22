@@ -56,7 +56,7 @@ CodeFormatFunc = Callable[[CodeFormatArg], str]
 ColorType = Union[str, int]
 
 
-__version__ = '0.4.0'
+__version__ = '0.4.1'
 
 __all__ = [
     '_disabled',
@@ -255,13 +255,20 @@ def get_codes(s: str) -> List[str]:
     return codegrabpat.findall(s)
 
 
-def get_known_codes(s):
+def get_known_codes(s, unique=True):
     """ Get all known escape codes from a string, and yield the explanations.
     """
 
     isdisabled = disabled()
-    strcodes = {c: get_known_name(c) for c in get_codes(s)}
-    for code, codeinfo in strcodes.items():
+    orderedcodes = ((c, get_known_name(c)) for c in get_codes(s))
+    codesdone = set()
+    for code, codeinfo in orderedcodes:
+        # Do the codes in order, but don't do the same code twice.
+        if unique:
+            if code in codesdone:
+                continue
+            codesdone.add(code)
+
         if codeinfo is None:
             continue
         codetype, name = codeinfo

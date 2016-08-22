@@ -65,7 +65,7 @@ USAGESTR = """{versionstr}
                  [-a] [-e] [-c num | -l num | -r num] [-n] -R [-o num] [-q num] [-w num]
         {script} -x [TEXT] [-a] [-e] [-c num | -l num | -r num] [-n]
         {script} -t [CODE...]
-        {script} -z [TEXT]
+        {script} -z [-u] [TEXT]
 
     Options:
         CODE                      : One or more codes to translate.
@@ -99,6 +99,7 @@ USAGESTR = """{versionstr}
         -s name,--style name      : Name for style to use.
         -t,--translate            : Translate one or more term codes,
                                     hex values, or rgb values.
+        -u,--unique               : Only report unique color codes with -z.
         -w num,--spread num       : Spread/width of each color in the rainbow
                                     or gradient.
                                     Default: 3.0
@@ -127,7 +128,10 @@ def main(argd):
         return 0
     elif argd['--listcodes']:
         # List all escape codes found in some text and exit.
-        return list_known_codes(argd['TEXT'] or read_stdin())
+        return list_known_codes(
+            argd['TEXT'] or read_stdin(),
+            unique=argd['--unique']
+        )
 
     txt = argd['TEXT'] or read_stdin()
     fd = sys.stderr if argd['--err'] else sys.stdout
@@ -207,12 +211,12 @@ def justify(clr, argd):
     return clr
 
 
-def list_known_codes(s):
+def list_known_codes(s, unique=True):
     """ Find and print all known escape codes in a string,
         using get_known_codes.
     """
     total = 0
-    for codedesc in get_known_codes(s):
+    for codedesc in get_known_codes(s, unique=unique):
         total += 1
         print(codedesc)
     plural = 'code' if total == 1 else 'codes'
