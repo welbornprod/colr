@@ -56,7 +56,7 @@ CodeFormatFunc = Callable[[CodeFormatArg], str]
 ColorType = Union[str, int]
 
 
-__version__ = '0.4.3'
+__version__ = '0.4.4'
 
 __all__ = [
     '_disabled',
@@ -471,7 +471,7 @@ class Colr(object):
             because otherwise it would be just about useless.
             Returns another Colr instance.
         """
-        return self.__class__(strip_codes(self.data)[key])
+        return self.__class__(self.stripped()[key])
 
     def __len__(self):
         """ Return len() for any built up string data. This will count color
@@ -851,7 +851,7 @@ class Colr(object):
             codelen = len(newtext) - len(strippedtxt)
             width = width + codelen
             if squeeze:
-                realoldlen = len(strip_codes(self.data))
+                realoldlen = len(self.stripped())
                 width -= realoldlen
             return self.__class__().join(
                 self,
@@ -862,7 +862,7 @@ class Colr(object):
             )
 
         # Operating on self.data.
-        strippedtxt = strip_codes(self.data)
+        strippedtxt = self.stripped()
         codelen = len(self.data) - len(strippedtxt)
         width = width + codelen
         return self.__class__(
@@ -1089,7 +1089,7 @@ class Colr(object):
         # Operating on self.data.
         return self.__class__(
             method(
-                strip_codes(self.data),
+                self.stripped(),
                 start or (255 if reverse else 232),
                 **gradargs)
         )
@@ -1204,7 +1204,7 @@ class Colr(object):
 
         # Operate on self.data.
         return self.__class__(
-            method(strip_codes(self.data), **rainbowargs)
+            method(self.stripped(), **rainbowargs)
         )
 
     def rjust(self, width, fillchar=' ', squeeze=False, **kwargs):
@@ -1230,6 +1230,10 @@ class Colr(object):
     def str(self):
         """ Alias for self.__str__ """
         return str(self)
+
+    def stripped(self):
+        """ Return str(strip_codes(self.data)) """
+        return strip_codes(self.data)
 
 # Shortcuts.
 color = Colr().color

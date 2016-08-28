@@ -1,5 +1,4 @@
-Colr
-====
+# Colr
 
 A python module for using terminal colors in linux. It contains a simple
 `color` function that accepts style and color names, and outputs a string
@@ -8,16 +7,15 @@ on the `Colr` object.
 
 _______________________________________________________________________________
 
-Dependencies:
-=============
+## Dependencies:
 
-###System
+### System
 
 * **Python 3.5+** -
     This library uses `yield from` and the `typing` module.
     [Python 2 support is not planned.](#python-2)
 
-###Modules
+### Modules
 
 *There are no dependencies required for importing this library on Linux*, however:
 
@@ -28,8 +26,7 @@ Dependencies:
     This is not required on linux.
     It provides a helper for basic color support for Windows.
 
-Installation:
-=============
+## Installation:
 
 Colr is listed on [PyPi](https://pypi.python.org/pypi/Colr),
 and can be installed using [pip](https://pip.pypa.io/en/stable/installing/):
@@ -47,17 +44,16 @@ cd colr
 python3 setup.py install
 ```
 
-Examples:
-=========
+## Examples:
 
-###Simple:
+### Simple:
 
 ```python
 from colr import color
 print(color('Hello world.', fore='red', style='bright'))
 ```
 
-###Chainable:
+### Chainable:
 ```python
 from colr import Colr as C
 print(
@@ -72,10 +68,9 @@ print(C('Hello ', fore='red').bgwhite().blue('World'))
 
 ```
 
-Examples (256 Colors):
-======================
+## Examples (256 Colors):
 
-###Simple:
+### Simple:
 
 ```python
 from colr import color
@@ -83,7 +78,7 @@ from colr import color
 print(color('Hello world', fore=125, back=80))
 ```
 
-###Chainable:
+### Chainable:
 
 ```python
 from colr import Colr as C
@@ -95,8 +90,7 @@ print(C().f_125().b_80('Hello World'))
 _______________________________________________________________________________
 
 
-Other methods:
-==============
+## Other methods:
 
 The `Colr` object has several helper methods.
 The `color()` method returns a `str`, but the rest return a `Colr` instance
@@ -104,7 +98,7 @@ so they can be chained.
 A chainable version of `color()` does exist (`chained()`), but it's not really
 needed outside of the `colr` module itself.
 
-###Colr.center
+### Colr.center
 
 Like `str.center`, except it ignores escape codes.
 
@@ -112,7 +106,7 @@ Like `str.center`, except it ignores escape codes.
 Colr('Hello', fore='green').center(40)
 ```
 
-###Colr.format
+### Colr.format
 
 Like `str.format`, except it operates on `Colr.data`.
 
@@ -120,7 +114,7 @@ Like `str.format`, except it operates on `Colr.data`.
 Colr('Hello').blue(' {}').red(' {}').format('my', 'friend').center(40)
 ```
 
-###Colr.gradient
+### Colr.gradient
 
 Like `rainbow()`, except a known name can be passed to choose the color
 (same names as the basic fore colors).
@@ -130,7 +124,7 @@ Like `rainbow()`, except a known name can be passed to choose the color
 .gradient('what a neat feature that is.', name='blue'))
 ```
 
-###Colr.gradient_black
+### Colr.gradient_black
 
 Builds a black and white gradient. The default starting color is black, but
 white will be used if `reverse=True` is passed. Like the other `gradient/rainbow`
@@ -141,7 +135,7 @@ functions, if you pass a `fore` color, the background will be gradient.
 .gradient_black(' ' * 10, fore='reset', reverse=True))
 ```
 
-###Colr.join
+### Colr.join
 
 Joins `Colr` instances or other types together.
 If anything except a `Colr` is passed, `str(thing)` is called before
@@ -152,7 +146,7 @@ flattened at least once (simulating str.join args).
 Colr('alert', 'red').join('[', ']').yellow(' This is neat.')
 ```
 
-###Colr.ljust
+### Colr.ljust
 
 Like `str.ljust`, except it ignores escape codes.
 
@@ -160,7 +154,7 @@ Like `str.ljust`, except it ignores escape codes.
 Colr('Hello', 'blue').ljust(40)
 ```
 
-###Colr.rainbow
+### Colr.rainbow
 
 Beautiful rainbow gradients in the same style as [lolcat](https://github.com/busyloop/lolcat).
 This method is incapable of doing black and white gradients. That's what
@@ -169,7 +163,7 @@ This method is incapable of doing black and white gradients. That's what
 C('This is really pretty.').rainbow(freq=.5)
 ```
 
-###Colr.rjust
+### Colr.rjust
 
 Like `str.rjust`, except it ignores escape codes.
 
@@ -177,14 +171,23 @@ Like `str.rjust`, except it ignores escape codes.
 Colr('Hello', 'blue').rjust(40)
 ```
 
-###Colr.str
+### Colr.str
 
 The same as calling `str()` on a `Colr` instance.
 ```python
 Colr('test', 'blue').str() == str(Colr('test', 'blue'))
 ```
 
-###Colr.\_\_add\_\_
+### Colr.stripped
+
+The same as calling `strip_codes(Colr().data)`.
+```python
+data = 'Testing this.'
+colored = Colr(data, fore='red')
+data == colored.stripped()
+```
+
+### Colr.\_\_add\_\_
 
 Strings can be added to a `Colr` and the other way around.
 Both return a `Colr` instance.
@@ -195,7 +198,7 @@ Colr('test', 'blue') + 'this' == Colr('').join(Colr('test', 'blue'), 'this')
 
 ```
 
-###Colr.\_\_call\_\_
+### Colr.\_\_call\_\_
 
 `Colr` instances are callable themselves.
 Calling a `Colr` will append text to it, with the same arguments as `color()`.
@@ -204,7 +207,7 @@ Calling a `Colr` will append text to it, with the same arguments as `color()`.
 Colr('One', 'blue')(' formatted', 'red')(' string.', 'blue')
 ```
 
-###Colr.\_\_eq\_\_, \_\_ne\_\_
+### Colr.\_\_eq\_\_, \_\_ne\_\_
 
 `Colr` instances can also be compared with other `Colr` instances.
 They are equal if `self.data` is equal to `other.data`.
@@ -214,14 +217,14 @@ Colr('test', 'blue') == Colr('test', 'blue')
 Colr('test', 'blue') != Colr('test', 'red')
 ```
 
-###Colr.\_\_lt\_\_, \_\_gt\_\_, \_\_le\_\_, \_\_ge\_\_
+### Colr.\_\_lt\_\_, \_\_gt\_\_, \_\_le\_\_, \_\_ge\_\_
 Escape codes are stripped for less-than/greater-than comparisons.
 
 ```python
 Colr('test', 'blue') < Colr('testing', 'blue')
 ```
 
-###Colr.\_\_getitem\_\_
+### Colr.\_\_getitem\_\_
 
 Escape codes are stripped when subscripting/indexing.
 
@@ -230,7 +233,7 @@ Colr('test', 'blue')[2] == Colr('s')
 Colr('test', 'blue')[1:3] == Colr('es')
 ```
 
-###Colr.\_\_mul\_\_
+### Colr.\_\_mul\_\_
 
 `Colr` instances can be multiplied by an `int` to build color strings.
 These are all equal:
@@ -243,13 +246,12 @@ Colr('').join(Colr('*', 'blue'), Colr('*', 'blue'))
 
 _______________________________________________________________________________
 
-Color Translation:
-==================
+## Color Translation:
 
 The `colr` module also includes several tools for converting from one color
 value to another:
 
-###ColorCode
+### ColorCode
 
 A class that automatically converts hex, rgb, or terminal codes to the other
 types. They can be accessed through the attributes `code`, `hexval`, and `rgb`.
@@ -268,11 +270,11 @@ print(ColorCode((75, 50, 178)))
 
 Printing `ColorCode(45).example()` will show the actual color in the terminal.
 
-###hex2rgb
+### hex2rgb
 
 Converts a hex color (`#000000`) to RGB `(0, 0, 0)`.
 
-###hex2term
+### hex2term
 
 Converts a hex color to terminal code number.
 
@@ -280,7 +282,7 @@ Converts a hex color to terminal code number.
 from colr import color, hex2term
 print(color('Testing', hex2term('#FF0000')))
 ```
-###hex2termhex
+### hex2termhex
 
 Converts a hex color to it's closest terminal color in hex.
 
@@ -289,11 +291,11 @@ from colr import hex2termhex
 hex2termhex('005500') == '005f00'
 ```
 
-###rgb2hex
+### rgb2hex
 
 Converts an RGB value `(0, 0, 0)` to it's hex value (`000000`).
 
-###rgb2term
+### rgb2term
 
 Converts an RGB value to terminal code number.
 
@@ -302,7 +304,7 @@ from colr import color, rgb2term
 print(color('Testing', rgb2term(0, 255, 0)))
 ```
 
-###rgb2termhex
+### rgb2termhex
 
 Converts an RGB value to it's closest terminal color in hex.
 
@@ -311,7 +313,7 @@ from colr import rgb2termhex
 rgb2termhex(0, 55, 0) == '005f00'
 ```
 
-###term2hex
+### term2hex
 
 Converts a terminal code number to it's hex value.
 
@@ -320,7 +322,7 @@ from colr import term2hex
 term2hex(30) == '008787'
 ```
 
-###term2rgb
+### term2rgb
 
 Converts a terminal code number to it's RGB value.
 
@@ -331,8 +333,7 @@ term2rgb(30) == (0, 135, 135)
 _______________________________________________________________________________
 
 
-Colr Tool:
-==========
+## Colr Tool:
 
 The `colr` package can be used as a command line tool:
 ```
@@ -358,8 +359,7 @@ Also see [ccat](https://github.com/welbornprod/ccat).
 
 _______________________________________________________________________________
 
-Contributing:
-=============
+## Contributing:
 
 As always contributions are welcome here. If you think you can improve something,
 or have a good idea for a feature, please file an
@@ -368,29 +368,28 @@ or have a good idea for a feature, please file an
 
 _______________________________________________________________________________
 
-Notes:
-======
+## Notes:
 
-###Reasons
+### Reasons
 
 In the past, I used a simple `color()` function because I'm not fond of the
 string concatenation style that other libraries use. The 'clor' javascript
 library uses method chaining because that style suits javascript, but I wanted
 to make it available to Python also, at least as an option.
 
-###Reset Codes
+### Reset Codes
 
 The reset code is appended to all text unless the text is empty.
 This makes it possible to build background colors and styles, but
 also have separate styles for separate pieces of text.
 
-###Python 2
+### Python 2
 
 I don't really have the desire to back-port this to Python 2.
 It wouldn't need too many changes, but I like the Python 3 features
 (`yield from`, `str/bytes`).
 
-###Windows
+### Windows
 
 Basic colors are supported on Windows through the
 [colorama](https://github.com/tartley/colorama) library.
@@ -403,7 +402,7 @@ feature happen, only to discover that the color situation for CMD and
 PowerShell really sucks. If you think you can help improve the `colr` package
 for windows, please see the [contributing](#contributing) section.
 
-###Misc.
+### Misc.
 This library may be a little too flexible, and that may change:
 
 ```python

@@ -182,6 +182,32 @@ class ColrTest(unittest.TestCase):
             ),
             msg=test_msg('Failed to strip codes from Colr.rainbow string.'))
 
+    def test_stripped(self):
+        """ Colr.stripped() should return strip_codes(Colr()). """
+        data = 'This is a test.'
+        c = Colr(data, fore='red', style='bright')
+        datalen = len(data)
+        stripped = c.stripped()
+        strippedlen = len(stripped)
+        self.assertEqual(
+            datalen,
+            strippedlen,
+            test_msg(
+                'Stripped Colr has different length.',
+                datalen,
+                strippedlen,
+            ),
+        )
+        self.assertEqual(
+            data,
+            stripped,
+            test_msg(
+                'Stripped Colr has different content.',
+                data,
+                stripped,
+            ),
+        )
+
     def test_trans(self):
         """ Translation functions should translate codes properly. """
         for v in self.conversions:

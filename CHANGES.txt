@@ -1,3 +1,4 @@
+v0.4.4 08/28/16 -- Add Colr.stripped(), and use it everywhere needed.
 v0.4.3 08/21/16 -- Allow --auto-disable for --translate and --listcodes.
 v0.4.2 08/21/16 -- Small message change for --listcodes.
 v0.4.1 08/21/16 -- Allow option of unique/all codes when listing escape codes in text.

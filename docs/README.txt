@@ -9,7 +9,7 @@ chainable methods on the ``Colr`` object.
 --------------
 
 Dependencies:
-=============
+-------------
 
 System
 ~~~~~~
@@ -30,7 +30,7 @@ Linux*, however:
    helper for basic color support for Windows.
 
 Installation:
-=============
+-------------
 
 Colr is listed on `PyPi <https://pypi.python.org/pypi/Colr>`__, and can
 be installed using `pip <https://pip.pypa.io/en/stable/installing/>`__:
@@ -50,7 +50,7 @@ command line:
     python3 setup.py install
 
 Examples:
-=========
+---------
 
 Simple:
 ~~~~~~~
@@ -77,7 +77,7 @@ Chainable:
     print(C('Hello ', fore='red').bgwhite().blue('World'))
 
 Examples (256 Colors):
-======================
+----------------------
 
 Simple:
 ~~~~~~~
@@ -101,7 +101,7 @@ Chainable:
 --------------
 
 Other methods:
-==============
+--------------
 
 The ``Colr`` object has several helper methods. The ``color()`` method
 returns a ``str``, but the rest return a ``Colr`` instance so they can
@@ -202,6 +202,17 @@ The same as calling ``str()`` on a ``Colr`` instance.
 
     Colr('test', 'blue').str() == str(Colr('test', 'blue'))
 
+Colr.stripped
+~~~~~~~~~~~~~
+
+The same as calling ``strip_codes(Colr().data)``.
+
+.. code:: python
+
+    data = 'Testing this.'
+    colored = Colr(data, fore='red')
+    data == colored.stripped()
+
 Colr.\_\_add\_\_
 ~~~~~~~~~~~~~~~~
 
@@ -268,7 +279,7 @@ strings. These are all equal:
 --------------
 
 Color Translation:
-==================
+------------------
 
 The ``colr`` module also includes several tools for converting from one
 color value to another:
@@ -368,7 +379,7 @@ Converts a terminal code number to it's RGB value.
 --------------
 
 Colr Tool:
-==========
+----------
 
 The ``colr`` package can be used as a command line tool:
 
@@ -397,7 +408,7 @@ Also see `ccat <https://github.com/welbornprod/ccat>`__.
 --------------
 
 Contributing:
-=============
+-------------
 
 As always contributions are welcome here. If you think you can improve
 something, or have a good idea for a feature, please file an
@@ -407,7 +418,7 @@ request <https://github.com/welbornprod/colr/compare>`__.
 --------------
 
 Notes:
-======
+------
 
 Reasons
 ~~~~~~~
