@@ -56,7 +56,7 @@ CodeFormatFunc = Callable[[CodeFormatArg], str]
 ColorType = Union[str, int]
 
 
-__version__ = '0.4.4'
+__version__ = '0.5.0'
 
 __all__ = [
     '_disabled',
@@ -375,7 +375,12 @@ class Colr(object):
             style: Optional[str]=None) -> None:
         """ Initialize a Colr object with text and color options. """
         # Can be initialized with colored text, not required though.
-        self.data = self.color(text or '', fore=fore, back=back, style=style)
+        self.data = self.color(
+            text,
+            fore=fore,
+            back=back,
+            style=style
+        )
 
     def __add__(self, other: 'Colr') -> 'Colr':
         """ Allow the old string concat methods through addition. """
@@ -912,11 +917,12 @@ class Colr(object):
             Raises ValueError for invalid color names.
             The 'reset_all' code is appended if text is given.
         """
+        text = str(text) if text is not None else ''
         if _disabled:
-            return str(text or '')
+            return text
         return ''.join((
             self.color_code(fore=fore, back=back, style=style),
-            str(text or ''),
+            text,
             closing_code if text else ''
         ))
 
@@ -948,7 +954,7 @@ class Colr(object):
         """ A wrapper for str() that matches self.color().
             For overriding when _auto_disable is used.
         """
-        return str(text or '')
+        return str(text) if text is not None else ''
 
     def format(self, *args, **kwargs):
         """ Like str.format, except it returns a Colr. """

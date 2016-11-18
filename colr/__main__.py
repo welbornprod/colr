@@ -33,7 +33,7 @@ from .colr import (
 from .trans import ColorCode
 
 try:
-    from docopt import docopt
+    from .colr_docopt import docopt
 except ImportError as eximp:
     print('\n'.join((
         'Import error: {}',
@@ -123,7 +123,7 @@ def main(argd):
         try:
             print('\n'.join(translate(argd['CODE'] or read_stdin().split())))
         except ValueError as ex:
-            print('Translation error: {}'.format(ex), file=sys.stderr)
+            print_err('Translation error: {}'.format(ex))
             return 1
         return 0
     elif argd['--listcodes']:
@@ -170,7 +170,7 @@ def get_colr(txt, argd):
                 style=style
             )
         except ValueError as ex:
-            print('Error: {}'.format(ex), file=sys.stderr)
+            print_err('Error: {}'.format(ex))
             return None
     elif argd['--rainbow']:
         clr = C(txt).rainbow(
@@ -223,6 +223,13 @@ def list_known_codes(s, unique=True):
     codetype = ' unique' if unique else ''
     print('\nFound {}{} escape {}.'.format(total, codetype, plural))
     return 0 if total > 0 else 1
+
+
+def print_err(*args, **kwargs):
+    """ A wrapper for print() that uses stderr by default. """
+    if kwargs.get('file', None) is None:
+        kwargs['file'] = sys.stderr
+    print(C(kwargs.get('sep', ' ').join(args), fore='red'), **kwargs)
 
 
 def read_stdin():
@@ -320,15 +327,13 @@ if __name__ == '__main__':
     try:
         mainret = main(docopt(USAGESTR, version=VERSIONSTR))
     except (EOFError, KeyboardInterrupt):
-        print('\nUser cancelled.\n', file=sys.stderr)
+        print_err('\nUser cancelled.\n')
         mainret = 2
     except BrokenPipeError:
-        print(
-            '\nBroken pipe, input/output was interrupted.\n',
-            file=sys.stderr)
+        print_err('\nBroken pipe, input/output was interrupted.\n')
         mainret = 3
-    except InvalidNumber as exnum:
-        print('\n{}'.format(exnum), file=sys.stderr)
+    except (ValueError, InvalidNumber) as exnum:
+        print_err('\n{}'.format(exnum))
         mainret = 4
 
     sys.exit(mainret)

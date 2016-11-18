@@ -41,6 +41,8 @@ from .colr import (  # noqa
     strip_codes
 )
 
+from .colr_docopt import docopt
+
 from .trans import (
     ColorCode,
     fix_hex,
@@ -65,6 +67,7 @@ __all__ = [
     'codeformat',
     'disable',
     'disabled',
+    'docopt',
     'enable',
     'extbackformat',
     'extforeformat',
