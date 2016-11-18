@@ -325,7 +325,7 @@ class InvalidNumber(ValueError):
 
 if __name__ == '__main__':
     try:
-        mainret = main(docopt(USAGESTR, version=VERSIONSTR))
+        mainret = main(docopt(USAGESTR, version=VERSIONSTR, script=SCRIPT))
     except (EOFError, KeyboardInterrupt):
         print_err('\nUser cancelled.\n')
         mainret = 2

@@ -9,7 +9,9 @@ from .colr import Colr as C
 
 import docopt
 
-SCRIPT = 'colr'
+# This can be set with a call to colr_docopt.docopt().
+# When set, the script name can be colorized.
+SCRIPT = None
 
 class _ColorDocoptExit(SystemExit):
 
@@ -63,10 +65,9 @@ def _coloredhelp(s):
             # header line.
             line = str(C(line, 'red', style='bold'))
         else:
-            # everything else, usage mainly.
-            # When copy/pasting this code, filename/scriptname is just the
-            # script or filename that is displayed in Usage.
-            line = line.replace(SCRIPT, str(C(SCRIPT, 'green')))
+            # Everything else, usage mainly.
+            if SCRIPT:
+                line = line.replace(SCRIPT, str(C(SCRIPT, 'green')))
 
         newlines.append(
             '{}{}'.format(line, C('', style='reset_all'))
@@ -90,5 +91,26 @@ def _docoptextras(help, version, options, doc):
 docopt.DocoptExit = _ColorDocoptExit
 docopt.extras = _docoptextras
 
+_old_docopt = docopt.docopt
 # Just provide the docopt function to users.
-docopt = docopt.docopt
+def docopt(
+        doc, argv=None, help=True, version=None, options_first=False,
+        script=None):
+    """
+This is a wrapper for docopt.docopt that also sets SCRIPT to `script`.
+    When SCRIPT is set, it can be colorized for the usage string.
+
+Original docopt documentation follows:
+    """
+    global SCRIPT
+    SCRIPT = script
+    return _old_docopt(
+        doc,
+        argv=argv,
+        help=help,
+        version=version,
+        options_first=options_first,
+    )
+
+# Append old docopt() documentation to this wrapper's docs.
+docopt.__doc__ = '\n'.join((docopt.__doc__, _old_docopt.__doc__))

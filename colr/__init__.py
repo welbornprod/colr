@@ -41,7 +41,13 @@ from .colr import (  # noqa
     strip_codes
 )
 
-from .colr_docopt import docopt
+try:
+    from .colr_docopt import docopt
+    has_docopt = True
+except ImportError:
+    # docopt not available,
+    # but can still be explicitly loaded from colr_docopt.
+    has_docopt = False
 
 from .trans import (
     ColorCode,
@@ -67,7 +73,6 @@ __all__ = [
     'codeformat',
     'disable',
     'disabled',
-    'docopt',
     'enable',
     'extbackformat',
     'extforeformat',
@@ -86,3 +91,5 @@ __all__ = [
     'term2hex_map',
     'term2rgb'
 ]
+if has_docopt:
+    __all__.append('docopt')

@@ -20,7 +20,8 @@ _______________________________________________________________________________
 *There are no dependencies required for importing this library on Linux*, however:
 
 * [Docopt](https://github.com/docopt/docopt) -
-    Only required for the [command line tool](#colr-tool), not the library itself.
+    Only required for the [command line tool](#colr-tool)
+    and the [colr.docopt wrapper](#colr.docopt), not the library itself.
 * [Colorama](https://github.com/tartley/colorama) -
     [Windows only](#windows).
     This is not required on linux.
@@ -356,6 +357,17 @@ cat myfile.txt | python3 -m colr --gradient red
 ```
 
 Also see [ccat](https://github.com/welbornprod/ccat).
+
+
+## Colr.docopt:
+
+Colr provides a wrapper for docopt that will automatically colorize usage
+strings. If you provide it a script name it will add a little more color by
+colorizing the script name too.
+```
+from colr import docopt
+argd = docopt(USAGE, script='mycommand')
+```
 
 _______________________________________________________________________________
 

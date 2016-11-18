@@ -24,7 +24,8 @@ Modules
 Linux*, however:
 
 -  `Docopt <https://github.com/docopt/docopt>`__ - Only required for the
-   `command line tool <#colr-tool>`__, not the library itself.
+   `command line tool <#colr-tool>`__ and the `colr.docopt
+   wrapper <#colr.docopt>`__, not the library itself.
 -  `Colorama <https://github.com/tartley/colorama>`__ - `Windows
    only <#windows>`__. This is not required on linux. It provides a
    helper for basic color support for Windows.
@@ -404,6 +405,18 @@ The colr tool does not read files, but it's not a problem:
     cat myfile.txt | python3 -m colr --gradient red
 
 Also see `ccat <https://github.com/welbornprod/ccat>`__.
+
+Colr.docopt:
+------------
+
+Colr provides a wrapper for docopt that will automatically colorize
+usage strings. If you provide it a script name it will add a little more
+color by colorizing the script name too.
+
+::
+
+    from colr import docopt
+    argd = docopt(USAGE, script='mycommand')
 
 --------------
 
