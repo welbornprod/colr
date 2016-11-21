@@ -21,7 +21,7 @@ _______________________________________________________________________________
 
 * [Docopt](https://github.com/docopt/docopt) -
     Only required for the [command line tool](#colr-tool)
-    and the [colr.docopt wrapper](#colr.docopt), not the library itself.
+    and the [colr.docopt wrapper](#colrdocopt), not the library itself.
 * [Colorama](https://github.com/tartley/colorama) -
     [Windows only](#windows).
     This is not required on linux.
