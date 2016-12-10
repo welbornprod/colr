@@ -336,9 +336,11 @@ _______________________________________________________________________________
 
 ## Colr Tool:
 
-The `colr` package can be used as a command line tool:
+The `colr` package can be used as a command line tool. An entry point script
+named `colr` is created when installed with pip. Otherwise it can be executed
+using the `python -m colr` method.
 ```
-python3 -m colr --help
+colr --help
 ```
 
 It will do fore, back, style, gradients, rainbows, justification,
@@ -348,12 +350,12 @@ codes found in the text.
 
 [lolcat](https://github.com/busyloop/lolcat) emulation:
 ```
-fortune | python3 -m colr --rainbow
+fortune | colr --rainbow
 ```
 
 The colr tool does not read files, but it's not a problem:
 ```
-cat myfile.txt | python3 -m colr --gradient red
+cat myfile.txt | colr --gradient red
 ```
 
 Also see [ccat](https://github.com/welbornprod/ccat).

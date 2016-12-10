@@ -113,8 +113,9 @@ USAGESTR = """{versionstr}
 """.format(script=SCRIPT, versionstr=VERSIONSTR)  # noqa
 
 
-def main(argd):
+def main():
     """ Main entry point, expects doctopt arg dict as argd. """
+    argd = docopt(USAGESTR, version=VERSIONSTR, script=SCRIPT)
     if argd['--auto-disable']:
         auto_disable()
 
@@ -325,7 +326,7 @@ class InvalidNumber(ValueError):
 
 if __name__ == '__main__':
     try:
-        mainret = main(docopt(USAGESTR, version=VERSIONSTR, script=SCRIPT))
+        mainret = main()
     except (EOFError, KeyboardInterrupt):
         print_err('\nUser cancelled.\n')
         mainret = 2

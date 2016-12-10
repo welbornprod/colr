@@ -25,7 +25,7 @@ Linux*, however:
 
 -  `Docopt <https://github.com/docopt/docopt>`__ - Only required for the
    `command line tool <#colr-tool>`__ and the `colr.docopt
-   wrapper <#colr.docopt>`__, not the library itself.
+   wrapper <#colrdocopt>`__, not the library itself.
 -  `Colorama <https://github.com/tartley/colorama>`__ - `Windows
    only <#windows>`__. This is not required on linux. It provides a
    helper for basic color support for Windows.
@@ -382,11 +382,13 @@ Converts a terminal code number to it's RGB value.
 Colr Tool:
 ----------
 
-The ``colr`` package can be used as a command line tool:
+The ``colr`` package can be used as a command line tool. An entry point
+script named ``colr`` is created when installed with pip. Otherwise it
+can be executed using the ``python -m colr`` method.
 
 ::
 
-    python3 -m colr --help
+    colr --help
 
 It will do fore, back, style, gradients, rainbows, justification, and
 translation. It can strip codes from text (as an argument or stdin), or
@@ -396,13 +398,13 @@ explain the codes found in the text.
 
 ::
 
-    fortune | python3 -m colr --rainbow
+    fortune | colr --rainbow
 
 The colr tool does not read files, but it's not a problem:
 
 ::
 
-    cat myfile.txt | python3 -m colr --gradient red
+    cat myfile.txt | colr --gradient red
 
 Also see `ccat <https://github.com/welbornprod/ccat>`__.
 
