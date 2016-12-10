@@ -4,3 +4,4 @@ dist/Colr-0.0.3.tar.gz
 *.pyc
 data
 *NEW
+*.egg-info
