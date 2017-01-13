@@ -8,6 +8,7 @@
 """
 
 import inspect
+import random
 import sys
 import unittest
 
@@ -22,6 +23,7 @@ from colr import (
     hex2rgb,
     hex2term,
     hex2termhex,
+    name_data,
     rgb2hex,
     rgb2term,
     rgb2termhex,
@@ -30,6 +32,8 @@ from colr import (
     strip_codes,
 )
 
+# Save names in list format, for random.choice().
+name_data_names = list(name_data)
 
 def func_name(level: Optional[int]=1, parent: Optional[Callable]=None) -> str:
     """ Return the name of the function that is calling this function. """
@@ -151,6 +155,14 @@ class ColrTest(unittest.TestCase):
             (255, 0, 0),
             msg=test_msg(
                 'Failed to convert short form hex string.', *argset, **kwset))
+
+    def test_name_data(self):
+        """ Colr should use name_data.names when all other style names fail.
+        """
+        for _ in range(5):
+            knownname = random.choice(name_data_names)
+            # If this doesn't raise a ValueError we should be okay.
+            Colr('hello world', fore=knownname)
 
     def test_strip_codes(self):
         """ strip_codes() should strip all color and reset codes. """

@@ -37,7 +37,10 @@ from .colr import (  # noqa
     enable,
     extbackformat,
     extforeformat,
+    format_back,
+    format_fore,
     color,
+    name_data,
     strip_codes
 )
 
@@ -66,17 +69,20 @@ from .trans import (
 
 __all__ = [
     '__version__',
-    'Colr',
-    'ColorCode',
     'auto_disable',
-    'codes',
     'codeformat',
+    'codes',
+    'color',
+    'ColorCode',
+    'Colr',
     'disable',
     'disabled',
     'enable',
     'extbackformat',
     'extforeformat',
-    'color',
+    'format_back',
+    'format_fore',
+    'name_data',
     'strip_codes',
     # trans functions made available.
     'fix_hex',

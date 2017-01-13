@@ -7,8 +7,11 @@
     display bugs.
     -Christopher Welborn 08-30-2015
 """
+# NOTE: There are actual tests to run, but this helps with display/formatting
+#       problems.
 
 import os
+import random
 import sys
 
 parentdir = os.path.split(os.path.abspath(sys.path[0]))[0]
@@ -16,15 +19,19 @@ if parentdir.endswith('colr'):
     # Use dev version before installed version.
     sys.path.insert(0, parentdir)
 
-from docopt import docopt
-
-from colr import (
-    __version__,
-    Colr,
-    auto_disable,
-    color,
-    disabled,
-)
+try:
+    from colr import (
+        __version__,
+        Colr,
+        auto_disable,
+        color,
+        disabled,
+        docopt,
+        name_data,
+    )
+except ImportError as ex:
+    print('\nUnable to import Colr!: {}'.format(ex), file=sys.stderr)
+    sys.exit(1)
 
 NAME = 'Colr Test Run'
 VERSIONSTR = '{} v. {}'.format(NAME, __version__)
@@ -57,6 +64,7 @@ def main(argd):
     gradient_override_tests()
     gradient_mix_tests()
     rainbow_tests()
+    name_data_tests()
 
     if disabled():
         print('\nColr was disabled.')
@@ -189,6 +197,25 @@ def justify_tests():
     )
 
 
+def name_data_tests(width=5, height=20):
+    """ Test known names with name_data. """
+    names = list(name_data)
+    # Get width * height unique color names and print them (with their color).
+    if width * height > len(names):
+        width = 5
+        height= 10
+    names_done = set()
+    for _ in range(height):
+        cols = []
+        for _ in range(width):
+            n = random.choice(names)
+            while n in names_done:
+                n = random.choice(names)
+            names_done.add(n)
+            cols.append(Colr(n.center(16), fore=n))
+        print(Colr(' ').join(cols))
+
+
 def rainbow_tests():
     """ Test rainbow output, with or without linemode (short/long output)
     """
@@ -203,6 +230,7 @@ def rainbow_tests():
     print(Colr('-' * maxwidth).rainbow(back='black', offset=30))
     print(Colr('Rainbow bright.').rainbow(style='bright').center(maxwidth))
 
+
 if __name__ == '__main__':
-    mainret = main(docopt(USAGESTR, version=VERSIONSTR))
+    mainret = main(docopt(USAGESTR, version=VERSIONSTR, script=SCRIPT))
     sys.exit(mainret)

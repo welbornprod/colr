@@ -49,6 +49,7 @@ import re
 import sys
 
 from .trans import hex2term, ColorCode
+from .name_data import names as name_data
 
 # Types for the type checker.
 CodeFormatArg = Union[str, int]
@@ -56,25 +57,28 @@ CodeFormatFunc = Callable[[CodeFormatArg], str]
 ColorType = Union[str, int]
 
 
-__version__ = '0.5.2'
+__version__ = '0.6.0'
 
 __all__ = [
     '_disabled',
-    'Colr',
     'auto_disable',
+    'codeformat',
     'codes',
     'codes_reverse',
-    'codeformat',
     'color',
+    'Colr',
     'disable',
     'enable',
     'extbackformat',
     'extforeformat',
+    'format_back',
+    'format_fore',
     'get_code_num',
     'get_codes',
     'get_known_codes',
     'get_known_name',
-    'strip_codes'
+    'name_data',
+    'strip_codes',
 ]
 # Set with the enable/disable functions, or on Windows without colorama.
 _disabled = False
@@ -174,6 +178,7 @@ def _build_codes_reverse(
             built[codetype][escapecode] = name
     return built
 
+
 # Raw code map, available to users.
 codes = _build_codes()
 codes_reverse = _build_codes_reverse(codes)
@@ -223,6 +228,36 @@ def enable() -> None:
     _disabled = False
 
 
+def format_back(
+        number: int,
+        light: Optional[bool]=False,
+        extended: Optional[bool]=False) -> str:
+    """ Return an escape code for a back color, by number.
+        This is a convenience method for handling the different code types
+        all in one shot.
+    """
+    if light:
+        return codeformat(100 + number)
+    elif extended:
+        return extbackformat(number)
+    return codeformat(40 + number)
+
+
+def format_fore(
+        number: int,
+        light: Optional[bool]=False,
+        extended: Optional[bool]=False) -> str:
+    """ Return an escape code for a fore color, by number.
+        This is a convenience method for handling the different code types
+        all in one shot.
+     """
+    if light:
+        return codeformat(90 + number)
+    elif extended:
+        return extforeformat(number)
+    return codeformat(30 + number)
+
+
 def get_code_num(s: str) -> Optional[int]:
     """ Get code number from an escape code.
         Raises ValueError if an invalid number is found.
@@ -255,7 +290,7 @@ def get_codes(s: str) -> List[str]:
     return codegrabpat.findall(s)
 
 
-def get_known_codes(s, unique=True):
+def get_known_codes(s: str, unique: Optional[bool]=True):
     """ Get all known escape codes from a string, and yield the explanations.
     """
 
@@ -928,7 +963,12 @@ class Colr(object):
 
     def color_code(self, fore=None, back=None, style=None):
         """ Return the codes for this style/colors. """
-
+        # Map from style type to raw code formatter function.
+        named_funcs = {
+            'fore': format_fore,
+            'back': format_back,
+            'style': None,
+        }
         colorcodes = []
         resetcodes = []
         userstyles = {'style': style, 'back': back, 'fore': fore}
@@ -940,9 +980,14 @@ class Colr(object):
             # Get escape code for this style.
             code = codes[stype].get(stylename, None)
             if not code:
-                raise ValueError(
-                    'Invalid color name/number: {}'.format(style)
-                )
+                named_data = name_data.get(stylename, None)
+                converter = named_funcs.get(stype, None)
+                if (named_data is None) or (converter is None):
+                    raise ValueError(
+                        'Invalid color name/number: {}'.format(style)
+                    )
+                # Convert named data to escape code.
+                code = converter(named_data['code'], extended=True)
             if stylename.startswith('reset'):
                 resetcodes.append(code)
             else:
@@ -1241,8 +1286,10 @@ class Colr(object):
         """ Return str(strip_codes(self.data)) """
         return strip_codes(self.data)
 
+
 # Shortcuts.
 color = Colr().color
+
 
 if __name__ == '__main__':
     if ('--auto-disable' in sys.argv) or ('-a' in sys.argv):

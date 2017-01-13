@@ -5,3 +5,4 @@ dist/Colr-0.0.3.tar.gz
 data
 *NEW
 *.egg-info
+data_test
