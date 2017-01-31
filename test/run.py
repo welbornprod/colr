@@ -49,7 +49,7 @@ USAGESTR = """{versionstr}
 
 # Max widths, 1/3 width, for justification tests.
 maxwidth = 78
-chunkwidth = maxwidth / 3
+chunkwidth = maxwidth // 3
 
 # Automatically disable colors when piping output.
 auto_disable()
@@ -57,6 +57,11 @@ auto_disable()
 
 def main(argd):
     """ Main entry point, expects doctopt arg dict as argd. """
+    global maxwidth, chunkwidth
+    # TODO: Just pass these into the functions that need them (this has grown)
+    maxwidth = get_terminal_size()[0]
+    chunkwidth = maxwidth / 3
+
     print('Running {}'.format(color(VERSIONSTR, fore='red', style='bright')))
 
     justify_tests()
@@ -64,11 +69,41 @@ def main(argd):
     gradient_override_tests()
     gradient_mix_tests()
     rainbow_tests()
-    name_data_tests()
+    name_data_tests(width=maxwidth // 20, namewidth=20)
 
     if disabled():
         print('\nColr was disabled.')
     return 0
+
+
+def get_terminal_size():
+    """ Return terminal (width, height) """
+    def ioctl_GWINSZ(fd):
+        try:
+            import fcntl
+            import struct
+            import termios
+            cr = struct.unpack(
+                'hh',
+                fcntl.ioctl(fd, termios.TIOCGWINSZ, '1234')
+            )
+            return cr
+        except Exception:
+            pass
+    cr = ioctl_GWINSZ(0) or ioctl_GWINSZ(1) or ioctl_GWINSZ(2)
+    if not cr:
+        try:
+            fd = os.open(os.ctermid(), os.O_RDONLY)
+            cr = ioctl_GWINSZ(fd)
+            os.close(fd)
+        except Exception:
+            pass
+    if not cr:
+        try:
+            cr = (os.environ['LINES'], os.environ['COLUMNS'])
+        except Exception:
+            return None
+    return int(cr[1]), int(cr[0])
 
 
 def gradient_mix_tests():
@@ -197,13 +232,13 @@ def justify_tests():
     )
 
 
-def name_data_tests(width=5, height=20):
+def name_data_tests(width=5, height=20, namewidth=20):
     """ Test known names with name_data. """
     names = list(name_data)
     # Get width * height unique color names and print them (with their color).
     if width * height > len(names):
         width = 5
-        height= 10
+        height = 10
     names_done = set()
     for _ in range(height):
         cols = []
@@ -212,7 +247,7 @@ def name_data_tests(width=5, height=20):
             while n in names_done:
                 n = random.choice(names)
             names_done.add(n)
-            cols.append(Colr(n.center(16), fore=n))
+            cols.append(Colr(n.center(namewidth), fore=n))
         print(Colr(' ').join(cols))
 
 

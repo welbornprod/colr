@@ -57,7 +57,7 @@ CodeFormatFunc = Callable[[CodeFormatArg], str]
 ColorType = Union[str, int]
 
 
-__version__ = '0.6.0'
+__version__ = '0.6.1'
 
 __all__ = [
     '_disabled',
@@ -128,6 +128,7 @@ def _build_codes() -> Dict[str, Dict[str, str]]:
     # Set codes for forecolors (30-37) and backcolors (40-47)
     # Names are given to some of the 256-color variants as 'light' colors.
     for name, number in _namemap:
+        # TODO: Use format_fore/format_back here.
         built['fore'][name] = codeformat(30 + number)
         built['back'][name] = codeformat(40 + number)
         litename = 'light{}'.format(name)  # type: str
@@ -578,19 +579,37 @@ class Colr(object):
             return partial(self.chained, style=attr)
         elif attr.startswith('bg'):
             # Back method
-            name = attr[2:]
+            name = attr[2:].lstrip('_')
             if name in codes['back']:
                 return partial(self.chained, back=name)
         elif attr.startswith(('b256_', 'b_')):
             # Back 256 method
             # Remove the b256_ portion.
             name = attr.partition('_')[2]
-            return partial(self.chained, back=name)
+            return self._ext_attr_to_partial(name, 'back')
         elif attr.startswith(('f256_', 'f_')):
             # Fore 256 method
             name = attr.partition('_')[2]
-            return partial(self.chained, fore=name)
+            return self._ext_attr_to_partial(name, 'fore')
         return None
+
+    def _ext_attr_to_partial(self, name, kwarg_key):
+        """ Convert a string like '233' or 'aliceblue' into partial for
+            self.chained.
+        """
+        try:
+            intval = int(name)
+        except ValueError:
+            # Try as an extended name_data name.
+            info = name_data.get(name, None)
+            if info is None:
+                # Not an int value or name_data name.
+                return None
+            kws = {kwarg_key: info['code']}
+            return partial(self.chained, **kws)
+        # Integer str passed, use the int value.
+        kws = {kwarg_key: intval}
+        return partial(self.chained, **kws)
 
     def _iter_gradient(
             self, text, start, step=1,

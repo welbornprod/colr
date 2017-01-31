@@ -35,6 +35,7 @@ from colr import (
 # Save names in list format, for random.choice().
 name_data_names = list(name_data)
 
+
 def func_name(level: Optional[int]=1, parent: Optional[Callable]=None) -> str:
     """ Return the name of the function that is calling this function. """
     frame = inspect.currentframe()
@@ -87,6 +88,20 @@ class ColrTest(unittest.TestCase):
                 {'code': '15', 'hexval': 'ffffff', 'rgb': (255, 255, 255)},
                 {'code': '231', 'hexval': 'ffffff', 'rgb': (255, 255, 255)}
             ),
+        )
+
+    def test_chained_attr(self):
+        """ Colr should allow chained color named methods. """
+        # This will raise an AttributeError on failure.
+        self.assertIsInstance(
+            Colr().reset().bg_white(),
+            Colr,
+            msg='Failed to create Colr with chained methods.'
+        )
+        self.assertIsInstance(
+            Colr().f_155().b_233(),
+            Colr,
+            msg='Failed to create Colr with chained methods.'
         )
 
     def test_colorcode(self):
@@ -163,6 +178,20 @@ class ColrTest(unittest.TestCase):
             knownname = random.choice(name_data_names)
             # If this doesn't raise a ValueError we should be okay.
             Colr('hello world', fore=knownname)
+
+    def test_name_data_attr(self):
+        """ Colr should recognize fg_<name_data> and bg_<name_data> attrs. """
+        # This will raise an AttributeError if name_data isn't working.
+        self.assertIsInstance(
+            Colr().f_aliceblue('test'),
+            Colr,
+            msg='Failed to create Colr from chained name_data method.'
+        )
+        self.assertIsInstance(
+            Colr().b_antiquewhite('test'),
+            Colr,
+            msg='Failed to create Colr from chained name_data method.'
+        )
 
     def test_strip_codes(self):
         """ strip_codes() should strip all color and reset codes. """
