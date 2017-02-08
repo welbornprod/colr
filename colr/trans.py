@@ -525,6 +525,7 @@ class ColorCode(object):
         """ Return a dict of code, hexval, and rgb values. """
         return {'code': self.code, 'hexval': self.hexval, 'rgb': self.rgb}
 
+
 if __name__ == '__main__':
     import sys
     print(

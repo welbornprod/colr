@@ -284,6 +284,43 @@ def get_code_num(s: str) -> Optional[int]:
     return num
 
 
+def get_code_num_rgb(s: str) -> Optional[Tuple[int]]:
+    """ Get rgb code numbers from an RGB escape code.
+        Raises ValueError if an invalid number is found.
+    """
+    parts = s.split(';')
+    if len(parts) != 5:
+        raise ValueError(
+            'Count is off, expecting an RGB escape code, got: {!r}'.format(
+                s
+            )
+        )
+    rgbparts = parts[-3:]
+    if not rgbparts[2].endswith('m'):
+        raise ValueError(
+            'Invalid format, expecting an RGB escape code, got: {!r}'.format(
+                s
+            )
+        )
+    rgbparts[2] = rgbparts[2].rstrip('m')
+    try:
+        r, g, b = [int(x) for x in rgbparts]
+    except ValueError as ex:
+        raise ValueError(
+            '\n'.join((
+                'Invalid number, expecting an RGB escape code, got: {!r}',
+                'Parse error: {}'
+            )).format(s, ex)
+        )
+    if not all(in_range(x, 0, 255) for x in (r, g, b)):
+        raise ValueError(
+            'Expecting 0-255 for RGB escape code, got: {!r}'.format(
+                s
+            )
+        )
+    return r, g, b
+
+
 def get_codes(s: str) -> List[str]:
     """ Grab all escape codes from a string.
         Returns a list of all escape codes.
@@ -296,10 +333,12 @@ def get_known_codes(s: str, unique: Optional[bool]=True):
     """
 
     isdisabled = disabled()
-    orderedcodes = ((c, get_known_name(c)) for c in get_codes(s))
+    orderedcodes = tuple((c, get_known_name(c)) for c in get_codes(s))
     codesdone = set()
+
     for code, codeinfo in orderedcodes:
         # Do the codes in order, but don't do the same code twice.
+
         if unique:
             if code in codesdone:
                 continue
@@ -309,16 +348,16 @@ def get_known_codes(s: str, unique: Optional[bool]=True):
             continue
         codetype, name = codeinfo
 
-        typedesc = '{:>13}: {!r:<16}'.format(codetype.title(), code)
-        if codetype.startswith('extended'):
+        typedesc = '{:>13}: {!r:<23}'.format(codetype.title(), code)
+        if codetype.startswith(('extended', 'rgb')):
             if isdisabled:
-                codedesc = str(ColorCode(int(name)))
+                codedesc = str(ColorCode(name))
             else:
-                codedesc = ColorCode(int(name)).example()
+                codedesc = ColorCode(name).example()
         else:
             codedesc = ''.join((
                 code,
-                name,
+                str(name).lstrip('(').rstrip(')'),
                 codes['style']['reset_all']
             ))
 
@@ -328,24 +367,41 @@ def get_known_codes(s: str, unique: Optional[bool]=True):
         ))
 
 
-def get_known_name(s: str) -> Optional[Tuple[str, str]]:
+def get_known_name(s: str) -> Optional[Tuple[str, Union[int, Tuple[int]]]]:
     """ Reverse translate a terminal code to a known color name, if possible.
         Returns a tuple of (codetype, knownname) on success.
         Returns None on failure.
     """
+
     if not s.endswith('m'):
         # All codes end with 'm', so...
         return None
     if s.startswith('\033[38;5;'):
         # Extended fore.
         name = codes_reverse['fore'].get(s, None)
-        if name is not None:
+        if name is None:
+            num = get_code_num(s)
+            return ('extended fore', num)
+        else:
             return ('extended fore', name)
     elif s.startswith('\033[48;5;'):
         # Extended back.
         name = codes_reverse['back'].get(s, None)
-        if name is not None:
+        if name is None:
+            num = get_code_num(s)
+            return ('extended back', num)
+        else:
             return ('extended back', name)
+    elif s.startswith('\033[38;2'):
+        # RGB fore.
+        vals = get_code_num_rgb(s)
+        if vals is not None:
+            return ('rgb fore', vals)
+    elif s.startswith('\033[48;2'):
+        # RGB back.
+        vals = get_code_num_rgb(s)
+        if vals is not None:
+            return ('rgb back', vals)
     elif s.startswith('\033['):
         # Fore, back, style.
         number = get_code_num(s)
@@ -367,8 +423,14 @@ def get_known_name(s: str) -> Optional[Tuple[str, str]]:
         name = codes_reverse[codetype].get(s, None)
         if name is not None:
             return (codetype, name)
+
     # Not a known escape code.
     return None
+
+
+def in_range(x, minimum, maximum):
+    """ Return True if x is >= minimum and <= maximum. """
+    return (x >= minimum and x <= maximum)
 
 
 def strip_codes(s: str) -> str:
@@ -390,11 +452,11 @@ def try_parse_int(
     try:
         n = int(s)
     except ValueError:
-        return None
+        return default
     if (minimum is not None) and (n < minimum):
-        return None
+        return default
     elif (maximum is not None) and (n > maximum):
-        return None
+        return default
     return n
 
 
