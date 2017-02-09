@@ -52,21 +52,21 @@ USAGESTR = """{versionstr}
     Usage:
         {script} -h | -v
         {script} [TEXT] [FORE] [BACK] [STYLE]
-                 [-a] [-e] [-c num | -l num | -r num] [-n] [-D]
+             [-a] [-e] [-c num | -l num | -r num] [-n] [-D]
         {script} [TEXT] [-f fore] [-b back] [-s style]
-                 [-a] [-e] [-c num | -l num | -r num] [-n] [-D]
+             [-a] [-e] [-c num | -l num | -r num] [-n] [-D]
         {script} [TEXT] [FORE] [BACK] [STYLE] [-a] [-e]
-                 [-c num | -l num | -r num] [-n] -g name
-                 [-q num] [-w num] [-T] [-D]
+             [-c num | -l num | -r num] [-n] -g name
+             [-q num] [-w num] [-T] [-D]
         {script} [TEXT] [-f fore] [-b back] [-s style ] [-a] [-e]
-                 [-c num | -l num | -r num] [-n] -g name
-                 [-q num] [-w num] [-T] [-D]
+             [-c num | -l num | -r num] [-n] -g name
+             [-q num] [-w num] [-T] [-D]
         {script} [TEXT] [FORE] [BACK] [STYLE] [-a] [-e]
-                 [-c num | -l num | -r num] [-n] -R [-o num]
-                 [-q num] [-w num] [-T] [-D]
+             [-c num | -l num | -r num] [-n] -R [-o num]
+             [-q num] [-w num] [-T] [-D]
         {script} [TEXT] [-f fore] [-b back] [-s style] [-a] [-e]
-                 [-c num | -l num | -r num] [-n] -R [-o num]
-                 [-q num] [-w num] [-T] [-D]
+             [-c num | -l num | -r num] [-n] -R [-o num]
+             [-q num] [-w num] [-T] [-D]
         {script} -x [TEXT] [-a] [-e] [-c num | -l num | -r num] [-n] [-D]
         {script} -t [-a] [CODE...] [-T] [-D]
         {script} -z [-a] [-T] [-u] [TEXT] [-D]
@@ -127,7 +127,17 @@ def main():
     """ Main entry point, expects doctopt arg dict as argd. """
     global DEBUG
 
-    argd = docopt(USAGESTR, version=VERSIONSTR, script=SCRIPT)
+    argd = docopt(
+        USAGESTR,
+        version=VERSIONSTR,
+        script=SCRIPT,
+        # Example usage of colr_docopt colors.
+        colors={
+            'header': {'fore': 'yellow'},
+            'script': {'fore': 'lightblue', 'style': 'bright'},
+            'version': {'fore': 'lightblue'},
+        }
+    )
     DEBUG = argd['--debug']
 
     if argd['--auto-disable']:
