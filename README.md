@@ -88,6 +88,26 @@ from colr import Colr as C
 print(C().f_125().b_80('Hello World'))
 ```
 
+## Examples (True Color):
+
+### Simple:
+
+```python
+from colr import color
+print(color('Hello there.', fore=(255, 0, 0), back=(0, 0, 0)))
+```
+
+### Chainable:
+
+```python
+from colr import Colr as C
+# Foreground colors are set with the `rgb()` method.
+# Background colors are set with the `b_rgb()` method.
+# Text for the chained methods should be chained after or during
+# the call to the methods.
+print(C().b_rgb(0, 0, 0).rgb(255, 0, 0, 'Hello there.'))
+```
+
 _______________________________________________________________________________
 
 
@@ -136,6 +156,21 @@ functions, if you pass a `fore` color, the background will be gradient.
 .gradient_black(' ' * 10, fore='reset', reverse=True))
 ```
 
+### Colr.gradient_rgb
+
+Uses true color (rgb codes) to build a gradient from one rgb value to another.
+Just like the other `gradient/rainbow` methods, passing a `fore` color means
+the background is gradient.
+
+When using `linemode=True` (where each line is a separate gradient), you can
+"shift" the gradient left or right for each line using `movefactor=N`. `N` can
+be positive or negative to change the direction of the shift, or `None` / `0`
+to not shift at all (the default is `None`).
+
+```python
+C('This is pretty fancy.').gradient_rgb((0, 0, 255), (255, 0, 0), step=5)
+```
+
 ### Colr.join
 
 Joins `Colr` instances or other types together.
@@ -160,8 +195,32 @@ Colr('Hello', 'blue').ljust(40)
 Beautiful rainbow gradients in the same style as [lolcat](https://github.com/busyloop/lolcat).
 This method is incapable of doing black and white gradients. That's what
 `gradient_black()` is for.
+
 ```python
-C('This is really pretty.').rainbow(freq=.5)
+Colr('This is really pretty.').rainbow(freq=.5)
+```
+
+If your terminal supports it, you can use true color (rgb codes) by using
+`rgb_mode=True`:
+
+```python
+Colr('This is even prettier.').rainbow(rgb_mode=True)
+```
+
+### Colr.rgb
+
+This will set the fore color using true color (rgb codes). It accepts
+the same args as the other chained methods, except the `r`, `g`, and `b`
+values should be the first arguments.
+
+```python
+Colr().rgb(255, 55, 55).bgwhite('Test')
+```
+
+It has a background version called `b_rgb`.
+
+```python
+Colr().b_rgb(255, 255, 255).rgb(255, 55, 55, 'Test')
 ```
 
 ### Colr.rjust

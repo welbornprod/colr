@@ -334,6 +334,15 @@ def display_test_rgb(maxwidth=80):
         ).white('\nThis should no longer be styled using rgb.')
     )
     print(
+        Colr(
+            'One more line, operating on self.data',
+            fore=(255, 55, 55),
+            back=(0, 0, 0),
+        )
+        .b_rgb(0, 0, 0)
+        .rgb(55, 55, 255, ' and then some.')
+    )
+    print(
         Colr('All', 'red', back='white', style='bright')
         .bgwhite().blue(' code')
         .bgwhite().f_135(' types')
