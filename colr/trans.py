@@ -19,7 +19,7 @@ Resources:
 
 
 """
-
+import re
 from types import GeneratorType
 from typing import cast, Any, Optional, Sequence, TypeVar
 
@@ -308,7 +308,7 @@ def fix_hex(hexval: str) -> str:
         hexval = '{r}{r}{g}{g}{b}{b}'.format(**rgbvals)
     elif hexlen != 6:
         raise ValueError(
-            'Expecting a hex string (#RGB, #RRGGBB), got: {}'.format(
+            'Not a length 3 or 6 hex string (#RGB, #RRGGBB), got: {}'.format(
                 hexval))
     return hexval
 
@@ -317,15 +317,19 @@ def hex2rgb(hexval: str, allow_short: bool=False) -> Sequence[int]:
     """ Return a tuple of (R, G, B) from a hex color. """
     if not hexval:
         raise ValueError(
-            'Expecting a hex string (#RGB, #RRGGBB), got: {}'.format(
-                hexval))
+            'Expecting hex string (#RGB, #RRGGBB), got nothing: {!r}'.format(
+                hexval
+            )
+        )
     hexval = hexval.strip().lstrip('#')
     if allow_short:
         hexval = fix_hex(hexval)
     if not len(hexval) == 6:
         raise ValueError(
-            'Expecting a hex string (#RGB, #RRGGBB), got: {}'.format(
-                hexval))
+            'Not a length 3 or 6 hex string (#RGB, #RRGGBB), got: {}'.format(
+                hexval
+            )
+        )
     try:
         val = tuple(
             int(''.join(hexval[i:i + 2]), 16)
@@ -345,6 +349,23 @@ def hex2term(hexval: str, allow_short: bool=False) -> str:
 def hex2termhex(hexval: str, allow_short: bool=False) -> str:
     """ Convert a hex value into the nearest terminal color matched hex. """
     return rgb2termhex(*hex2rgb(hexval, allow_short=allow_short))
+
+
+def is_code(s: str) -> bool:
+    """ Returns True if `s` appears to be a single basic escape code. """
+    return re.match('^\033\\[\\d{1,2}m$', s) is not None
+
+
+def is_ext_code(s: str) -> bool:
+    """ Returns True if `s` appears to be a single extended 256 escape code.
+    """
+    return re.match('^\033\\[((38)|(48));5;\\d{1,3}m$', s) is not None
+
+
+def is_rgb_code(s: str) -> bool:
+    """ Returns True if `s` appears to be a single rgb escape code. """
+    pattern = '^\033\\[((38)|(48));2;\\d{1,3};\\d{1,3};\\d{1,3}m'
+    return re.match(pattern, s) is not None
 
 
 def print_all() -> None:
@@ -373,7 +394,12 @@ def rgb2termhex(r: int, g: int, b: int) -> str:
     incs = [0x00, 0x5f, 0x87, 0xaf, 0xd7, 0xff]
 
     res = []
-    for part in (r, g, b):
+    parts = r, g, b
+    for part in parts:
+        if (part < 0) or (part > 255):
+            raise ValueError(
+                'Expecting 0-255 for RGB code, got: {!r}'.format(parts)
+            )
         i = 0
         while i < len(incs) - 1:
             s, b = incs[i], incs[i + 1]  # smaller, bigger
@@ -421,12 +447,16 @@ class ColorCode(object):
             hexval : Nearest matching hex value.
             rgb    : Tuple of nearest matching (Red, Green, Blue) values.
     """
-    __slots__ = ['code', 'hexval', 'rgb']
+    __slots__ = ('code', 'hexval', 'rgb', 'rgb_mode')
 
-    def __init__(self, code: Any=None) -> None:
+    def __init__(
+            self,
+            code: Optional[Any]=None,
+            rgb_mode: Optional[bool]=False) -> None:
         self.rgb = tuple()  # type: Sequence[int]
         self.hexval = None  # type: str
         self.code = None  # type: str
+        self.rgb_mode = rgb_mode  # type: bool
         # Init tries to be smart about converting code types.
         typeerrmsg = 'Expecting hex, term-code, or rgb. Got: {}'.format(
             getattr(code, '__name__', type(code).__name__)
@@ -491,14 +521,22 @@ class ColorCode(object):
 
     def _init_rgb(self, r: int, g: int, b: int) -> None:
         """ Initialize from red, green, blue args. """
-        self.rgb = hex2rgb(rgb2termhex(r, g, b))
-        self.hexval = rgb2termhex(r, g, b)
+        if self.rgb_mode:
+            self.rgb = (r, g, b)
+            self.hexval = rgb2hex(r, g, b)
+        else:
+            self.rgb = hex2rgb(rgb2termhex(r, g, b))
+            self.hexval = rgb2termhex(r, g, b)
+
         self.code = hex2term(self.hexval)
 
     def example(self) -> str:
         """ Same as str(self), except the color codes are actually used. """
-
-        return '\033[38;5;{s.code}m{s}\033[0m'.format(s=self)
+        if self.rgb_mode:
+            colorcode = '\033[38;2;{};{};{}m'.format(*self.rgb)
+        else:
+            colorcode = '\033[38;5;{}m'.format(self.code)
+        return '{code}{s}\033[0m'.format(code=colorcode, s=self)
 
     @classmethod
     def from_code(cls, code: int) -> 'ColorCode':

@@ -31,6 +31,11 @@ from colr import (
     term2rgb,
     strip_codes,
 )
+from colr.trans import (
+    is_code,
+    is_ext_code,
+    is_rgb_code,
+)
 
 # Save names in list format, for random.choice().
 name_data_names = list(name_data)
@@ -92,17 +97,82 @@ class ColrTest(unittest.TestCase):
 
     def test_chained_attr(self):
         """ Colr should allow chained color named methods. """
-        # This will raise an AttributeError on failure.
+        # This will raise an AttributeError if the chained method is
+        # not recognized.
+        try:
+            self.assertIsInstance(
+                Colr().reset().bg_white(),
+                Colr,
+                msg='Failed to create Colr with chained methods.'
+            )
+            self.assertIsInstance(
+                Colr().f_155().b_233(),
+                Colr,
+                msg='Failed to create Colr with chained methods.'
+            )
+        except AttributeError as ex:
+            self.fail('Failed to recognize known chained method: {}'.format(
+                ex
+            ))
+
+        # RGB codes should work.
         self.assertIsInstance(
-            Colr().reset().bg_white(),
+            Colr().rgb(255, 255, 255),
             Colr,
-            msg='Failed to create Colr with chained methods.'
+            msg='Failed to create Colr with chained rgb method.'
         )
+
         self.assertIsInstance(
-            Colr().f_155().b_233(),
+            Colr().b_rgb(255, 255, 255),
             Colr,
-            msg='Failed to create Colr with chained methods.'
+            msg='Failed to create Colr with chained b_rgb method.'
         )
+
+        with self.assertRaises(ValueError):
+            Colr().rgb(256, 0, 0)
+        with self.assertRaises(ValueError):
+            Colr().rgb(-1, 0, 0)
+        # Invalid rgb codes should raise a ValueError.
+        with self.assertRaises(ValueError):
+            Colr().b_rgb(256, 0, 0)
+        with self.assertRaises(ValueError):
+            Colr().b_rgb(256, 0, 0)
+
+    def test_color(self):
+        """ Colr.color should accept valid color names/values. """
+        # None of these should raise a ValueError.
+        s = 'test'
+        try:
+            Colr(s, 'red')
+            Colr(s, 16)
+            Colr(s, (255, 0, 0))
+        except ValueError as ex:
+            self.fail(
+                'ValueError raised for valid color name/value: {}'.format(
+                    ex
+                )
+            )
+
+        # Should get the correct code type for the correct value.
+        self.assertTrue(
+            is_code(str(Colr(' ', 'red')).split()[0])
+        )
+        self.assertTrue(
+            is_ext_code(str(Colr(' ', 56)).split()[0])
+        )
+        self.assertTrue(
+            is_rgb_code(str(Colr(' ', (0, 0, 255))).split()[0])
+        )
+
+        # Should raise ValueError on invalid color name/value.
+        with self.assertRaises(ValueError):
+            Colr(s, 'NOTACOLOR')
+        with self.assertRaises(ValueError):
+            Colr(s, 257)
+        with self.assertRaises(ValueError):
+            Colr(s, (-1, 0, 0))
+        with self.assertRaises(ValueError):
+            Colr(s, (257, 0, 0))
 
     def test_colorcode(self):
         """ ColorCode should properly translate codes. """
@@ -171,13 +241,43 @@ class ColrTest(unittest.TestCase):
             msg=test_msg(
                 'Failed to convert short form hex string.', *argset, **kwset))
 
+    def test_is_code(self):
+        """ colr.trans.is_code should recognize a color code. """
+        validcodes = ('\033[31m', '\033[41m')
+        invalidcode = '\033[38;5;27m'
+        for validcode in validcodes:
+            self.assertTrue(is_code(validcode))
+        self.assertFalse(is_code(invalidcode))
+
+    def test_is_ext_code(self):
+        """ colr.trans.is_ext_code should recognize a color code. """
+        validcodes = ('\033[38;5;42m', '\033[48;5;42m')
+        invalidcode = '\033[10m'
+        for validcode in validcodes:
+            self.assertTrue(is_ext_code(validcode))
+        self.assertFalse(is_ext_code(invalidcode))
+
+    def test_is_rgb_code(self):
+        """ colr.trans.is_rgb_code should recognize a color code. """
+        validcodes = ('\033[38;2;0;0;255m', '\033[48;2;0;0;255m')
+        invalidcode = '\033[10m'
+        for validcode in validcodes:
+            self.assertTrue(is_rgb_code(validcode))
+        self.assertFalse(is_rgb_code(invalidcode))
+
     def test_name_data(self):
         """ Colr should use name_data.names when all other style names fail.
         """
         for _ in range(5):
             knownname = random.choice(name_data_names)
             # If this doesn't raise a ValueError we should be okay.
-            Colr('hello world', fore=knownname)
+            try:
+                Colr('hello world', fore=knownname)
+            except ValueError as ex:
+                self.fail('Raised ValueError on known name: {}\n{}'.format(
+                    knownname,
+                    ex
+                ))
 
     def test_name_data_attr(self):
         """ Colr should recognize fg_<name_data> and bg_<name_data> attrs. """

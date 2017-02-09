@@ -12,7 +12,7 @@
 
 import os
 import sys
-
+import traceback
 from random import randint
 
 from .colr import (
@@ -52,24 +52,29 @@ USAGESTR = """{versionstr}
     Usage:
         {script} -h | -v
         {script} [TEXT] [FORE] [BACK] [STYLE]
-                 [-a] [-e] [-c num | -l num | -r num] [-n]
+                 [-a] [-e] [-c num | -l num | -r num] [-n] [-D]
         {script} [TEXT] [-f fore] [-b back] [-s style]
-                 [-a] [-e] [-c num | -l num | -r num] [-n]
-        {script} [TEXT] [FORE] [BACK] [STYLE]
-                 [-a] [-e] [-c num | -l num | -r num] [-n] -g name [-q num] [-w num]
-        {script} [TEXT] [-f fore] [-b back] [-s style ]
-                 [-a] [-e] [-c num | -l num | -r num] [-n] -g name [-q num] [-w num]
-        {script} [TEXT] [FORE] [BACK] [STYLE]
-                 [-a] [-e] [-c num | -l num | -r num] [-n] -R [-o num] [-q num] [-w num]
-        {script} [TEXT] [-f fore] [-b back] [-s style]
-                 [-a] [-e] [-c num | -l num | -r num] [-n] -R [-o num] [-q num] [-w num]
-        {script} -x [TEXT] [-a] [-e] [-c num | -l num | -r num] [-n]
-        {script} -t [-a] [CODE...]
-        {script} -z [-a] [-u] [TEXT]
+                 [-a] [-e] [-c num | -l num | -r num] [-n] [-D]
+        {script} [TEXT] [FORE] [BACK] [STYLE] [-a] [-e]
+                 [-c num | -l num | -r num] [-n] -g name
+                 [-q num] [-w num] [-T] [-D]
+        {script} [TEXT] [-f fore] [-b back] [-s style ] [-a] [-e]
+                 [-c num | -l num | -r num] [-n] -g name
+                 [-q num] [-w num] [-T] [-D]
+        {script} [TEXT] [FORE] [BACK] [STYLE] [-a] [-e]
+                 [-c num | -l num | -r num] [-n] -R [-o num]
+                 [-q num] [-w num] [-T] [-D]
+        {script} [TEXT] [-f fore] [-b back] [-s style] [-a] [-e]
+                 [-c num | -l num | -r num] [-n] -R [-o num]
+                 [-q num] [-w num] [-T] [-D]
+        {script} -x [TEXT] [-a] [-e] [-c num | -l num | -r num] [-n] [-D]
+        {script} -t [-a] [CODE...] [-T] [-D]
+        {script} -z [-a] [-T] [-u] [TEXT] [-D]
 
     Options:
         CODE                      : One or more codes to translate.
-        TEXT                      : Text to print. If not given, stdin is used.
+        TEXT                      : Text to print.
+                                    Default: stdin
         FORE                      : Name or number for fore color to use.
         BACK                      : Name or number for back color to use.
         STYLE                     : Name for style to use.
@@ -78,6 +83,8 @@ USAGESTR = """{versionstr}
         -b name,--back name       : Name or number for back color to use.
         -c num,--center num       : Center justify the text before coloring,
                                     using `num` as the overall width.
+        -D,--debug                : Debug mode, print more information while
+                                    running, or on errors.
         -e,--err                  : Print to stderr instead of stdout.
         -f name,--fore name       : Name or number for fore color to use.
         -g name,--gradient name   : Use the gradient method by color name.
@@ -99,6 +106,7 @@ USAGESTR = """{versionstr}
         -s name,--style name      : Name for style to use.
         -t,--translate            : Translate one or more term codes,
                                     hex values, or rgb values.
+        -T,--truecolor            : Use RGB mode when applicable.
         -u,--unique               : Only report unique color codes with -z.
         -w num,--spread num       : Spread/width of each color in the rainbow
                                     or gradient.
@@ -112,17 +120,28 @@ USAGESTR = """{versionstr}
 
 """.format(script=SCRIPT, versionstr=VERSIONSTR)  # noqa
 
+DEBUG = False
+
 
 def main():
     """ Main entry point, expects doctopt arg dict as argd. """
+    global DEBUG
+
     argd = docopt(USAGESTR, version=VERSIONSTR, script=SCRIPT)
+    DEBUG = argd['--debug']
+
     if argd['--auto-disable']:
         auto_disable()
 
     if argd['--translate']:
         # Just translate a simple code and exit.
         try:
-            print('\n'.join(translate(argd['CODE'] or read_stdin().split())))
+            print('\n'.join(
+                translate(
+                    argd['CODE'] or read_stdin().split(),
+                    rgb_mode=argd['--truecolor'],
+                )
+            ))
         except ValueError as ex:
             print_err('Translation error: {}'.format(ex))
             return 1
@@ -131,7 +150,8 @@ def main():
         # List all escape codes found in some text and exit.
         return list_known_codes(
             argd['TEXT'] or read_stdin(),
-            unique=argd['--unique']
+            unique=argd['--unique'],
+            rgb_mode=argd['--truecolor'],
         )
 
     txt = argd['TEXT'] or read_stdin()
@@ -168,7 +188,8 @@ def get_colr(txt, argd):
                 spread=try_int(argd['--spread'], 1, minimum=0),
                 fore=fore,
                 back=back,
-                style=style
+                style=style,
+                rgb_mode=argd['--truecolor'],
             )
         except ValueError as ex:
             print_err('Error: {}'.format(ex))
@@ -180,7 +201,8 @@ def get_colr(txt, argd):
             style=style,
             freq=try_float(argd['--frequency'], 0.1, minimum=0),
             offset=try_int(argd['--offset'], randint(0, 255), minimum=0),
-            spread=try_float(argd['--spread'], 3.0, minimum=0)
+            spread=try_float(argd['--spread'], 3.0, minimum=0),
+            rgb_mode=argd['--truecolor'],
         )
 
     else:
@@ -212,12 +234,12 @@ def justify(clr, argd):
     return clr
 
 
-def list_known_codes(s, unique=True):
+def list_known_codes(s, unique=True, rgb_mode=False):
     """ Find and print all known escape codes in a string,
         using get_known_codes.
     """
     total = 0
-    for codedesc in get_known_codes(s, unique=unique):
+    for codedesc in get_known_codes(s, unique=unique, rgb_mode=rgb_mode):
         total += 1
         print(codedesc)
     plural = 'code' if total == 1 else 'codes'
@@ -241,7 +263,7 @@ def read_stdin():
     return sys.stdin.read()
 
 
-def translate(usercodes):
+def translate(usercodes, rgb_mode=False):
     """ Translate one or more hex, term, or rgb value into the others.
         Yields strings with the results for each code translated.
     """
@@ -258,7 +280,7 @@ def translate(usercodes):
                     raise InvalidNumber(code, label='Invalid rgb value:')
                 code = (r, g, b)
 
-            colorcode = ColorCode(code)
+            colorcode = ColorCode(code, rgb_mode=rgb_mode)
 
             if disabled():
                 yield str(colorcode)
@@ -334,7 +356,10 @@ if __name__ == '__main__':
         print_err('\nBroken pipe, input/output was interrupted.\n')
         mainret = 3
     except (ValueError, InvalidNumber) as exnum:
-        print_err('\n{}'.format(exnum))
+        if DEBUG:
+            print_err(traceback.format_exc())
+        else:
+            print_err('\n{}'.format(exnum))
         mainret = 4
 
     sys.exit(mainret)

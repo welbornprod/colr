@@ -31,15 +31,17 @@
 from contextlib import suppress  # type: ignore
 from functools import partial, total_ordering
 from types import GeneratorType
-from typing import (
+from typing import (  # noqa
     Any,
     Callable,
     Dict,
     List,
     Optional,
     Sequence,
+    Set,
     Tuple,
-    Union
+    Union,
+    cast,
 )
 from typing.io import IO
 
@@ -54,10 +56,11 @@ from .name_data import names as name_data
 # Types for the type checker.
 CodeFormatArg = Union[str, int]
 CodeFormatFunc = Callable[[CodeFormatArg], str]
-ColorType = Union[str, int]
+CodeFormatRgbFunc = Callable[[int, int, int], str]
+# Acceptable fore/back args.
+ColorType = Union[str, int, Tuple[int, int, int]]
 
-
-__version__ = '0.6.1'
+__version__ = '0.7.0'
 
 __all__ = [
     '_disabled',
@@ -106,10 +109,25 @@ _namemap = (
     ('white', 7)
 )  # type: Tuple[Tuple[str, int], ...]
 
+# Map of base code -> style name/alias.
+_stylemap = (
+    ('0', ('reset_all',)),
+    ('1', ('b', 'bright', 'bold')),
+    ('2', ('d', 'dim')),
+    ('3', ('i', 'italic')),
+    ('4', ('u', 'underline', 'underlined')),
+    ('5', ('f', 'flash')),
+    ('7', ('h', 'highlight', 'hilight', 'hilite', 'reverse')),
+    ('22', ('n', 'normal', 'none'))
+)  # type: Tuple[Tuple[str, Tuple[str, ...]], ...]
+_stylenums = tuple(x[0] for x in _stylemap)  # type: Tuple[str, ...]
+
 # Build a module-level map of fore, back, and style names to escape code.
 codeformat = '\033[{}m'.format  # type: CodeFormatFunc
 extforeformat = '\033[38;5;{}m'.format  # type: CodeFormatFunc
 extbackformat = '\033[48;5;{}m'.format  # type: CodeFormatFunc
+rgbforeformat = '\033[38;2;{};{};{}m'.format  # type: CodeFormatRgbFunc
+rgbbackformat = '\033[48;2;{};{};{}m'.format  # type: CodeFormatRgbFunc
 
 # Used to strip codes from a string.
 codepat = re.compile('\033\[([\d;]+)?m')
@@ -128,7 +146,7 @@ def _build_codes() -> Dict[str, Dict[str, str]]:
     # Set codes for forecolors (30-37) and backcolors (40-47)
     # Names are given to some of the 256-color variants as 'light' colors.
     for name, number in _namemap:
-        # TODO: Use format_fore/format_back here.
+        # Not using format_* functions here, no validation needed.
         built['fore'][name] = codeformat(30 + number)
         built['back'][name] = codeformat(40 + number)
         litename = 'light{}'.format(name)  # type: str
@@ -139,19 +157,8 @@ def _build_codes() -> Dict[str, Dict[str, str]]:
     built['fore']['reset'] = codeformat(39)
     built['back']['reset'] = codeformat(49)
 
-    # Map of base code -> style name/alias.
-    stylemap = (
-        ('0', ('reset_all',)),
-        ('1', ('b', 'bright', 'bold')),
-        ('2', ('d', 'dim')),
-        ('3', ('i', 'italic')),
-        ('4', ('u', 'underline', 'underlined')),
-        ('5', ('f', 'flash')),
-        ('7', ('h', 'highlight', 'hilight', 'hilite', 'reverse')),
-        ('22', ('n', 'normal', 'none'))
-    )  # type: Tuple[Tuple[str, Tuple[str, ...]], ...]
     # Set style codes.
-    for code, names in stylemap:
+    for code, names in _stylemap:
         for alias in names:
             built['style'][alias] = codeformat(code)
 
@@ -178,12 +185,6 @@ def _build_codes_reverse(
                 built[codetype] = {}
             built[codetype][escapecode] = name
     return built
-
-
-# Raw code map, available to users.
-codes = _build_codes()
-codes_reverse = _build_codes_reverse(codes)
-closing_code = '\033[m'
 
 
 def auto_disable(
@@ -230,33 +231,100 @@ def enable() -> None:
 
 
 def format_back(
-        number: int,
+        number: Union[int, Sequence[int]],
         light: Optional[bool]=False,
         extended: Optional[bool]=False) -> str:
     """ Return an escape code for a back color, by number.
         This is a convenience method for handling the different code types
         all in one shot.
+        It also handles some validation.
     """
-    if light:
-        return codeformat(100 + number)
-    elif extended:
-        return extbackformat(number)
-    return codeformat(40 + number)
+    try:
+        r, g, b = number  # type: ignore
+    except ValueError:
+        raise ValueError('Invalid RGB back code: {!r}'.format(number))
+    except TypeError:
+        # Not an rgb code.
+        # This variable, and it's cast is only to satisfy the type checks.
+        n = int(cast(int, number))
+        if light:
+            if not in_range(n, 0, 9):
+                raise ValueError(
+                    'Expecting 0-9 for light back code, got: {!r}'.format(n)
+                )
+            return codeformat(100 + n)
+        elif extended:
+            if not in_range(n, 0, 255):
+                raise ValueError(
+                    'Expecting 0-255 for ext. back code, got: {!r}'.format(n)
+                )
+            return extbackformat(n)
+        if not in_range(n, 0, 9):
+            raise ValueError(
+                'Expecting 0-9 for back code, got: {!r}'.format(n)
+            )
+        return codeformat(40 + n)
+
+    # Rgb code.
+    if not all(in_range(x, 0, 255) for x in (r, g, b)):
+        raise ValueError('RGB value not in range 0-255, got: {!r}'.format(
+            (r, g, b)
+        ))
+    return rgbbackformat(r, g, b)
 
 
 def format_fore(
-        number: int,
+        number: Union[int, Sequence[int]],
         light: Optional[bool]=False,
         extended: Optional[bool]=False) -> str:
     """ Return an escape code for a fore color, by number.
         This is a convenience method for handling the different code types
         all in one shot.
+        It also handles some validation.
      """
-    if light:
-        return codeformat(90 + number)
-    elif extended:
-        return extforeformat(number)
-    return codeformat(30 + number)
+    try:
+        r, g, b = number  # type: ignore
+    except ValueError:
+        raise ValueError('Invalid RGB fore code: {!r}'.format(number))
+    except TypeError:
+        # Not an rgb code.
+        # This cast and variable are only here to satisfy type checking.
+        n = int(cast(int, number))
+        if light:
+            if not in_range(n, 0, 9):
+                raise ValueError(
+                    'Expecting 0-9 for light fore code, got: {!r}'.format(n)
+                )
+            return codeformat(90 + n)
+        elif extended:
+            if not in_range(n, 0, 255):
+                raise ValueError(
+                    'Expecting 0-255 for ext. fore code, got: {!r}'.format(n)
+                )
+            return extforeformat(n)
+        if not in_range(n, 0, 9):
+            raise ValueError(
+                'Expecting 0-9 for fore code, got: {!r}'.format(n)
+            )
+        return codeformat(30 + n)
+    # Rgb code.
+    if not all(in_range(x, 0, 255) for x in (r, g, b)):
+        raise ValueError('RGB value not in range 0-255, got: {!r}'.format(
+            (r, g, b)
+        ))
+    return rgbforeformat(r, g, b)
+
+
+def format_style(number: int) -> str:
+    """ Return an escape code for a style, by number.
+        This handles invalid style numbers.
+    """
+    if str(number) not in _stylenums:
+        raise ValueError('Invalid style code. Expecting {}, got: {!r}'.format(
+            '\n'.join(_stylenums),
+            number,
+        ))
+    return codeformat(number)
 
 
 def get_code_num(s: str) -> Optional[int]:
@@ -284,7 +352,7 @@ def get_code_num(s: str) -> Optional[int]:
     return num
 
 
-def get_code_num_rgb(s: str) -> Optional[Tuple[int]]:
+def get_code_num_rgb(s: str) -> Optional[Tuple[int, int, int]]:
     """ Get rgb code numbers from an RGB escape code.
         Raises ValueError if an invalid number is found.
     """
@@ -328,13 +396,16 @@ def get_codes(s: str) -> List[str]:
     return codegrabpat.findall(s)
 
 
-def get_known_codes(s: str, unique: Optional[bool]=True):
+def get_known_codes(
+        s: str,
+        unique: Optional[bool]=True,
+        rgb_mode: Optional[bool]=False):
     """ Get all known escape codes from a string, and yield the explanations.
     """
 
     isdisabled = disabled()
     orderedcodes = tuple((c, get_known_name(c)) for c in get_codes(s))
-    codesdone = set()
+    codesdone = set()  # type: Set[str]
 
     for code, codeinfo in orderedcodes:
         # Do the codes in order, but don't do the same code twice.
@@ -351,9 +422,9 @@ def get_known_codes(s: str, unique: Optional[bool]=True):
         typedesc = '{:>13}: {!r:<23}'.format(codetype.title(), code)
         if codetype.startswith(('extended', 'rgb')):
             if isdisabled:
-                codedesc = str(ColorCode(name))
+                codedesc = str(ColorCode(name, rgb_mode=rgb_mode))
             else:
-                codedesc = ColorCode(name).example()
+                codedesc = ColorCode(name, rgb_mode=rgb_mode).example()
         else:
             codedesc = ''.join((
                 code,
@@ -367,7 +438,7 @@ def get_known_codes(s: str, unique: Optional[bool]=True):
         ))
 
 
-def get_known_name(s: str) -> Optional[Tuple[str, Union[int, Tuple[int]]]]:
+def get_known_name(s: str) -> Optional[Tuple[str, ColorType]]:
     """ Reverse translate a terminal code to a known color name, if possible.
         Returns a tuple of (codetype, knownname) on success.
         Returns None on failure.
@@ -653,6 +724,7 @@ class Colr(object):
             # Fore 256 method
             name = attr.partition('_')[2]
             return self._ext_attr_to_partial(name, 'fore')
+
         return None
 
     def _ext_attr_to_partial(self, name, kwarg_key):
@@ -673,41 +745,9 @@ class Colr(object):
         kws = {kwarg_key: intval}
         return partial(self.chained, **kws)
 
-    def _iter_gradient(
-            self, text, start, step=1,
-            fore=None, back=None, style=None, reverse=False):
-        """ Yield colorized characters,
-            using one of the 36-length gradients.
-        """
-        # TODO: This func was for the old gradient() method. Not used anymore.
-        # Determine which 36-length gradient to start from.
-        adj = divmod(start - 16, 36)[1]
-        if adj > 0:
-            start = start - adj
-
-        # Build the color numbers needed to make a never-ending gradient.
-        rows = []
-        for c in range(0, 36, 6):
-            rows.append([start + c + i for i in range(6)])
-        numbers = []
-        for i, r in enumerate(rows):
-            if i % 2 != 0:
-                numbers.extend(reversed(rows[i]))
-            else:
-                numbers.extend(rows[i])
-
-        yield from self._iter_text_wave(
-            text,
-            numbers,
-            step=step,
-            fore=fore,
-            back=back,
-            style=style
-        )
-
     def _gradient_black_line(
             self, text, start, step=1,
-            fore=None, back=None, style=None, reverse=False):
+            fore=None, back=None, style=None, reverse=False, rgb_mode=False):
         """ Yield colorized characters,
             within the 24-length black gradient.
         """
@@ -726,13 +766,15 @@ class Colr(object):
                 step=step,
                 fore=fore,
                 back=back,
-                style=style)
+                style=style,
+                rgb_mode=rgb_mode
+            )
         ))
 
     def _gradient_black_lines(
             self, text, start, step=1,
             fore=None, back=None, style=None, reverse=False,
-            movefactor=2):
+            movefactor=2, rgb_mode=False):
         """ Yield colorized characters,
             within the 24-length black gradient,
             treating each line separately.
@@ -752,23 +794,116 @@ class Colr(object):
                 fore=fore,
                 back=back,
                 style=style,
-                reverse=reverse)
+                reverse=reverse,
+                rgb_mode=rgb_mode,
+            )
+            for i, line in enumerate(text.splitlines())
+        ))
+
+    def _gradient_rgb_line(
+            self, text, start, stop, step=1,
+            fore=None, back=None, style=None):
+        """ Yield colorized characters, morphing from one rgb value to
+            another.
+        """
+        return self._gradient_rgb_line_from_morph(
+            text,
+            list(self._morph_rgb(start, stop, step=step)),
+            fore=fore,
+            back=back,
+            style=style
+        )
+
+    def _gradient_rgb_line_from_morph(
+            self, text, morphlist, fore=None, back=None, style=None):
+        """ Yield colorized characters, morphing from one rgb value to
+            another.
+        """
+        try:
+            listlen = len(morphlist)
+        except TypeError:
+            morphlist = list(morphlist)
+            listlen = len(morphlist)
+        neededsteps = listlen // len(text)
+        iterstep = 1
+        if neededsteps > iterstep:
+            # Skip some members of morphlist, to be sure to reach the end.
+            iterstep = neededsteps
+        usevals = morphlist
+        if iterstep > 1:
+            # Rebuild the morphlist, skipping some.
+            usevals = [usevals[i] for i in range(0, listlen, iterstep)]
+        return ''.join((
+            self._iter_text_wave(
+                text,
+                usevals,
+                fore=fore,
+                back=back,
+                style=style,
+                rgb_mode=False,
+            )
+        ))
+
+    def _gradient_rgb_lines(
+            self, text, start, stop, step=1,
+            fore=None, back=None, style=None, movefactor=None):
+        """ Yield colorized characters, morphing from one rgb value to
+            another. This treats each line separately.
+        """
+        morphlist = list(self._morph_rgb(start, stop, step=step))
+        if movefactor:
+            # Moving means we need the morph to wrap around.
+            morphlist.extend(self._morph_rgb(stop, start, step=step))
+            if movefactor < 0:
+                # Increase the start for each line.
+                def move():
+                    popped = []
+                    for _ in range(abs(movefactor)):
+                        try:
+                            popped.append(morphlist.pop(0))
+                        except IndexError:
+                            pass
+                    morphlist.extend(popped)
+                    return morphlist
+            else:
+                # Decrease start for each line.
+                def move():
+                    for _ in range(movefactor):
+                        try:
+                            val = morphlist.pop(-1)
+                        except IndexError:
+                            pass
+                        else:
+                            morphlist.insert(0, val)
+                    return morphlist
+
+        return '\n'.join((
+            self._gradient_rgb_line_from_morph(
+                line,
+                move() if movefactor else morphlist,
+                fore=fore,
+                back=back,
+                style=style,
+            )
             for i, line in enumerate(text.splitlines())
         ))
 
     def _iter_text_wave(
             self, text, numbers, step=1,
-            fore=None, back=None, style=None):
+            fore=None, back=None, style=None, rgb_mode=False):
         """ Yield colorized characters from `text`, using a wave of `numbers`.
             Arguments:
-                text     : String to be colorized.
-                numbers  : A list/tuple of numbers (256 colors).
-                step     : Number of characters to colorize per color.
-                fore     : Fore color to use (name or number).
-                           (Back will be gradient)
-                back     : Background color to use (name or number).
-                           (Fore will be gradient)
-                style    : Style name to use.
+                text      : String to be colorized.
+                numbers   : A list/tuple of numbers (256 colors).
+                step      : Number of characters to colorize per color.
+                fore      : Fore color to use (name or number).
+                            (Back will be gradient)
+                back      : Background color to use (name or number).
+                            (Fore will be gradient)
+                style     : Style name to use.
+                rgb_mode  : Use number for rgb value.
+                            This should never be used when the numbers
+                            are rgb values themselves.
         """
         if fore and back:
             raise ValueError('Both fore and back colors cannot be specified.')
@@ -776,12 +911,22 @@ class Colr(object):
         pos = 0
         end = len(text)
         numbergen = self._iter_wave(numbers)
-        for num in numbergen:
+
+        def make_color(n):
+            try:
+                r, g, b = n
+            except TypeError:
+                if rgb_mode:
+                    return n, n, n
+                return n
+            return r, g, b
+
+        for value in numbergen:
             lastchar = pos + step
             yield self.color(
                 text[pos:lastchar],
-                fore=num if fore is None else fore,
-                back=num if fore is not None else back,
+                fore=make_color(value) if fore is None else fore,
+                back=make_color(value) if fore is not None else back,
                 style=style
             )
             if lastchar >= end:
@@ -808,7 +953,12 @@ class Colr(object):
         up = True
         pos = 0
         i = 0
-        end = len(iterable)
+        try:
+            end = len(iterable)
+        except TypeError:
+            iterable = list(iterable)
+            end = len(iterable)
+
         # Stop on count, or run forever.
         while (i < count) if count > 0 else True:
             try:
@@ -833,19 +983,49 @@ class Colr(object):
                     pos = 1
             i += 1
 
+    def _morph_rgb(self, rgb1, rgb2, step=1):
+        """ Morph an rgb value into another, yielding each step along the way.
+        """
+        pos1, pos2 = list(rgb1), list(rgb2)
+        indexes = [i for i, _ in enumerate(pos1)]
+
+        def step_value(a, b):
+            """ Returns the amount to add to `a` to make it closer to `b`,
+                multiplied by `step`.
+            """
+            if a < b:
+                return step
+            if a > b:
+                return -step
+            return 0
+
+        steps = [step_value(pos1[x], pos2[x]) for x in indexes]
+        stepcnt = 0
+        while (pos1 != pos2):
+            stepcnt += 1
+            stop = yield tuple(pos1)
+            if stop:
+                break
+            for x in indexes:
+                if pos1[x] != pos2[x]:
+                    pos1[x] += steps[x]
+                    if (steps[x] < 0) and (pos1[x] < pos2[x]):
+                        # Over stepped, negative.
+                        pos1[x] = pos2[x]
+                    if (steps[x] > 0) and (pos1[x] > pos2[x]):
+                        # Over stepped, positive.
+                        pos1[x] = pos2[x]
+        yield tuple(pos1)
+
     def _rainbow_color(self, freq, i):
         """ Calculate a single hexcode value for a piece of a rainbow.
             Arguments:
                 freq  : "Tightness" of colors (see self.rainbow())
                 i     : Index of character in string to colorize.
         """
-        # Borrowed from lolcat, translated from ruby.
-        red = math.sin(freq * i + 0) * 127 + 128
-        green = math.sin(freq * i + 2 * math.pi / 3) * 127 + 128
-        blue = math.sin(freq * i + 4 * math.pi / 3) * 127 + 128
-        return '{:02x}{:02x}{:02x}'.format(int(red), int(green), int(blue))
+        return '{:02x}{:02x}{:02x}'.format(*self._rainbow_rgb(freq, i))
 
-    def _rainbow_hex(self, s, freq=0.1, spread=3.0, offset=0):
+    def _rainbow_hex_chars(self, s, freq=0.1, spread=3.0, offset=0):
         """ Iterate over characters in a string to build data needed for a
             rainbow effect.
             Yields tuples of (char, hexcode).
@@ -865,7 +1045,8 @@ class Colr(object):
         )
 
     def _rainbow_line(
-            self, text, freq=0.1, spread=3.0, offset=0, **colorargs):
+            self, text, freq=0.1, spread=3.0, offset=0,
+            rgb_mode=False, **colorargs):
         """ Create rainbow using the same offset for all text.
             Arguments:
                 text       : String to colorize.
@@ -876,7 +1057,8 @@ class Colr(object):
                              Default: 3.0
                 offset     : Offset for start of rainbow.
                              Default: 0
-
+                rgb_mode   : If truthy, use RGB escape codes instead of
+                             extended 256 and approximate hex match.
             Keyword Arguments:
                 colorargs  : Any extra arguments for the color function,
                              such as fore, back, style.
@@ -887,21 +1069,25 @@ class Colr(object):
         back = colorargs.get('back', None)
         style = colorargs.get('style', None)
         if fore:
-            color_args = (lambda hexval: {
-                'back': hex2term(hexval),
+            color_args = (lambda value: {
+                'back': value if rgb_mode else hex2term(value),
                 'style': style,
                 'fore': fore
             })
         else:
-            color_args = (lambda hexval: {
-                'fore': hex2term(hexval),
+            color_args = (lambda value: {
+                'fore': value if rgb_mode else hex2term(value),
                 'style': style,
                 'back': back
             })
 
+        if rgb_mode:
+            method = self._rainbow_rgb_chars
+        else:
+            method = self._rainbow_hex_chars
         return ''.join(
             self.color(c, **color_args(hval))
-            for c, hval in self._rainbow_hex(
+            for c, hval in method(
                 text,
                 freq=freq,
                 spread=spread,
@@ -910,7 +1096,7 @@ class Colr(object):
 
     def _rainbow_lines(
             self, text, freq=0.1, spread=3.0, offset=0, movefactor=0,
-            **colorargs):
+            rgb_mode=False, **colorargs):
         """ Create rainbow text, using the same offset for each line.
             Arguments:
                 text       : String to colorize.
@@ -923,6 +1109,8 @@ class Colr(object):
                              Default: 0
                 movefactor : Factor for offset increase on each new line.
                              Default: 0
+                rgb_mode   : If truthy, use RGB escape codes instead of
+                             extended 256 and approximate hex match.
 
             Keyword Arguments:
                 fore, back, style  : Other args for the color() function.
@@ -940,8 +1128,40 @@ class Colr(object):
                 freq=freq,
                 spread=spread,
                 offset=factor(i),
+                rgb_mode=rgb_mode,
                 **colorargs)
             for i, line in enumerate(text.splitlines()))
+
+    def _rainbow_rgb(self, freq, i):
+        """ Calculate a single rgb value for a piece of a rainbow.
+            Arguments:
+                freq  : "Tightness" of colors (see self.rainbow())
+                i     : Index of character in string to colorize.
+        """
+        # Borrowed from lolcat, translated from ruby.
+        red = math.sin(freq * i + 0) * 127 + 128
+        green = math.sin(freq * i + 2 * math.pi / 3) * 127 + 128
+        blue = math.sin(freq * i + 4 * math.pi / 3) * 127 + 128
+        return int(red), int(green), int(blue)
+
+    def _rainbow_rgb_chars(self, s, freq=0.1, spread=3.0, offset=0):
+        """ Iterate over characters in a string to build data needed for a
+            rainbow effect.
+            Yields tuples of (char, (r, g, b)).
+            Arguments:
+                s      : String to colorize.
+                freq   : Frequency/"tightness" of colors in the rainbow.
+                         Best results when in the range 0.0-1.0.
+                         Default: 0.1
+                spread : Spread/width of colors.
+                         Default: 3.0
+                offset : Offset for start of rainbow.
+                         Default: 0
+        """
+        return (
+            (c, self._rainbow_rgb(freq, offset + i / spread))
+            for i, c in enumerate(s)
+        )
 
     def _str_just(
             self, methodname, width, fillchar=' ', squeeze=False,
@@ -991,6 +1211,18 @@ class Colr(object):
             **colorkwargs
         )
 
+    def b_rgb(self, r, g, b, text=None, fore=None, style=None):
+        """ A chained method that sets the back color to an RGB value.
+            Arguments:
+                r     : Red value.
+                g     : Green value.
+                b     : Blue value.
+                text  : Text to style if not building up color codes.
+                fore  : Fore color for the text.
+                style : Style for the text.
+        """
+        return self.chained(text=text, fore=fore, back=(r, g, b), style=style)
+
     def center(self, width, fillchar=' ', squeeze=False, **kwargs):
         """ s.center() doesn't work well on strings with color codes.
             This method will use .center() before colorizing the text.
@@ -1024,7 +1256,7 @@ class Colr(object):
         """
         self.data = ''.join((
             self.data,
-            self.color(text=text, fore=fore, back=back, style=style)
+            self.color(text=text, fore=fore, back=back, style=style),
         ))
         return self
 
@@ -1039,36 +1271,23 @@ class Colr(object):
         return ''.join((
             self.color_code(fore=fore, back=back, style=style),
             text,
-            closing_code if text else ''
+            closing_code if text else '',
         ))
 
     def color_code(self, fore=None, back=None, style=None):
         """ Return the codes for this style/colors. """
         # Map from style type to raw code formatter function.
-        named_funcs = {
-            'fore': format_fore,
-            'back': format_back,
-            'style': None,
-        }
         colorcodes = []
         resetcodes = []
         userstyles = {'style': style, 'back': back, 'fore': fore}
         for stype in userstyles:
-            style = userstyles.get(stype, None)
-            if not style:
+            stylearg = userstyles.get(stype, None)
+            if not stylearg:
+                # No value for this style name, don't use it.
                 continue
-            stylename = str(style).lower()
             # Get escape code for this style.
-            code = codes[stype].get(stylename, None)
-            if not code:
-                named_data = name_data.get(stylename, None)
-                converter = named_funcs.get(stype, None)
-                if (named_data is None) or (converter is None):
-                    raise ValueError(
-                        'Invalid color name/number: {}'.format(style)
-                    )
-                # Convert named data to escape code.
-                code = converter(named_data['code'], extended=True)
+            code = self.get_escape_code(stype, stylearg)
+            stylename = str(stylearg).lower()
             if stylename.startswith('reset'):
                 resetcodes.append(code)
             else:
@@ -1086,9 +1305,48 @@ class Colr(object):
         """ Like str.format, except it returns a Colr. """
         return self.__class__(self.data.format(*args, **kwargs))
 
+    def get_escape_code(self, codetype, value):
+        """ Convert user arg to escape code. """
+        valuefmt = str(value).lower()
+        code = codes[codetype].get(valuefmt, None)
+        if code:
+            # Basic code from fore, bask, or style.
+            return code
+
+        named_funcs = {
+            'fore': format_fore,
+            'back': format_back,
+            'style': format_style,
+        }
+
+        # Not a basic code, try known names.
+        converter = named_funcs.get(codetype, None)
+        if converter is None:
+            raise ValueError(
+                'Invalid code type. Expecting {}, got: {!r}'.format(
+                    ', '.join(named_funcs),
+                    codetype
+                )
+            )
+        named_data = name_data.get(valuefmt, None)
+        if named_data is not None:
+            # A known named color.
+            return converter(named_data['code'], extended=True)
+
+        # Not a known color name/value, try rgb.
+        try:
+            r, g, b = value
+        except (TypeError, ValueError):
+            # Not an rgb value.
+            raise ValueError(
+                'Invalid color name/number: {}'.format(value)
+            )
+        return converter(value)
+
     def gradient(
             self, text=None, name=None, fore=None, back=None, style=None,
-            freq=0.1, spread=None, linemode=True, movefactor=2):
+            freq=0.1, spread=None, linemode=True,
+            movefactor=2, rgb_mode=False):
         """ Return a gradient by color name. Uses rainbow() underneath to
             build the gradients, starting at a known offset.
             Arguments:
@@ -1115,6 +1373,7 @@ class Colr(object):
                              using linemode.
                              Minimum value: 0
                              Default: 2
+                rgb_mode   : Use true color (rgb) codes.
         """
         try:
             # Try explicit offset (passed in with `name`).
@@ -1130,7 +1389,9 @@ class Colr(object):
                     style=style,
                     step=int(spread) if spread else 1,
                     linemode=linemode,
-                    movefactor=movefactor)
+                    movefactor=movefactor,
+                    rgb_mode=rgb_mode
+                )
             elif name == 'white':
                 return self.gradient_black(
                     text=text,
@@ -1140,7 +1401,9 @@ class Colr(object):
                     step=int(spread) if spread else 1,
                     linemode=linemode,
                     movefactor=movefactor,
-                    reverse=True)
+                    reverse=True,
+                    rgb_mode=rgb_mode
+                )
             try:
                 # Get rainbow offset from known name.
                 offset = {
@@ -1165,15 +1428,21 @@ class Colr(object):
             freq=freq,
             spread=spread or 3.0,
             linemode=linemode,
-            movefactor=movefactor)
+            movefactor=movefactor,
+            rgb_mode=rgb_mode,
+        )
 
     def gradient_black(
             self, text=None, fore=None, back=None, style=None,
             start=None, step=1, reverse=False,
-            linemode=True, movefactor=2):
+            linemode=True, movefactor=2, rgb_mode=False):
         """ Return a black and white gradient.
             Arguments:
                 text       : String to colorize.
+                             This will always be greater than 0.
+                fore       : Foreground color, background will be gradient.
+                back       : Background color, foreground will be gradient.
+                style      : Name of style to use for the gradient.
                 start      : Starting 256-color number.
                              The `start` will be adjusted if it is not within
                              bounds.
@@ -1182,23 +1451,21 @@ class Colr(object):
                              gradient, or the 24-length black/white gradient.
                 step       : Number of characters to colorize per color.
                              This allows a "wider" gradient.
-                             This will always be greater than 0.
-                fore       : Foreground color, background will be gradient.
-                back       : Background color, foreground will be gradient.
-                style      : Name of style to use for the gradient.
                 linemode   : Colorize each line in the input.
                              Default: True
                 movefactor : Factor for offset increase on each line when
                              using linemode.
                              Minimum value: 0
                              Default: 2
+                rgb_mode   : Use true color (rgb) method and codes.
         """
         gradargs = {
             'step': step,
             'fore': fore,
             'back': back,
             'style': style,
-            'reverse': reverse
+            'reverse': reverse,
+            'rgb_mode': rgb_mode,
         }
 
         if linemode:
@@ -1224,6 +1491,63 @@ class Colr(object):
                 self.stripped(),
                 start or (255 if reverse else 232),
                 **gradargs)
+        )
+
+    def gradient_rgb(
+            self, text=None, fore=None, back=None, style=None,
+            start=None, stop=None, step=1, linemode=True, movefactor=0):
+        """ Return a black and white gradient.
+            Arguments:
+                text       : String to colorize.
+                step       : Number of characters to colorize per color.
+                             This allows a "wider" gradient.
+                             This will always be greater than 0.
+                fore       : Foreground color, background will be gradient.
+                back       : Background color, foreground will be gradient.
+                style      : Name of style to use for the gradient.
+                start      : Starting rgb value.
+                stop       : Stopping rgb value.
+                linemode   : Colorize each line in the input.
+                             Default: True
+                movefactor : Amount to shift gradient for each line when
+                             `linemode` is set.
+
+       """
+        gradargs = {
+            'step': step,
+            'fore': fore,
+            'back': back,
+            'style': style,
+        }
+        start = start or (255, 0, 0)
+        stop = stop or (0, 0, 255)
+        if linemode:
+            method = self._gradient_rgb_lines
+            gradargs['movefactor'] = movefactor
+        else:
+            method = self._gradient_rgb_line
+
+        if text:
+            return self.__class__(
+                ''.join((
+                    self.data or '',
+                    method(
+                        text,
+                        start,
+                        stop,
+                        **gradargs
+                    ),
+                ))
+            )
+
+        # Operating on self.data.
+        return self.__class__(
+            method(
+                self.stripped(),
+                start,
+                stop,
+                **gradargs
+            )
         )
 
     def join(self, *colrs, **colorkwargs):
@@ -1282,7 +1606,7 @@ class Colr(object):
     def rainbow(
             self, text=None, fore=None, back=None, style=None,
             freq=0.1, offset=30, spread=3.0,
-            linemode=True, movefactor=2):
+            linemode=True, movefactor=2, rgb_mode=False):
         """ Make rainbow gradient text.
             Arguments:
                 text       : Text to make gradient.
@@ -1307,6 +1631,8 @@ class Colr(object):
                              using linemode.
                              Minimum value: 0
                              Default: 2
+                rgb_mode   : Use RGB escape codes instead of extended 256 and
+                             approximate hex matches.
         """
         if fore and back:
             raise ValueError('Cannot use both fore and back with rainbow()')
@@ -1317,7 +1643,8 @@ class Colr(object):
             'offset': offset,
             'fore': fore,
             'back': back,
-            'style': style
+            'style': style,
+            'rgb_mode': rgb_mode,
         }
         if linemode:
             rainbowargs['movefactor'] = movefactor
@@ -1338,6 +1665,19 @@ class Colr(object):
         return self.__class__(
             method(self.stripped(), **rainbowargs)
         )
+
+    def rgb(self, r, g, b, text=None, back=None, style=None):
+        """ A chained method that sets the fore color to an RGB value.
+            Arguments:
+                r     : Red value.
+                g     : Green value.
+                b     : Blue value.
+                text  : Text to style if not building up color codes.
+                back  : Back color for the text.
+                style : Style for the text.
+
+        """
+        return self.chained(text=text, fore=(r, g, b), back=back, style=style)
 
     def rjust(self, width, fillchar=' ', squeeze=False, **kwargs):
         """ s.rjust() doesn't work well on strings with color codes.
@@ -1367,6 +1707,11 @@ class Colr(object):
         """ Return str(strip_codes(self.data)) """
         return strip_codes(self.data)
 
+
+# Raw code map, available to users.
+codes = _build_codes()
+codes_reverse = _build_codes_reverse(codes)
+closing_code = '\033[0m'
 
 # Shortcuts.
 color = Colr().color
