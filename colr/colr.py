@@ -58,7 +58,7 @@ CodeFormatArg = Union[str, int]
 CodeFormatFunc = Callable[[CodeFormatArg], str]
 CodeFormatRgbFunc = Callable[[int, int, int], str]
 # Acceptable fore/back args.
-ColorType = Union[str, int, Tuple[int, int, int]]
+ColorArg = Union[str, int, Tuple[int, int, int]]
 
 __version__ = '0.7.0'
 
@@ -80,7 +80,15 @@ __all__ = [
     'get_codes',
     'get_known_codes',
     'get_known_name',
+    'InvalidArg',
+    'InvalidColr',
+    'InvalidEscapeCode',
+    'InvalidRgbEscapeCode',
+    'InvalidStyle',
     'name_data',
+    'parse_colr_arg',
+    'rgbbackformat',
+    'rgbforeformat',
     'strip_codes',
 ]
 # Set with the enable/disable functions, or on Windows without colorama.
@@ -111,16 +119,17 @@ _namemap = (
 
 # Map of base code -> style name/alias.
 _stylemap = (
-    ('0', ('reset_all',)),
-    ('1', ('b', 'bright', 'bold')),
-    ('2', ('d', 'dim')),
-    ('3', ('i', 'italic')),
-    ('4', ('u', 'underline', 'underlined')),
-    ('5', ('f', 'flash')),
-    ('7', ('h', 'highlight', 'hilight', 'hilite', 'reverse')),
-    ('22', ('n', 'normal', 'none'))
+    ('0', ('0', 'reset_all',)),
+    ('1', ('1', 'b', 'bright', 'bold')),
+    ('2', ('2', 'd', 'dim')),
+    ('3', ('3', 'i', 'italic')),
+    ('4', ('4', 'u', 'underline', 'underlined')),
+    ('5', ('5', 'f', 'flash')),
+    ('7', ('7', 'h', 'highlight', 'hilight', 'hilite', 'reverse')),
+    ('22', ('22', 'n', 'normal', 'none'))
 )  # type: Tuple[Tuple[str, Tuple[str, ...]], ...]
-_stylenums = tuple(x[0] for x in _stylemap)  # type: Tuple[str, ...]
+# A tuple of valid style numbers.
+_stylenums = tuple(t[0] for t in _stylemap)  # type: Tuple[str, ...]
 
 # Build a module-level map of fore, back, and style names to escape code.
 codeformat = '\033[{}m'.format  # type: CodeFormatFunc
@@ -230,6 +239,84 @@ def enable() -> None:
     _disabled = False
 
 
+def _format_code(
+        number: Union[int, Sequence[int]],
+        backcolor: Optional[bool]=False,
+        light: Optional[bool]=False,
+        extended: Optional[bool]=False) -> str:
+    """ Return an escape code for a fore/back color, by number.
+        This is a convenience method for handling the different code types
+        all in one shot.
+        It also handles some validation.
+        format_fore/format_back wrap this function to reduce code duplication.
+    """
+    if backcolor:
+        codetype = 'back'
+        # A dict of codeformat funcs. These funcs return an escape code str.
+        formatters = {
+            'code': lambda n: codeformat(40 + n),
+            'lightcode': lambda n: codeformat(100 + n),
+            'ext': lambda n: extbackformat(n),
+            'rgb': lambda r, g, b: rgbbackformat(r, g, b),
+        }  # type: Dict[str, Callable[..., str]]
+    else:
+        codetype = 'fore'
+        formatters = {
+            'code': lambda n: codeformat(30 + n),
+            'lightcode': lambda n: codeformat(90 + n),
+            'ext': lambda n: extforeformat(n),
+            'rgb': lambda r, g, b: rgbforeformat(r, g, b),
+        }
+    try:
+        r, g, b = (int(x) for x in number)  # type: ignore
+    except (TypeError, ValueError):
+        # Not an rgb code.
+        # This variable, and it's cast is only to satisfy the type checks.
+        try:
+            n = int(cast(int, number))
+        except ValueError:
+            raise InvalidColr(
+                number,
+                'Expecting 0-255 for {} code.'.format(codetype)
+            )
+        if light:
+            if not in_range(n, 0, 9):
+                raise InvalidColr(
+                    n,
+                    'Expecting 0-9 for light {} code.'.format(codetype)
+                )
+            return formatters['lightcode'](n)
+
+        elif extended:
+            if not in_range(n, 0, 255):
+                raise InvalidColr(
+                    n,
+                    'Expecting 0-255 for ext. {} code.'.format(codetype)
+                )
+            return formatters['ext'](n)
+        if not in_range(n, 0, 9):
+            raise InvalidColr(
+                n,
+                'Expecting 0-9 for {} code.'.format(codetype)
+            )
+        return formatters['code'](n)
+
+    # Rgb code.
+    try:
+        if not all(in_range(x, 0, 255) for x in (r, g, b)):
+            raise InvalidColr(
+                (r, g, b),
+                'RGB value for {} not in range 0-255.'.format(codetype)
+            )
+    except TypeError:
+        # Was probably a 3-char string. Not an rgb code though.
+        raise InvalidColr(
+            (r, g, b),
+            'RGB value for {} contains invalid number: {!r}'.format(codetype)
+        )
+    return formatters['rgb'](r, g, b)
+
+
 def format_back(
         number: Union[int, Sequence[int]],
         light: Optional[bool]=False,
@@ -239,38 +326,12 @@ def format_back(
         all in one shot.
         It also handles some validation.
     """
-    try:
-        r, g, b = number  # type: ignore
-    except ValueError:
-        raise ValueError('Invalid RGB back code: {!r}'.format(number))
-    except TypeError:
-        # Not an rgb code.
-        # This variable, and it's cast is only to satisfy the type checks.
-        n = int(cast(int, number))
-        if light:
-            if not in_range(n, 0, 9):
-                raise ValueError(
-                    'Expecting 0-9 for light back code, got: {!r}'.format(n)
-                )
-            return codeformat(100 + n)
-        elif extended:
-            if not in_range(n, 0, 255):
-                raise ValueError(
-                    'Expecting 0-255 for ext. back code, got: {!r}'.format(n)
-                )
-            return extbackformat(n)
-        if not in_range(n, 0, 9):
-            raise ValueError(
-                'Expecting 0-9 for back code, got: {!r}'.format(n)
-            )
-        return codeformat(40 + n)
-
-    # Rgb code.
-    if not all(in_range(x, 0, 255) for x in (r, g, b)):
-        raise ValueError('RGB value not in range 0-255, got: {!r}'.format(
-            (r, g, b)
-        ))
-    return rgbbackformat(r, g, b)
+    return _format_code(
+        number,
+        backcolor=True,
+        light=light,
+        extended=extended
+    )
 
 
 def format_fore(
@@ -281,38 +342,13 @@ def format_fore(
         This is a convenience method for handling the different code types
         all in one shot.
         It also handles some validation.
-     """
-    try:
-        r, g, b = number  # type: ignore
-    except ValueError:
-        raise ValueError('Invalid RGB fore code: {!r}'.format(number))
-    except TypeError:
-        # Not an rgb code.
-        # This cast and variable are only here to satisfy type checking.
-        n = int(cast(int, number))
-        if light:
-            if not in_range(n, 0, 9):
-                raise ValueError(
-                    'Expecting 0-9 for light fore code, got: {!r}'.format(n)
-                )
-            return codeformat(90 + n)
-        elif extended:
-            if not in_range(n, 0, 255):
-                raise ValueError(
-                    'Expecting 0-255 for ext. fore code, got: {!r}'.format(n)
-                )
-            return extforeformat(n)
-        if not in_range(n, 0, 9):
-            raise ValueError(
-                'Expecting 0-9 for fore code, got: {!r}'.format(n)
-            )
-        return codeformat(30 + n)
-    # Rgb code.
-    if not all(in_range(x, 0, 255) for x in (r, g, b)):
-        raise ValueError('RGB value not in range 0-255, got: {!r}'.format(
-            (r, g, b)
-        ))
-    return rgbforeformat(r, g, b)
+    """
+    return _format_code(
+        number,
+        backcolor=False,
+        light=light,
+        extended=extended
+    )
 
 
 def format_style(number: int) -> str:
@@ -320,16 +356,13 @@ def format_style(number: int) -> str:
         This handles invalid style numbers.
     """
     if str(number) not in _stylenums:
-        raise ValueError('Invalid style code. Expecting {}, got: {!r}'.format(
-            '\n'.join(_stylenums),
-            number,
-        ))
+        raise InvalidStyle(number)
     return codeformat(number)
 
 
 def get_code_num(s: str) -> Optional[int]:
     """ Get code number from an escape code.
-        Raises ValueError if an invalid number is found.
+        Raises InvalidEscapeCode if an invalid number is found.
     """
     if ';' in s:
         # Extended fore/back codes.
@@ -345,47 +378,29 @@ def get_code_num(s: str) -> Optional[int]:
         maximum=255
     )
     if num is None:
-        raise ValueError('\n'.join((
-            'Color code was not in the acceptable range: {}',
-            'Expecting 0-255.'
-        )).format(numberstr))
+        raise InvalidEscapeCode(numberstr)
     return num
 
 
 def get_code_num_rgb(s: str) -> Optional[Tuple[int, int, int]]:
     """ Get rgb code numbers from an RGB escape code.
-        Raises ValueError if an invalid number is found.
+        Raises InvalidRgbEscapeCode if an invalid number is found.
     """
     parts = s.split(';')
     if len(parts) != 5:
-        raise ValueError(
-            'Count is off, expecting an RGB escape code, got: {!r}'.format(
-                s
-            )
-        )
+        raise InvalidRgbEscapeCode(s, reason='Count is off.')
     rgbparts = parts[-3:]
     if not rgbparts[2].endswith('m'):
-        raise ValueError(
-            'Invalid format, expecting an RGB escape code, got: {!r}'.format(
-                s
-            )
-        )
+        raise InvalidRgbEscapeCode(s, reason='Missing \'m\' on the end.')
+
     rgbparts[2] = rgbparts[2].rstrip('m')
     try:
         r, g, b = [int(x) for x in rgbparts]
     except ValueError as ex:
-        raise ValueError(
-            '\n'.join((
-                'Invalid number, expecting an RGB escape code, got: {!r}',
-                'Parse error: {}'
-            )).format(s, ex)
-        )
+        raise InvalidRgbEscapeCode(s) from ex
+
     if not all(in_range(x, 0, 255) for x in (r, g, b)):
-        raise ValueError(
-            'Expecting 0-255 for RGB escape code, got: {!r}'.format(
-                s
-            )
-        )
+        raise InvalidRgbEscapeCode(s, reason='Not in range 0-255.')
     return r, g, b
 
 
@@ -438,7 +453,7 @@ def get_known_codes(
         ))
 
 
-def get_known_name(s: str) -> Optional[Tuple[str, ColorType]]:
+def get_known_name(s: str) -> Optional[Tuple[str, ColorArg]]:
     """ Reverse translate a terminal code to a known color name, if possible.
         Returns a tuple of (codetype, knownname) on success.
         Returns None on failure.
@@ -486,10 +501,10 @@ def get_known_name(s: str) -> Optional[Tuple[str, ColorType]]:
                 ((number >= 100) and (number < 110))):
             codetype = 'back'
         else:
-            raise ValueError('\n'.join((
-                'Color code was not in the acceptable range: {}',
-                'Expecting 0-7, 22, 30-39, or 40-49'
-            )).format(number))
+            raise InvalidEscapeCode(
+                number,
+                'Expecting 0-7, 22, 30-39, or 40-49 for escape code',
+            )
 
         name = codes_reverse[codetype].get(s, None)
         if name is not None:
@@ -499,9 +514,67 @@ def get_known_name(s: str) -> Optional[Tuple[str, ColorType]]:
     return None
 
 
-def in_range(x, minimum, maximum):
+def in_range(x: int, minimum: int, maximum: int) -> bool:
     """ Return True if x is >= minimum and <= maximum. """
     return (x >= minimum and x <= maximum)
+
+
+def parse_colr_arg(s: str, default: Optional[Any]=None) -> ColorArg:
+    """ Parse a user argument into a usable fore/back color value for Colr.
+        If a falsey value is passed, default is returned.
+        Raises InvalidColr if the argument is unusable.
+        Returns: A usable value for Colr(fore/back).
+
+        This validates basic/extended color names.
+        This validates the range for basic/extended values (0-255).
+        This validates the length/range for rgb values (0-255, 0-255, 0-255).
+
+        Arguments:
+            s  : User's color value argument.
+                 Example: "1", "255", "black", "25,25,25"
+    """
+    if not s:
+        return default
+
+    val = s.strip().lower()
+    try:
+        # Try as int.
+        intval = int(val)
+    except ValueError:
+        # Try as rgb.
+        try:
+            r, g, b = (int(x.strip()) for x in val.split(','))
+        except ValueError:
+            if ',' in val:
+                # User tried rgb value and failed.
+                raise InvalidColr(val)
+
+            # Try as name (fore/back have the same names)
+            code = codes['fore'].get(val, None)
+            if code:
+                # Valid basic code from fore, bask, or style.
+                return val
+
+            # Not a basic code, try known names.
+            named_data = name_data.get(val, None)
+            if named_data is not None:
+                # A known named color.
+                return val
+
+            # Not a basic/extended/known name.
+            raise InvalidColr(val)
+        else:
+            # Got rgb. Do some validation.
+            if not all((in_range(x, 0, 255) for x in (r, g, b))):
+                raise InvalidColr(val)
+            # Valid rgb.
+            return r, g, b
+    else:
+        # Int value.
+        if not in_range(intval, 0, 255):
+            raise InvalidColr(intval)
+        # Valid int value.
+        return intval
 
 
 def strip_codes(s: str) -> str:
@@ -539,8 +612,8 @@ class Colr(object):
     def __init__(
             self,
             text: Optional[str]=None,
-            fore: Optional[ColorType]=None,
-            back: Optional[ColorType]=None,
+            fore: Optional[ColorArg]=None,
+            back: Optional[ColorArg]=None,
             style: Optional[str]=None) -> None:
         """ Initialize a Colr object with text and color options. """
         # Can be initialized with colored text, not required though.
@@ -1262,7 +1335,7 @@ class Colr(object):
 
     def color(self, text=None, fore=None, back=None, style=None):
         """ A method that colorizes strings, not Colr objects.
-            Raises ValueError for invalid color names.
+            Raises InvalidColr for invalid color names.
             The 'reset_all' code is appended if text is given.
         """
         text = str(text) if text is not None else ''
@@ -1310,7 +1383,7 @@ class Colr(object):
         valuefmt = str(value).lower()
         code = codes[codetype].get(valuefmt, None)
         if code:
-            # Basic code from fore, bask, or style.
+            # Basic code from fore, back, or style.
             return code
 
         named_funcs = {
@@ -1335,12 +1408,15 @@ class Colr(object):
 
         # Not a known color name/value, try rgb.
         try:
-            r, g, b = value
+            r, g, b = (int(x) for x in value)
+            # This does not mean we have 3 ints. It could 'abc'.
+            # The converter should catch it though.
         except (TypeError, ValueError):
             # Not an rgb value.
-            raise ValueError(
-                'Invalid color name/number: {}'.format(value)
-            )
+            if codetype == 'style':
+                raise InvalidStyle(value)
+            raise InvalidColr(value)
+
         return converter(value)
 
     def gradient(
@@ -1706,6 +1782,124 @@ class Colr(object):
     def stripped(self):
         """ Return str(strip_codes(self.data)) """
         return strip_codes(self.data)
+
+
+class InvalidArg(ValueError):
+    """ A ValueError for when the user uses invalid arguments. """
+    default_label = 'Invalid argument'
+    default_format = '{label}: {value}'
+
+    def __init__(self, value, label=None):
+        self.label = label or self.default_label
+        self.value = value
+
+    def __str__(self):
+        return self.default_format.format(
+            label=self.label,
+            value=repr(self.value)
+        )
+
+    def as_colr(self, label_args=None, value_args=None):
+        """ Like __str__, except it returns a colorized Colr instance. """
+        label_args = label_args or {'fore': 'red'}
+        value_args = value_args or {'fore': 'blue', 'style': 'bright'}
+        return Colr(self.default_format.format(
+            label=Colr(self.label, **label_args),
+            value=Colr(repr(self.value), **value_args),
+        ))
+
+
+class InvalidColr(InvalidArg):
+    """ A ValueError for when user passes an invalid colr name, value, rgb.
+    """
+    default_label = 'Expecting colr name/value:\n    {types}.'.format(
+        types=',\n    '.join(
+            '{lbl} ({val})'.format(lbl=l, val=v)
+            for l, v in (
+                ('name', 'white/black/etc.'),
+                ('value', '0-255'),
+                ('rgb', '0-255, 0-255, 0-255'),
+            )
+        )
+    )
+    default_format = '{label}\n    Got: {value}'
+
+    def as_colr(
+            self, label_args=None, type_args=None, type_val_args=None,
+            value_args=None):
+        """ Like __str__, except it returns a colorized Colr instance. """
+        label_args = label_args or {'fore': 'red'}
+        type_args = type_args or {'fore': 'yellow'}
+        type_val_args = type_val_args or {'fore': 'grey'}
+        value_args = value_args or {'fore': 'blue', 'style': 'bright'}
+
+        return Colr(self.default_format.format(
+            label=Colr(':\n    ').join(
+                Colr('Expecting colr name/value', **label_args),
+                ',\n    '.join(
+                    '{lbl} ({val})'.format(
+                        lbl=Colr(l, **type_args),
+                        val=Colr(v, **type_val_args),
+                    )
+                    for l, v in (
+                        ('name', 'white/black/etc.'),
+                        ('value', '0-255'),
+                        ('rgb', '0-255, 0-255, 0-255'),
+                    )
+                )
+            ),
+            value=Colr(repr(self.value), **value_args)
+        ))
+
+
+class InvalidEscapeCode(InvalidArg):
+    """ A ValueError for when an invalid escape code is given. """
+    default_label = 'Expecting 0-255 for escape code value'
+
+
+class InvalidRgbEscapeCode(InvalidEscapeCode):
+    """ A ValueError for when an invalid rgb escape code is given. """
+    default_label = 'Expecting 0-255;0-255;0-255 for RGB escape code value'
+
+    def __init__(self, value, label=None, reason=None):
+        super().__init__(value, label=label)
+        self.reason = reason
+
+    def __str__(self):
+        s = super().__str__(self)
+        if self.reason:
+            s = '\n   '.join((s, str(self.reason)))
+        return s
+
+
+class InvalidStyle(InvalidColr):
+    default_label = 'Expecting style value:\n    {styles}'.format(
+        styles='\n    '.join(
+            ', '.join(t[1])
+            for t in _stylemap
+        )
+    )
+
+    def as_colr(
+            self, label_args=None, type_args=None, value_args=None):
+        """ Like __str__, except it returns a colorized Colr instance. """
+        label_args = label_args or {'fore': 'red'}
+        type_args = type_args or {'fore': 'yellow'}
+        value_args = value_args or {'fore': 'blue', 'style': 'bright'}
+
+        return Colr(self.default_format.format(
+            label=Colr(':\n    ').join(
+                Colr('Expecting style value', **label_args),
+                Colr(',\n    ').join(
+                    Colr(', ').join(
+                        Colr(v, **type_args)
+                        for v in t[1]
+                    )
+                    for t in _stylemap
+                )
+            ),
+            value=Colr(repr(self.value), **value_args)
+        ))
 
 
 # Raw code map, available to users.

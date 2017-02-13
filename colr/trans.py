@@ -21,10 +21,10 @@ Resources:
 """
 import re
 from types import GeneratorType
-from typing import cast, Any, Optional, Sequence, TypeVar
+from typing import cast, Any, Optional, Sequence, Union
 
 # Custom types.
-Numeric = TypeVar('Numeric', int, str)
+Numeric = Union[int, str]
 RGB = Sequence[int]
 
 # Original lookup table provided by Micah Elliott (colortrans.py).

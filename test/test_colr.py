@@ -23,6 +23,7 @@ from colr import (
     hex2rgb,
     hex2term,
     hex2termhex,
+    InvalidColr,
     name_data,
     rgb2hex,
     rgb2term,
@@ -36,6 +37,8 @@ from colr.trans import (
     is_ext_code,
     is_rgb_code,
 )
+
+print('Testing Colr v. {}'.format(__version__))
 
 # Save names in list format, for random.choice().
 name_data_names = list(name_data)
@@ -128,27 +131,27 @@ class ColrTest(unittest.TestCase):
             msg='Failed to create Colr with chained b_rgb method.'
         )
 
-        with self.assertRaises(ValueError):
+        with self.assertRaises(InvalidColr):
             Colr().rgb(256, 0, 0)
-        with self.assertRaises(ValueError):
+        with self.assertRaises(InvalidColr):
             Colr().rgb(-1, 0, 0)
-        # Invalid rgb codes should raise a ValueError.
-        with self.assertRaises(ValueError):
+        # Invalid rgb codes should raise a InvalidColr.
+        with self.assertRaises(InvalidColr):
             Colr().b_rgb(256, 0, 0)
-        with self.assertRaises(ValueError):
+        with self.assertRaises(InvalidColr):
             Colr().b_rgb(256, 0, 0)
 
     def test_color(self):
         """ Colr.color should accept valid color names/values. """
-        # None of these should raise a ValueError.
+        # None of these should raise a InvalidColr.
         s = 'test'
         try:
             Colr(s, 'red')
             Colr(s, 16)
             Colr(s, (255, 0, 0))
-        except ValueError as ex:
+        except InvalidColr as ex:
             self.fail(
-                'ValueError raised for valid color name/value: {}'.format(
+                'InvalidColr raised for valid color name/value: {}'.format(
                     ex
                 )
             )
@@ -164,14 +167,14 @@ class ColrTest(unittest.TestCase):
             is_rgb_code(str(Colr(' ', (0, 0, 255))).split()[0])
         )
 
-        # Should raise ValueError on invalid color name/value.
-        with self.assertRaises(ValueError):
+        # Should raise InvalidColr on invalid color name/value.
+        with self.assertRaises(InvalidColr):
             Colr(s, 'NOTACOLOR')
-        with self.assertRaises(ValueError):
+        with self.assertRaises(InvalidColr):
             Colr(s, 257)
-        with self.assertRaises(ValueError):
+        with self.assertRaises(InvalidColr):
             Colr(s, (-1, 0, 0))
-        with self.assertRaises(ValueError):
+        with self.assertRaises(InvalidColr):
             Colr(s, (257, 0, 0))
 
     def test_colorcode(self):
@@ -270,11 +273,11 @@ class ColrTest(unittest.TestCase):
         """
         for _ in range(5):
             knownname = random.choice(name_data_names)
-            # If this doesn't raise a ValueError we should be okay.
+            # If this doesn't raise a InvalidColr we should be okay.
             try:
                 Colr('hello world', fore=knownname)
-            except ValueError as ex:
-                self.fail('Raised ValueError on known name: {}\n{}'.format(
+            except InvalidColr as ex:
+                self.fail('Raised InvalidColr on known name: {}\n{}'.format(
                     knownname,
                     ex
                 ))
@@ -295,33 +298,67 @@ class ColrTest(unittest.TestCase):
 
     def test_strip_codes(self):
         """ strip_codes() should strip all color and reset codes. """
-        self.assertEqual(
-            'hello world',
-            strip_codes(
-                Colr('hello world', fore='green', back='blue', style='bright')
-            ),
-            msg=test_msg('Failed to strip codes from Colr string.'))
+        s = '\n'.join((
+            'This is a test of strip_codes.',
+            'There should be none after stripping.'
+        ))
 
         self.assertEqual(
-            'hello world',
+            s,
             strip_codes(
-                color('hello world', fore='red', back='blue', style='bright')
+                Colr(s, fore='green', back='blue', style='bright')
             ),
-            msg=test_msg('Failed to strip codes from color string.'))
+            msg=test_msg('Failed to strip codes from Colr string.')
+        )
 
         self.assertEqual(
-            'hello world',
+            s,
             strip_codes(
-                Colr().red().bggreen().bright('hello world')
+                color(s, fore='red', back='blue', style='bright')
             ),
-            msg=test_msg('Failed to strip codes from chained Colr string.'))
+            msg=test_msg('Failed to strip codes from color string.')
+        )
 
         self.assertEqual(
-            'hello world',
+            s,
             strip_codes(
-                Colr('hello world').rainbow()
+                Colr().red().bggreen().bright(s)
             ),
-            msg=test_msg('Failed to strip codes from Colr.rainbow string.'))
+            msg=test_msg('Failed to strip codes from chained Colr string.')
+        )
+
+        self.assertEqual(
+            s,
+            strip_codes(
+                Colr().f_55().b_55().bright(s)
+            ),
+            msg=test_msg('Failed to strip codes from extended Colr string.')
+        )
+
+        self.assertEqual(
+            s,
+            strip_codes(
+                Colr().rgb(25, 25, 25).b_rgb(55, 55, 55).bright(s)
+            ),
+            msg=test_msg('Failed to strip codes from rgb Colr string.')
+        )
+
+        self.assertEqual(
+            s,
+            strip_codes(
+                Colr(s).rainbow()
+            ),
+            msg=test_msg('Failed to strip codes from Colr.rainbow string.')
+        )
+        self.assertEqual(
+            s,
+            strip_codes(
+                Colr(s).rainbow(rgb_mode=True)
+            ),
+            msg=test_msg(
+                'Failed to strip codes from Colr.rainbow rgb string.'
+            )
+        )
 
     def test_stripped(self):
         """ Colr.stripped() should return strip_codes(Colr()). """
@@ -412,6 +449,5 @@ class ColrTest(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    print('Running tests for Colr v. {}'.format(__version__))
     # unittest.main() calls sys.exit(status_code).
     unittest.main(argv=sys.argv, verbosity=2)  # type: ignore

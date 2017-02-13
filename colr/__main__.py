@@ -13,20 +13,21 @@
 import os
 import sys
 import traceback
+from contextlib import suppress
 from random import randint
 
 from .colr import (
     __version__,
-    codes,
-    Colr as C,
     auto_disable,
     codeformat,
+    codes,
+    Colr as C,
     disabled,
-    extforeformat,
     get_code_num,
-    get_codes,
     get_known_codes,
-    get_known_name,
+    InvalidArg,
+    InvalidColr,
+    parse_colr_arg,
     strip_codes,
 )
 
@@ -123,11 +124,12 @@ USAGESTR = """{versionstr}
 DEBUG = False
 
 
-def main():
+def main(argd=None):
     """ Main entry point, expects doctopt arg dict as argd. """
-    global DEBUG
+    global DEBUG, debug
 
-    argd = docopt(
+    # The argd parameter for main() is for testing purposes only.
+    argd = argd or docopt(
         USAGESTR,
         version=VERSIONSTR,
         script=SCRIPT,
@@ -138,7 +140,13 @@ def main():
             'version': {'fore': 'lightblue'},
         }
     )
+
     DEBUG = argd['--debug']
+    # Load real debug function if available.
+    if DEBUG:
+        load_debug_deps()
+    else:
+        debug = noop
 
     if argd['--auto-disable']:
         auto_disable()
@@ -184,28 +192,44 @@ def main():
     return 1
 
 
+def debug(*args, **kwargs):
+    """ Just prints to stderr, unless printdebug is installed. Then it
+        will be replaced in `main()` by `printdebug.debug`.
+    """
+    if kwargs.get('file', None) is None:
+        kwargs['file'] = sys.stderr
+    msg = kwargs.get('sep', ' ').join(str(a) for a in args)
+    print('debug: {}'.format(msg), **kwargs)
+
+
+def dict_pop_or(d, key, default=None):
+    """ Try popping a key from a dict.
+        Instead of raising KeyError, just return the default value.
+    """
+    val = default
+    with suppress(KeyError):
+        val = d.pop(key)
+    return val
+
+
 def get_colr(txt, argd):
     """ Return a Colr instance based on user args. """
-    fore = get_name_arg(argd, '--fore', 'FORE', default=None)
-    back = get_name_arg(argd, '--back', 'BACK', default=None)
+    fore = parse_colr_arg(get_name_arg(argd, '--fore', 'FORE', default=None))
+    back = parse_colr_arg(get_name_arg(argd, '--back', 'BACK', default=None))
     style = get_name_arg(argd, '--style', 'STYLE', default=None)
 
     if argd['--gradient']:
         # Build a gradient from user args.
-        try:
-            clr = C(txt).gradient(
-                name=argd['--gradient'],
-                spread=try_int(argd['--spread'], 1, minimum=0),
-                fore=fore,
-                back=back,
-                style=style,
-                rgb_mode=argd['--truecolor'],
-            )
-        except ValueError as ex:
-            print_err('Error: {}'.format(ex))
-            return None
-    elif argd['--rainbow']:
-        clr = C(txt).rainbow(
+        return C(txt).gradient(
+            name=argd['--gradient'],
+            spread=try_int(argd['--spread'], 1, minimum=0),
+            fore=fore,
+            back=back,
+            style=style,
+            rgb_mode=argd['--truecolor'],
+        )
+    if argd['--rainbow']:
+        return C(txt).rainbow(
             fore=fore,
             back=back,
             style=style,
@@ -215,14 +239,12 @@ def get_colr(txt, argd):
             rgb_mode=argd['--truecolor'],
         )
 
-    else:
-        # Normal colored output.
-        clr = C(txt, fore=fore, back=back, style=style)
-    return clr
+    # Normal colored output.
+    return C(txt, fore=fore, back=back, style=style)
 
 
 def get_name_arg(argd, *argnames, default=None):
-    """ Return the first argument value given.
+    """ Return the first argument value given in a docopt arg dict.
         When not given, return default.
     """
     val = None
@@ -231,6 +253,17 @@ def get_name_arg(argd, *argnames, default=None):
             val = argd[argname].lower().strip()
             break
     return val if val else default
+
+
+def handle_err(*args):
+    """ Handle fatal errors, caught in __main__ scope.
+        If DEBUG is set, print a real traceback.
+        Otherwise, `print_err` any arguments passed.
+    """
+    if DEBUG:
+        print_err(traceback.format_exc(), color=False)
+    else:
+        print_err(*args, newline=True)
 
 
 def justify(clr, argd):
@@ -258,11 +291,45 @@ def list_known_codes(s, unique=True, rgb_mode=False):
     return 0 if total > 0 else 1
 
 
+def load_debug_deps():
+    """ Try loading printdebug.DebugColrPrinter. If successful, replace
+        the global `debug` function with DebugColrPrinter.debug.
+    """
+    global debug
+    try:
+        from printdebug import DebugColrPrinter
+    except ImportError:
+        return None
+    debug = DebugColrPrinter().debug
+
+
+def noop(*args, **kwargs):
+    """ This function does nothing.
+        It is used to replace other functions (to disable them).
+        See: main()->if DEBUG:
+    """
+    return None
+
+
 def print_err(*args, **kwargs):
     """ A wrapper for print() that uses stderr by default. """
     if kwargs.get('file', None) is None:
         kwargs['file'] = sys.stderr
-    print(C(kwargs.get('sep', ' ').join(args), fore='red'), **kwargs)
+
+    color = dict_pop_or(kwargs, 'color', True)
+
+    if color:
+        # Keep any Colr args passed, convert strs into Colrs.
+        msg = kwargs.get('sep', ' ').join(
+            str(a) if isinstance(a, C) else str(C(a, 'red'))
+            for a in args
+        )
+    else:
+        msg = kwargs.get('sep', ' ').join(str(a) for a in args)
+    newline = dict_pop_or(kwargs, 'newline', False)
+    if newline:
+        msg = '\n{}'.format(msg)
+    print(msg, **kwargs)
 
 
 def read_stdin():
@@ -287,7 +354,7 @@ def translate(usercodes, rgb_mode=False):
                 try:
                     r, g, b = (int(c.strip()) for c in code.split(','))
                 except (TypeError, ValueError):
-                    raise InvalidNumber(code, label='Invalid rgb value:')
+                    raise InvalidColr(code)
                 code = (r, g, b)
 
             colorcode = ColorCode(code, rgb_mode=rgb_mode)
@@ -321,7 +388,7 @@ def try_float(s, default=None, minimum=None):
     try:
         val = float(s)
     except (TypeError, ValueError):
-        raise InvalidNumber(s, label='Invalid float value:')
+        raise InvalidNumber(s, label='Invalid float value')
     if (minimum is not None) and (val < minimum):
         val = minimum
     return val
@@ -343,17 +410,11 @@ def try_int(s, default=None, minimum=None):
     return val
 
 
-class InvalidNumber(ValueError):
+class InvalidNumber(InvalidArg):
     """ A ValueError for when parsing an int fails.
         Provides a better error message.
     """
-
-    def __init__(self, string, label=None):
-        self.string = string
-        self.label = label or 'Invalid number:'
-
-    def __str__(self):
-        return '{s.label} {s.string}'.format(s=self)
+    default_label = 'Invalid number'
 
 
 if __name__ == '__main__':
@@ -365,11 +426,11 @@ if __name__ == '__main__':
     except BrokenPipeError:
         print_err('\nBroken pipe, input/output was interrupted.\n')
         mainret = 3
-    except (ValueError, InvalidNumber) as exnum:
-        if DEBUG:
-            print_err(traceback.format_exc())
-        else:
-            print_err('\n{}'.format(exnum))
+    except InvalidArg as exarg:
+        handle_err(exarg.as_colr())
+        mainret = 4
+    except ValueError as exnum:
+        handle_err(exnum)
         mainret = 4
 
     sys.exit(mainret)
