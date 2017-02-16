@@ -25,6 +25,8 @@ from .colr import (
     disabled,
     get_code_num,
     get_known_codes,
+    get_terminal_size,
+    in_range,
     InvalidArg,
     InvalidColr,
     parse_colr_arg,
@@ -59,9 +61,11 @@ USAGESTR = """{versionstr}
         {script} [TEXT] [FORE] [BACK] [STYLE] [-a] [-e]
              [-c num | -l num | -r num] [-n] -g name
              [-q num] [-w num] [-T] [-D]
-        {script} [TEXT] [-f fore] [-b back] [-s style ] [-a] [-e]
+        {script} [TEXT] [-f fore] [-b back] [-s style] [-a] [-e]
              [-c num | -l num | -r num] [-n] -g name
              [-q num] [-w num] [-T] [-D]
+        {script} [TEXT] [-f fore] [-b back] [-s style] [-a] [-e]
+             [-c num | -l num | -r num] [-n] -G rgb_val...
         {script} [TEXT] [FORE] [BACK] [STYLE] [-a] [-e]
              [-c num | -l num | -r num] [-n] -R [-o num]
              [-q num] [-w num] [-T] [-D]
@@ -84,15 +88,25 @@ USAGESTR = """{versionstr}
         -b name,--back name       : Name or number for back color to use.
         -c num,--center num       : Center justify the text before coloring,
                                     using `num` as the overall width.
+                                    If '0' is given, terminal width is used.
+                                    If a negative value is given, it will be
+                                    subtracted from the terminal width.
         -D,--debug                : Debug mode, print more information while
                                     running, or on errors.
         -e,--err                  : Print to stderr instead of stdout.
         -f name,--fore name       : Name or number for fore color to use.
         -g name,--gradient name   : Use the gradient method by color name.
                                     Default: black
+        -G rgb,--gradientrgb rgb  : Use the rgb gradient method.
+                                    You can use this twice to specify the
+                                    ending rgb value, which is 255,255,255
+                                    by default.
         -h,--help                 : Show this help message.
         -l num,--ljust num        : Left justify the text before coloring,
                                     using `num` as the overall width.
+                                    If '0' is given, terminal width is used.
+                                    If a negative value is given, it will be
+                                    subtracted from the terminal width.
         -n,--newline              : Do not append a newline character (\\n).
         -o num,--offset           : Offset for start of rainbow.
                                     Default: random number between 0-255
@@ -103,6 +117,9 @@ USAGESTR = """{versionstr}
                                     Default: 0.1
         -r num,--rjust num        : Right justify the text before coloring,
                                     using `num` as the overall width.
+                                    If '0' is given, terminal width is used.
+                                    If a negative value is given, it will be
+                                    subtracted from the terminal width.
         -R,--rainbow              : Use the rainbow method.
         -s name,--style name      : Name for style to use.
         -t,--translate            : Translate one or more term codes,
@@ -228,6 +245,16 @@ def get_colr(txt, argd):
             style=style,
             rgb_mode=argd['--truecolor'],
         )
+    if argd['--gradientrgb']:
+        # Build an rgb gradient from user args.
+        rgb_start, rgb_stop = parse_gradient_rgb_args(argd['--gradientrgb'])
+        return C(txt).gradient_rgb(
+            fore=fore,
+            back=back,
+            style=style,
+            start=rgb_start,
+            stop=rgb_stop,
+        )
     if argd['--rainbow']:
         return C(txt).rainbow(
             fore=fore,
@@ -268,12 +295,23 @@ def handle_err(*args):
 
 def justify(clr, argd):
     """ Justify str/Colr based on user args. """
-    if argd['--ljust']:
-        return clr.ljust(try_int(argd['--ljust'], minimum=0))
-    if argd['--rjust']:
-        return clr.rjust(try_int(argd['--rjust'], minimum=0))
-    if argd['--center']:
-        return clr.center(try_int(argd['--center'], minimum=0))
+    methodmap = {
+        '--ljust': clr.ljust,
+        '--rjust': clr.rjust,
+        '--center': clr.center,
+    }
+    for flag in methodmap:
+        if argd[flag]:
+            if argd[flag] in ('0', '-'):
+                val = get_terminal_size(default=(80, 35))[0]
+            else:
+                val = try_int(argd[flag], minimum=None)
+                if val < 0:
+                    # Negative value, subtract from terminal width.
+                    val = get_terminal_size(default=(80, 35))[0] + val
+            return methodmap[flag](val)
+
+    # No justify args given.
     return clr
 
 
@@ -309,6 +347,21 @@ def noop(*args, **kwargs):
         See: main()->if DEBUG:
     """
     return None
+
+
+def parse_gradient_rgb_args(args):
+    """ Parse one or two rgb args given with --gradientrgb.
+        Raises InvalidArg for invalid rgb values.
+        Returns a tuple of (start_rgb, stop_rgb), where the stop_rgb may be
+        None if only one arg value was given and start_rgb may be None if
+        no values were given.
+    """
+    arglen = len(args)
+    if arglen < 1 or arglen > 2:
+        raise InvalidArg(arglen, label='Expecting 1 or 2 \'-G\' flags, got')
+    start_rgb = try_rgb(args[0]) if args else None
+    stop_rgb = try_rgb(args[1]) if arglen > 1 else None
+    return start_rgb, stop_rgb
 
 
 def print_err(*args, **kwargs):
@@ -414,11 +467,33 @@ def try_int(s, default=None, minimum=None):
     return val
 
 
+def try_rgb(s, default=None):
+    """ Try parsing a string into an rgb value (int, int, int),
+        where the ints are 0-255 inclusive.
+        If None is passed, default is returned.
+        On failure, InvalidArg is raised.
+    """
+    if not s:
+        return default
+    try:
+        r, g, b = (int(x.strip()) for x in s.split(','))
+    except ValueError:
+        raise InvalidRgb(s)
+    if not all(in_range(x, 0, 255) for x in (r, g, b)):
+        raise InvalidRgb(s)
+
+    return r, g, b
+
+
 class InvalidNumber(InvalidArg):
     """ A ValueError for when parsing an int fails.
         Provides a better error message.
     """
     default_label = 'Invalid number'
+
+
+class InvalidRgb(InvalidArg):
+    default_label = 'Invalid rgb value'
 
 
 if __name__ == '__main__':

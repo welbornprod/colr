@@ -44,6 +44,7 @@ class ColrToolTests(unittest.TestCase):
             '--fore': None,
             '--frequency': None,
             '--gradient': None,
+            '--gradientrgb': [],
             '--help': False,
             '--listcodes': False,
             '--ljust': None,

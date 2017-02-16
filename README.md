@@ -398,8 +398,35 @@ _______________________________________________________________________________
 The `colr` package can be used as a command line tool. An entry point script
 named `colr` is created when installed with pip. Otherwise it can be executed
 using the `python -m colr` method.
-```
+```bash
 colr --help
+```
+
+Basic usage involves passing text, or piping stdin data and setting the colors
+by position or flag.
+
+```bash
+# These all do the same thing:
+colr "Test" "red" "white" "bright"
+colr "Test" -f "red" -b "white" -s "bright"
+printf "Test" | colr -f "red" -b "white" -s "bright"
+```
+
+Using the positional arguments is faster for just setting fore colors, but
+the flag method is needed for stdin data, or for picking just the background
+color or style:
+
+```bash
+colr "Test" -s "bright"
+```
+
+Extended and True colors are supported:
+```bash
+colr "Test" 124 255
+colr "Test" "255, 0, 0" "255, 255, 255"
+# Use true color (rgb) escape codes to generate a gradient, and then
+# center it in the terminal (0 means use terminal width).
+colr "Test" -G "255,0,0" -G "0,0,255" -c 0
 ```
 
 It will do fore, back, style, gradients, rainbows, justification,
@@ -408,12 +435,12 @@ It can strip codes from text (as an argument or stdin), or explain the
 codes found in the text.
 
 [lolcat](https://github.com/busyloop/lolcat) emulation:
-```
+```bash
 fortune | colr --rainbow
 ```
 
 The colr tool does not read files, but it's not a problem:
-```
+```bash
 cat myfile.txt | colr --gradient red
 ```
 
@@ -425,7 +452,7 @@ Also see [ccat](https://github.com/welbornprod/ccat).
 Colr provides a wrapper for docopt that will automatically colorize usage
 strings. If you provide it a script name it will add a little more color by
 colorizing the script name too.
-```
+```python
 from colr import docopt
 argd = docopt(USAGE, script='mycommand')
 ```
@@ -476,7 +503,7 @@ PowerShell really sucks. If you think you can help improve the `colr` package
 for windows, please see the [contributing](#contributing) section.
 
 ### Misc.
-This library may be a little too flexible, and that may change:
+This library may be a little too flexible:
 
 ```python
 from colr import Colr as C

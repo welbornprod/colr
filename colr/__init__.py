@@ -45,6 +45,7 @@ from .colr import (  # noqa
     get_code_num,
     get_known_codes,
     get_known_name,
+    get_terminal_size,
     InvalidArg,
     InvalidColr,
     InvalidEscapeCode,
@@ -54,7 +55,7 @@ from .colr import (  # noqa
     name_data,
     rgbbackformat,
     rgbforeformat,
-    strip_codes
+    strip_codes,
 )
 
 try:
@@ -99,6 +100,7 @@ __all__ = [
     'get_code_num',
     'get_known_codes',
     'get_known_name',
+    'get_terminal_size',
     'InvalidArg',
     'InvalidColr',
     'InvalidEscapeCode',

@@ -30,6 +30,13 @@
 """
 from contextlib import suppress  # type: ignore
 from functools import partial, total_ordering
+import math
+import os
+import platform
+import re
+import struct
+import sys
+
 from types import GeneratorType
 from typing import (  # noqa
     Any,
@@ -44,11 +51,6 @@ from typing import (  # noqa
     cast,
 )
 from typing.io import IO
-
-import math
-import platform
-import re
-import sys
 
 from .trans import hex2term, ColorCode
 from .name_data import names as name_data
@@ -80,6 +82,7 @@ __all__ = [
     'get_codes',
     'get_known_codes',
     'get_known_name',
+    'get_terminal_size',
     'InvalidArg',
     'InvalidColr',
     'InvalidEscapeCode',
@@ -512,6 +515,35 @@ def get_known_name(s: str) -> Optional[Tuple[str, ColorArg]]:
 
     # Not a known escape code.
     return None
+
+
+def get_terminal_size(default=(80, 35)):
+    """ Return terminal (width, height) """
+    def ioctl_GWINSZ(fd):
+        try:
+            import fcntl
+            import termios
+            cr = struct.unpack(
+                'hh',
+                fcntl.ioctl(fd, termios.TIOCGWINSZ, '1234')
+            )
+            return cr
+        except (ImportError, EnvironmentError):
+            pass
+    cr = ioctl_GWINSZ(0) or ioctl_GWINSZ(1) or ioctl_GWINSZ(2)
+    if not cr:
+        try:
+            fd = os.open(os.ctermid(), os.O_RDONLY)
+            cr = ioctl_GWINSZ(fd)
+            os.close(fd)
+        except EnvironmentError:
+            pass
+    if not cr:
+        try:
+            cr = os.environ['LINES'], os.environ['COLUMNS']
+        except KeyError:
+            return default
+    return int(cr[1]), int(cr[0])
 
 
 def in_range(x: int, minimum: int, maximum: int) -> bool:
@@ -1595,8 +1627,8 @@ class Colr(object):
             'back': back,
             'style': style,
         }
-        start = start or (255, 0, 0)
-        stop = stop or (0, 0, 255)
+        start = start or (0, 0, 0)
+        stop = stop or (255, 255, 255)
         if linemode:
             method = self._gradient_rgb_lines
             gradargs['movefactor'] = movefactor
@@ -1909,7 +1941,6 @@ closing_code = '\033[0m'
 
 # Shortcuts.
 color = Colr().color
-
 
 if __name__ == '__main__':
     if ('--auto-disable' in sys.argv) or ('-a' in sys.argv):
