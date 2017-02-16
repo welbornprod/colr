@@ -496,7 +496,12 @@ class InvalidRgb(InvalidArg):
     default_label = 'Invalid rgb value'
 
 
-if __name__ == '__main__':
+def entry_point():
+    """ An entry point for setuptools. This is required because
+        `if __name__ == '__main__'` is not fired when the entry point
+        is 'main()'. This just wraps the old behavior in a function so
+        it can be called from setuptools.
+    """
     try:
         mainret = main()
     except (EOFError, KeyboardInterrupt):
@@ -513,3 +518,7 @@ if __name__ == '__main__':
         mainret = 4
 
     sys.exit(mainret)
+
+
+if __name__ == '__main__':
+    entry_point()

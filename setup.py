@@ -49,7 +49,7 @@ else:
 
 setup(
     name='Colr',
-    version='0.7.1',
+    version='0.7.2',
     author='Christopher Welborn',
     author_email='cj@welbornprod.com',
     packages=['colr'],
@@ -67,7 +67,7 @@ setup(
     ],
     entry_points={
         'console_scripts': [
-            'colr = colr.__main__:main',
+            'colr = colr.__main__:entry_point',
         ]
     }
 )
