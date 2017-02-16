@@ -62,7 +62,7 @@ CodeFormatRgbFunc = Callable[[int, int, int], str]
 # Acceptable fore/back args.
 ColorArg = Union[str, int, Tuple[int, int, int]]
 
-__version__ = '0.7.0'
+__version__ = '0.7.1'
 
 __all__ = [
     '_disabled',
@@ -1436,8 +1436,13 @@ class Colr(object):
         named_data = name_data.get(valuefmt, None)
         if named_data is not None:
             # A known named color.
-            return converter(named_data['code'], extended=True)
-
+            try:
+                return converter(named_data['code'], extended=True)
+            except TypeError:
+                # Passing a known name as a style?
+                if codetype == 'style':
+                    raise InvalidStyle(value)
+                raise
         # Not a known color name/value, try rgb.
         try:
             r, g, b = (int(x) for x in value)

@@ -1,3 +1,4 @@
+v0.7.1 02/15/17 -- Small bug fixed for invalid style names.
 v0.7.0 02/15/17 -- True color (rgb) support, tool improvements, refactoring.
 v0.6.0 01/12/17 -- Extended color names now available in colr.name_data.names.
 v0.5.2 12/09/16 -- Adding an entry point script named "colr".
