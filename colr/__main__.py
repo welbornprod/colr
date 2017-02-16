@@ -317,15 +317,19 @@ def print_err(*args, **kwargs):
         kwargs['file'] = sys.stderr
 
     color = dict_pop_or(kwargs, 'color', True)
-
-    if color:
+    # Use color if asked, but only if the file is a tty.
+    if color and kwargs['file'].isatty():
         # Keep any Colr args passed, convert strs into Colrs.
         msg = kwargs.get('sep', ' ').join(
             str(a) if isinstance(a, C) else str(C(a, 'red'))
             for a in args
         )
     else:
-        msg = kwargs.get('sep', ' ').join(str(a) for a in args)
+        # The file is not a tty anyway, no escape codes.
+        msg = kwargs.get('sep', ' ').join(
+            str(a.stripped() if isinstance(a, C) else a)
+            for a in args
+        )
     newline = dict_pop_or(kwargs, 'newline', False)
     if newline:
         msg = '\n{}'.format(msg)
