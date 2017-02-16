@@ -1,3 +1,4 @@
+v0.7.0 02/15/17 -- True color (rgb) support, tool improvements, refactoring.
 v0.6.0 01/12/17 -- Extended color names now available in colr.name_data.names.
 v0.5.2 12/09/16 -- Adding an entry point script named "colr".
 v0.5.1 11/17/16 -- Added `script` arg to docopt(),for colorizing script names.

@@ -99,6 +99,29 @@ Chainable:
     # Background colors start with 'b_'
     print(C().f_125().b_80('Hello World'))
 
+Examples (True Color):
+----------------------
+
+Simple:
+~~~~~~~
+
+.. code:: python
+
+    from colr import color
+    print(color('Hello there.', fore=(255, 0, 0), back=(0, 0, 0)))
+
+Chainable:
+~~~~~~~~~~
+
+.. code:: python
+
+    from colr import Colr as C
+    # Foreground colors are set with the `rgb()` method.
+    # Background colors are set with the `b_rgb()` method.
+    # Text for the chained methods should be chained after or during
+    # the call to the methods.
+    print(C().b_rgb(0, 0, 0).rgb(255, 0, 0, 'Hello there.'))
+
 --------------
 
 Other methods:
@@ -152,6 +175,23 @@ background will be gradient.
     (C('Why does it have to be black or white?').gradient_black(step=3)
     .gradient_black(' ' * 10, fore='reset', reverse=True))
 
+Colr.gradient\_rgb
+~~~~~~~~~~~~~~~~~~
+
+Uses true color (rgb codes) to build a gradient from one rgb value to
+another. Just like the other ``gradient/rainbow`` methods, passing a
+``fore`` color means the background is gradient.
+
+When using ``linemode=True`` (where each line is a separate gradient),
+you can "shift" the gradient left or right for each line using
+``movefactor=N``. ``N`` can be positive or negative to change the
+direction of the shift, or ``None`` / ``0`` to not shift at all (the
+default is ``None``).
+
+.. code:: python
+
+    C('This is pretty fancy.').gradient_rgb((0, 0, 255), (255, 0, 0), step=5)
+
 Colr.join
 ~~~~~~~~~
 
@@ -183,7 +223,31 @@ incapable of doing black and white gradients. That's what
 
 .. code:: python
 
-    C('This is really pretty.').rainbow(freq=.5)
+    Colr('This is really pretty.').rainbow(freq=.5)
+
+If your terminal supports it, you can use true color (rgb codes) by
+using ``rgb_mode=True``:
+
+.. code:: python
+
+    Colr('This is even prettier.').rainbow(rgb_mode=True)
+
+Colr.rgb
+~~~~~~~~
+
+This will set the fore color using true color (rgb codes). It accepts
+the same args as the other chained methods, except the ``r``, ``g``, and
+``b`` values should be the first arguments.
+
+.. code:: python
+
+    Colr().rgb(255, 55, 55).bgwhite('Test')
+
+It has a background version called ``b_rgb``.
+
+.. code:: python
+
+    Colr().b_rgb(255, 255, 255).rgb(255, 55, 55, 'Test')
 
 Colr.rjust
 ~~~~~~~~~~
@@ -386,9 +450,37 @@ The ``colr`` package can be used as a command line tool. An entry point
 script named ``colr`` is created when installed with pip. Otherwise it
 can be executed using the ``python -m colr`` method.
 
-::
+.. code:: bash
 
     colr --help
+
+Basic usage involves passing text, or piping stdin data and setting the
+colors by position or flag.
+
+.. code:: bash
+
+    # These all do the same thing:
+    colr "Test" "red" "white" "bright"
+    colr "Test" -f "red" -b "white" -s "bright"
+    printf "Test" | colr -f "red" -b "white" -s "bright"
+
+Using the positional arguments is faster for just setting fore colors,
+but the flag method is needed for stdin data, or for picking just the
+background color or style:
+
+.. code:: bash
+
+    colr "Test" -s "bright"
+
+Extended and True colors are supported:
+
+.. code:: bash
+
+    colr "Test" 124 255
+    colr "Test" "255, 0, 0" "255, 255, 255"
+    # Use true color (rgb) escape codes to generate a gradient, and then
+    # center it in the terminal (0 means use terminal width).
+    colr "Test" -G "255,0,0" -G "0,0,255" -c 0
 
 It will do fore, back, style, gradients, rainbows, justification, and
 translation. It can strip codes from text (as an argument or stdin), or
@@ -396,13 +488,13 @@ explain the codes found in the text.
 
 `lolcat <https://github.com/busyloop/lolcat>`__ emulation:
 
-::
+.. code:: bash
 
     fortune | colr --rainbow
 
 The colr tool does not read files, but it's not a problem:
 
-::
+.. code:: bash
 
     cat myfile.txt | colr --gradient red
 
@@ -415,7 +507,7 @@ Colr provides a wrapper for docopt that will automatically colorize
 usage strings. If you provide it a script name it will add a little more
 color by colorizing the script name too.
 
-::
+.. code:: python
 
     from colr import docopt
     argd = docopt(USAGE, script='mycommand')
@@ -475,7 +567,7 @@ you can help improve the ``colr`` package for windows, please see the
 Misc.
 ~~~~~
 
-This library may be a little too flexible, and that may change:
+This library may be a little too flexible:
 
 .. code:: python
 
