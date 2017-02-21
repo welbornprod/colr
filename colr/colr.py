@@ -7,7 +7,7 @@
 
     The MIT License (MIT)
 
-    Copyright (c) 2015 Christopher Welborn
+    Copyright (c) 2015-2017 Christopher Welborn
 
     Permission is hereby granted, free of charge, to any person obtaining a
     copy of this software and associated documentation files (the "Software"),
@@ -62,7 +62,7 @@ CodeFormatRgbFunc = Callable[[int, int, int], str]
 # Acceptable fore/back args.
 ColorArg = Union[str, int, Tuple[int, int, int]]
 
-__version__ = '0.7.4'
+__version__ = '0.7.5'
 
 __all__ = [
     '_disabled',
@@ -725,6 +725,26 @@ class Colr(object):
 
     def __format__(self, fmt):
         """ Allow format specs to  apply to self.data """
+        methodmap = {
+            '<': self.ljust,
+            '>': self.rjust,
+            '^': self.center,
+        }
+        for align in methodmap:
+            char, sign, width = fmt.partition(align)
+            if not sign:
+                continue
+            if not char:
+                char = ' '
+            try:
+                widthval = int(width)
+            except ValueError:
+                raise ValueError(
+                    'Invalid width for format specifier: {}'.format(width)
+                )
+            return str(methodmap[align](widthval, fillchar=char))
+
+        # Fallback to plain str modifier.
         return str(self).__format__(fmt)
 
     def __getattr__(self, attr):
@@ -1708,7 +1728,8 @@ class Colr(object):
             width,
             fillchar,
             squeeze=squeeze,
-            **kwargs)
+            **kwargs
+        )
 
     def print(self, *args, **kwargs):
         """ Chainable print method. Prints self.data and then clears it. """

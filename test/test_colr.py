@@ -213,6 +213,90 @@ class ColrTest(unittest.TestCase):
                 fix_hex(*argset),
                 msg=test_msg('Failed to fix hex string.', *argset))
 
+    def test_format(self):
+        """ Colr.__format__ should use Colr.ljust and friends. """
+        testformats = {
+            '{:<10}': {
+                'name': 'Left justify',
+                'expected': '\x1b[31mTest\x1b[0m      \x1b[0m',
+            },
+            '{:>10}': {
+                'name': 'Right justify',
+                'expected': '      \x1b[31mTest\x1b[0m\x1b[0m',
+            },
+            '{:^10}': {
+                'name': 'Center justify',
+                'expected': '   \x1b[31mTest\x1b[0m   \x1b[0m',
+            },
+            '{:X<10}': {
+                'name': 'Left custom char justify',
+                'expected': '\x1b[31mTest\x1b[0mXXXXXX\x1b[0m',
+            },
+            '{:X>10}': {
+                'name': 'Right custom char justify',
+                'expected': 'XXXXXX\x1b[31mTest\x1b[0m\x1b[0m',
+            },
+            '{:X^10}': {
+                'name': 'Center custom char justify',
+                'expected': 'XXX\x1b[31mTest\x1b[0mXXX\x1b[0m',
+            },
+            # Colr nevers sees these formats, python takes care of it.
+            # Still, I want to make sure there is never a regression.
+            '{:<{w}}': {
+                'name': 'Left dynamic justify',
+                'kwargs': {'w': 10},
+                'expected': '\x1b[31mTest\x1b[0m      \x1b[0m',
+            },
+            '{:>{w}}': {
+                'name': 'Right dynamic justify',
+                'kwargs': {'w': 10},
+                'expected': '      \x1b[31mTest\x1b[0m\x1b[0m',
+            },
+            '{:^{w}}': {
+                'name': 'Center dynamic justify',
+                'kwargs': {'w': 10},
+                'expected': '   \x1b[31mTest\x1b[0m   \x1b[0m',
+            },
+            '{:{c}<{w}}': {
+                'name': 'Left dynamic custom char justify',
+                'kwargs': {'c': 'X', 'w': 10},
+                'expected': '\x1b[31mTest\x1b[0mXXXXXX\x1b[0m',
+            },
+            '{:{c}>{w}}': {
+                'name': 'Right dynamic custom char justify',
+                'kwargs': {'c': 'X', 'w': 10},
+                'expected': 'XXXXXX\x1b[31mTest\x1b[0m\x1b[0m',
+            },
+            '{:{c}^{w}}': {
+                'name': 'Center dynamic custom char justify',
+                'kwargs': {'c': 'X', 'w': 10},
+                'expected': 'XXX\x1b[31mTest\x1b[0mXXX\x1b[0m',
+            },
+            # Regular formats handled by str(self.data).__format__
+            '{!r}': {
+                'name': 'repr()',
+                'expected': '\'\\x1b[31mTest\\x1b[0m\'',
+            },
+            '{!s}': {
+                'name': 'str()',
+                'expected': '\x1b[31mTest\x1b[0m',
+            }
+
+        }
+
+        for fmt, fmtinfo in testformats.items():
+            self.assertEqual(
+                fmt.format(
+                    Colr('Test', 'red'),
+                    **(fmtinfo.get('kwargs', {}))
+                ),
+                fmtinfo['expected'],
+                msg='{} failed for Colr.__format__({!r})'.format(
+                    fmtinfo['name'],
+                    fmt,
+                )
+            )
+
     def test_hex2rgb(self):
         """ hex2rgb should translate well-formed codes, and raise on errors.
         """
