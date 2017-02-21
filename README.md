@@ -125,6 +125,9 @@ Like `str.center`, except it ignores escape codes.
 
 ```python
 Colr('Hello', fore='green').center(40)
+
+# This also ignores escape codes:
+'{:^40}'.format(Colr('Hello', fore='green'))
 ```
 
 ### Colr.format
@@ -188,6 +191,9 @@ Like `str.ljust`, except it ignores escape codes.
 
 ```python
 Colr('Hello', 'blue').ljust(40)
+
+# This also ignores escape codes:
+'{:<40}'.format(Colr('Hello', 'blue'))
 ```
 
 ### Colr.rainbow
@@ -229,6 +235,9 @@ Like `str.rjust`, except it ignores escape codes.
 
 ```python
 Colr('Hello', 'blue').rjust(40)
+
+# This also ignores escape codes:
+'{:>40}'.format(Colr('Hello', 'blue'))
 ```
 
 ### Colr.str

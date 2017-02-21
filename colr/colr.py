@@ -1393,10 +1393,15 @@ class Colr(object):
         text = str(text) if text is not None else ''
         if _disabled:
             return text
+        if text and (not text.rstrip().endswith(closing_code)):
+            # Add closing code if not already added, and there is text.
+            end = closing_code
+        else:
+            end = ''
         return ''.join((
             self.color_code(fore=fore, back=back, style=style),
             text,
-            closing_code if text else '',
+            end,
         ))
 
     def color_code(self, fore=None, back=None, style=None):

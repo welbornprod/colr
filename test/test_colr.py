@@ -98,6 +98,17 @@ class ColrTest(unittest.TestCase):
             ),
         )
 
+    def ne_msg(self, val1, val2, msg=None):
+        """ Builds a better message for when assertEqual fails. """
+        return '\n'.join((
+            '\n  {} {}'.format(
+                Colr(repr(val1), 'yellow'),
+                Colr('!=', 'red', style='bright')
+            ),
+            '  {}'.format(Colr(repr(val2), 'green')),
+            '\n{}'.format(Colr(msg, 'red')) if msg else '',
+        ))
+
     def test_chained_attr(self):
         """ Colr should allow chained color named methods. """
         # This will raise an AttributeError if the chained method is
@@ -218,15 +229,15 @@ class ColrTest(unittest.TestCase):
         testformats = {
             '{:<10}': {
                 'name': 'Left justify',
-                'expected': '\x1b[31mTest\x1b[0m      \x1b[0m',
+                'expected': '\x1b[31mTest\x1b[0m      ',
             },
             '{:>10}': {
                 'name': 'Right justify',
-                'expected': '      \x1b[31mTest\x1b[0m\x1b[0m',
+                'expected': '      \x1b[31mTest\x1b[0m',
             },
             '{:^10}': {
                 'name': 'Center justify',
-                'expected': '   \x1b[31mTest\x1b[0m   \x1b[0m',
+                'expected': '   \x1b[31mTest\x1b[0m   ',
             },
             '{:X<10}': {
                 'name': 'Left custom char justify',
@@ -234,7 +245,7 @@ class ColrTest(unittest.TestCase):
             },
             '{:X>10}': {
                 'name': 'Right custom char justify',
-                'expected': 'XXXXXX\x1b[31mTest\x1b[0m\x1b[0m',
+                'expected': 'XXXXXX\x1b[31mTest\x1b[0m',
             },
             '{:X^10}': {
                 'name': 'Center custom char justify',
@@ -245,17 +256,17 @@ class ColrTest(unittest.TestCase):
             '{:<{w}}': {
                 'name': 'Left dynamic justify',
                 'kwargs': {'w': 10},
-                'expected': '\x1b[31mTest\x1b[0m      \x1b[0m',
+                'expected': '\x1b[31mTest\x1b[0m      ',
             },
             '{:>{w}}': {
                 'name': 'Right dynamic justify',
                 'kwargs': {'w': 10},
-                'expected': '      \x1b[31mTest\x1b[0m\x1b[0m',
+                'expected': '      \x1b[31mTest\x1b[0m',
             },
             '{:^{w}}': {
                 'name': 'Center dynamic justify',
                 'kwargs': {'w': 10},
-                'expected': '   \x1b[31mTest\x1b[0m   \x1b[0m',
+                'expected': '   \x1b[31mTest\x1b[0m   ',
             },
             '{:{c}<{w}}': {
                 'name': 'Left dynamic custom char justify',
@@ -265,7 +276,7 @@ class ColrTest(unittest.TestCase):
             '{:{c}>{w}}': {
                 'name': 'Right dynamic custom char justify',
                 'kwargs': {'c': 'X', 'w': 10},
-                'expected': 'XXXXXX\x1b[31mTest\x1b[0m\x1b[0m',
+                'expected': 'XXXXXX\x1b[31mTest\x1b[0m',
             },
             '{:{c}^{w}}': {
                 'name': 'Center dynamic custom char justify',
@@ -285,17 +296,37 @@ class ColrTest(unittest.TestCase):
         }
 
         for fmt, fmtinfo in testformats.items():
-            self.assertEqual(
-                fmt.format(
+            val = fmt.format(
                     Colr('Test', 'red'),
                     **(fmtinfo.get('kwargs', {}))
-                ),
+                )
+            self.assertEqual(
+                val,
                 fmtinfo['expected'],
-                msg='{} failed for Colr.__format__({!r})'.format(
+                msg=self.ne_msg(
+                    val,
                     fmtinfo['name'],
-                    fmt,
+                    msg='{} failed for Colr.__format__({!r})'.format(
+                        fmtinfo['name'],
+                        fmt,
+                    )
                 )
             )
+
+        # Colr.format should not break this.
+        val = Colr('Test {:<10} Out', 'blue').format(Colr('This', 'red'))
+        expected = (
+            '\x1b[34mTest \x1b[31mThis\x1b[0m       Out\x1b[0m'
+        )
+        self.assertEqual(
+            str(val),
+            expected,
+            msg=self.ne_msg(
+                val,
+                expected,
+                msg='Colr(\'{}\').format(Colr()) breaks formatting!'
+            )
+        )
 
     def test_hex2rgb(self):
         """ hex2rgb should translate well-formed codes, and raise on errors.
