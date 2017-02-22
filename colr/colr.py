@@ -669,9 +669,16 @@ class Colr(object):
             )
         )
 
-    def __bool__(self) -> bool:
+    def __bool__(self):
         """ A Colr is truthy if it has some .data. """
         return bool(self.data)
+
+    def __bytes__(self):
+        """ A Colr's bytes() value is just str(self.data).encode().
+            For other encodings, you can use self.data.encode('ascii') or
+            whatever encoding you want to use.
+        """
+        return str(self.data or '').encode()
 
     def __call__(self, text=None, fore=None, back=None, style=None):
         """ Append text to this Colr object. """
@@ -771,6 +778,10 @@ class Colr(object):
             Returns another Colr instance.
         """
         return self.__class__(self.stripped()[key])
+
+    def __hash__(self):
+        """ A Colr's hash value is based on self.data. """
+        return hash(str(self.data or ''))
 
     def __len__(self):
         """ Return len() for any built up string data. This will count color
