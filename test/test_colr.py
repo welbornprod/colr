@@ -124,6 +124,10 @@ class ColrTest(unittest.TestCase):
             ),
         )
 
+    def has_closing_code(self, clr):
+        """ Return True if a Colr() ends with a closing code. """
+        return str(clr).endswith(closing_code)
+
     def test_bytes(self):
         """ bytes(Colr()) should encode self.data. """
         s = 'test'
@@ -234,22 +238,24 @@ class ColrTest(unittest.TestCase):
 
     def test_closingcode(self):
         """ The reset/closing code should be appended when necessary. """
-        # No code appended.
-        nocodeargs = {
-            'no_args': tuple(),
-            'empty_str': ('', 'red'),
-            'none_no_args': (None, ),
-            'none_with_args': (None, 'red'),
-        }
-        for argset in nocodeargs.values():
+        # No code should be appended.
+        nocodeargs = (
+            # No arguments given at all.
+            tuple(),
+            # Empty string with color arg.
+            ('', 'red'),
+            # None with no args.
+            (None, ),
+            # None with color args.
+            (None, 'red'),
+        )
+        for argset in nocodeargs:
             self.assertFalse(
-                str(Colr(*argset)).endswith(closing_code),
-                msg=call_msg('Code should no be added.', *argset)
+                self.has_closing_code(Colr(*argset)),
+                msg=call_msg('Closing code should not be added.', *argset)
             )
 
         withcodeargs = {
-            0: {'fore': 'red'},
-            False: {'fore': 'red'},
             'justfore': {'fore': 'red'},
             'foreback': {'fore': 'red', 'back': 'blue'},
             'all': {'fore': 'red', 'back': 'blue', 'style': 'bright'},
@@ -258,8 +264,20 @@ class ColrTest(unittest.TestCase):
         }
         for text, kwargs in withcodeargs.items():
             self.assertTrue(
-                str(Colr(text, **kwargs)).endswith(closing_code),
+                self.has_closing_code(Colr(text, **kwargs)),
                 msg=call_msg('Failed to add closing code.', text, **kwargs),
+            )
+
+        # Normally falsey values should also append a code if color/style
+        # args are given. Only `None` and `''` are exempt from this.
+        for value in (False, 0):
+            argset = (value, 'red')
+            self.assertTrue(
+                self.has_closing_code(Colr(*argset)),
+                msg=call_msg(
+                    'Failed to add closing code for falsey value.',
+                    *argset
+                )
             )
 
     def test_fix_hex(self):
@@ -398,7 +416,6 @@ class ColrTest(unittest.TestCase):
             b,
             msg=eq_msg(a, b, msg='Hash values should not match.')
         )
-
 
     def test_hex2rgb(self):
         """ hex2rgb should translate well-formed codes, and raise on errors.
