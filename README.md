@@ -267,6 +267,15 @@ Colr('test', 'blue') + 'this' == Colr('').join(Colr('test', 'blue'), 'this')
 
 ```
 
+### Colr.\_\_bytes\_\_
+
+Calling `bytes()` on a `Colr` is like calling `Colr().data.encode()`. For
+custom encodings, you can use `str(Colr()).encode(my_encoding)`.
+
+```python
+bytes(Colr('test')) = 'test'.encode()
+```
+
 ### Colr.\_\_call\_\_
 
 `Colr` instances are callable themselves.
@@ -300,6 +309,13 @@ Escape codes are stripped when subscripting/indexing.
 ```python
 Colr('test', 'blue')[2] == Colr('s')
 Colr('test', 'blue')[1:3] == Colr('es')
+```
+
+### Colr.\_\_hash\_\_
+
+Hashing a `Colr` just means hashing `Colr().data`, but this works:
+```python
+hash(Colr('test', 'blue')) == hash(Colr('test', 'blue'))
 ```
 
 ### Colr.\_\_mul\_\_
@@ -488,7 +504,12 @@ to make it available to Python also, at least as an option.
 
 ### Reset Codes
 
-The reset code is appended to all text unless the text is empty.
+The reset code is appended only if some kind of text was given, and
+colr/style args were used. The only values that are considered 'no text'
+values are `None` and `''` (empty string). `str(val)` is called on all other
+values, so `Colr(0, 'red')` and `Colr(False, 'blue')` will work, and the reset
+code will be appended.
+
 This makes it possible to build background colors and styles, but
 also have separate styles for separate pieces of text.
 

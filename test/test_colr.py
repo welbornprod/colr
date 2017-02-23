@@ -16,6 +16,7 @@ from typing import Any, Callable, Mapping, Optional, no_type_check
 
 from colr import (
     __version__,
+    closing_code,
     color,
     Colr,
     ColorCode,
@@ -230,6 +231,36 @@ class ColrTest(unittest.TestCase):
                 termhex,
                 ColorCode(*argset).hexval,
                 msg=call_msg('Failed to find known close match.', *argset))
+
+    def test_closingcode(self):
+        """ The reset/closing code should be appended when necessary. """
+        # No code appended.
+        nocodeargs = {
+            'no_args': tuple(),
+            'empty_str': ('', 'red'),
+            'none_no_args': (None, ),
+            'none_with_args': (None, 'red'),
+        }
+        for argset in nocodeargs.values():
+            self.assertFalse(
+                str(Colr(*argset)).endswith(closing_code),
+                msg=call_msg('Code should no be added.', *argset)
+            )
+
+        withcodeargs = {
+            0: {'fore': 'red'},
+            False: {'fore': 'red'},
+            'justfore': {'fore': 'red'},
+            'foreback': {'fore': 'red', 'back': 'blue'},
+            'all': {'fore': 'red', 'back': 'blue', 'style': 'bright'},
+            'justback': {'back': 'blue'},
+            'juststyle': {'style': 'bright'},
+        }
+        for text, kwargs in withcodeargs.items():
+            self.assertTrue(
+                str(Colr(text, **kwargs)).endswith(closing_code),
+                msg=call_msg('Failed to add closing code.', text, **kwargs),
+            )
 
     def test_fix_hex(self):
         """ fix_hex should translate short-form hex strings. """
