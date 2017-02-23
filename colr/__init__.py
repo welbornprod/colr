@@ -30,6 +30,7 @@ from .colr import (  # noqa
     __version__,
     Colr,
     auto_disable,
+    closing_code,
     codeformat,
     codes,
     codes_reverse,
@@ -84,6 +85,7 @@ from .trans import (
 __all__ = [
     '__version__',
     'auto_disable',
+    'closing_code',
     'codeformat',
     'codes',
     'codes_reverse',

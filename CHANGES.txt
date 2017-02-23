@@ -1,3 +1,4 @@
+v0.7.5 02/22/17 -- Format specs work now, closing code is smarter, and bytes()/hash() work.
 v0.7.4 02/15/17 -- Version number mixup fixed.
 v0.7.2 02/15/17 -- Fixed entry point for setuptools/colr-tool.
 v0.7.1 02/15/17 -- Small bug fixed for invalid style names.

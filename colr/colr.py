@@ -67,6 +67,7 @@ __version__ = '0.7.5'
 __all__ = [
     '_disabled',
     'auto_disable',
+    'closing_code',
     'codeformat',
     'codes',
     'codes_reverse',
