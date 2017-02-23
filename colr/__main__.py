@@ -108,7 +108,7 @@ USAGESTR = """{versionstr}
                                     If a negative value is given, it will be
                                     subtracted from the terminal width.
         -n,--newline              : Do not append a newline character (\\n).
-        -o num,--offset           : Offset for start of rainbow.
+        -o num,--offset num       : Offset for start of rainbow.
                                     Default: random number between 0-255
         -q num,--frequency num    : Frequency of colors in the rainbow.
                                     Higher value means more colors.
