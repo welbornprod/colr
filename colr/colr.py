@@ -252,6 +252,14 @@ def _format_code(
         all in one shot.
         It also handles some validation.
         format_fore/format_back wrap this function to reduce code duplication.
+
+        Arguments:
+            number    : Integer or RGB tuple to format into an escape code.
+            backcolor : Whether this is for a back color, otherwise it's fore.
+            light     : Whether this should be a 'light' color.
+            extended  : Whether this should be an extended (256) color.
+
+        If `light` and `extended` are both given, only `light` is used.
     """
     if backcolor:
         codetype = 'back'
@@ -289,7 +297,6 @@ def _format_code(
                     'Expecting 0-9 for light {} code.'.format(codetype)
                 )
             return formatters['lightcode'](n)
-
         elif extended:
             if not in_range(n, 0, 255):
                 raise InvalidColr(
@@ -297,6 +304,7 @@ def _format_code(
                     'Expecting 0-255 for ext. {} code.'.format(codetype)
                 )
             return formatters['ext'](n)
+
         if not in_range(n, 0, 9):
             raise InvalidColr(
                 n,
@@ -315,7 +323,7 @@ def _format_code(
         # Was probably a 3-char string. Not an rgb code though.
         raise InvalidColr(
             (r, g, b),
-            'RGB value for {} contains invalid number: {!r}'.format(codetype)
+            'RGB value for {} contains invalid number.'.format(codetype)
         )
     return formatters['rgb'](r, g, b)
 
@@ -1369,7 +1377,7 @@ class Colr(object):
                 squeeze  : Width applies to existing data and new data.
                            (self.data and the text arg)
             Keyword Arguments:
-                text     : The string to center.
+                text     : The string to center, otherwise self.data is used.
                 fore, back, style : see color().
         """
         return self._str_just(
@@ -1648,14 +1656,14 @@ class Colr(object):
         """ Return a black and white gradient.
             Arguments:
                 text       : String to colorize.
-                step       : Number of characters to colorize per color.
-                             This allows a "wider" gradient.
-                             This will always be greater than 0.
                 fore       : Foreground color, background will be gradient.
                 back       : Background color, foreground will be gradient.
                 style      : Name of style to use for the gradient.
                 start      : Starting rgb value.
                 stop       : Stopping rgb value.
+                step       : Number of characters to colorize per color.
+                             This allows a "wider" gradient.
+                             This will always be greater than 0.
                 linemode   : Colorize each line in the input.
                              Default: True
                 movefactor : Amount to shift gradient for each line when
@@ -1736,7 +1744,7 @@ class Colr(object):
                 squeeze  : Width applies to existing data and new data.
                            (self.data and the text arg)
             Keyword Arguments:
-                text     : The string to left-justify.
+                text     : The string to left-justify, otherwise self.data.
                 fore, back, style : see color().
         """
         return self._str_just(
@@ -1839,7 +1847,7 @@ class Colr(object):
                 squeeze  : Width applies to existing data and new data.
                            (self.data and the text arg)
             Keyword Arguments:
-                text     : The string to right-justify.
+                text     : The string to right-justify, otherwise self.data.
                 fore, back, style : see color().
         """
         return self._str_just(
