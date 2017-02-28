@@ -83,9 +83,27 @@ done
 proj_root="$(readlink -f "$appdir/..")"
 cd "$proj_root" || fail "Failed to cd to project root: $proj_root"
 
-setupcode="from colr import Colr; C = Colr;"$'\n'
-argfmt="%s\n"
+# Basic setup code for snippets, whether in debug or not.
+setupcode="
+import traceback
+from colr import InvalidColr, Colr
+C = Colr
 
+"
+# Use prettier InvalidColr exceptions if not in debug mode.
+errhandler="
+def handle_err(typ, ex, tb):
+    if isinstance(ex, InvalidColr):
+        print(ex.as_colr(), file=sys.stderr)
+    else:
+        traceback.print_exception(typ, ex, tb)
+"
+((!debug_mode)) && {
+    setupcode="import sys;${errhandler}sys.excepthook = handle_err"$'\n'"$setupcode"
+}
+
+# Wrap args in print if wanted.
+argfmt="%s\n"
 ((do_print)) && argfmt="print(\n    %s\n)\n"
 ((${#snippets[@]})) || {
     debug "Reading snippets from stdin."
