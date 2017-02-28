@@ -7,12 +7,9 @@
     -Christopher Welborn 12-09-2015
 """
 
-import inspect
 import random
 import sys
 import unittest
-
-from typing import Any, Callable, Mapping, Optional, no_type_check
 
 from colr import (
     __version__,
@@ -39,67 +36,15 @@ from colr.trans import (
     is_rgb_code,
 )
 
+from .testing_tools import ColrTestCase
+
 print('Testing Colr v. {}'.format(__version__))
 
 # Save names in list format, for random.choice().
 name_data_names = list(name_data)
 
 
-def _equality_msg(op, a, b, msg=None):
-    """ The ne_msg and eq_msg wrap this function to reduce code duplication.
-        It builds a message suitable for an assert*Equal msg parameter.
-    """
-    # TODO: Just subclass/patch unittest.assertEqual and friends.
-    return '\n'.join((
-        '\n  {} {}'.format(
-            Colr(repr(a), 'yellow'),
-            Colr(op, 'red', style='bright')
-        ),
-        '  {}'.format(Colr(repr(b), 'green')),
-        '\n{}'.format(Colr(msg, 'red')) if msg else '',
-    ))
-
-
-def call_msg(s: str, *args: Any, **kwargs: Mapping[Any, Any]):
-    """ Return a message suitable for the `msg` arg in asserts,
-        including the calling function name.
-    """
-    argstr = ', '.join(repr(a) for a in args)
-    kwargstr = ', '.join('{}={!r}'.format(k, v) for k, v in kwargs.items())
-    argrepr = ', '.join(s for s in (argstr, kwargstr) if s)
-    return '{}({}): {}'.format(
-        func_name(level=2),
-        argrepr,
-        s)
-
-
-def eq_msg(a, b, msg=None):
-    """ Builds a message for assertNotEqual failure. """
-    return _equality_msg('==', a, b, msg=msg)
-
-
-def func_name(level: Optional[int]=1, parent: Optional[Callable]=None) -> str:
-    """ Return the name of the function that is calling this function. """
-    frame = inspect.currentframe()
-    # Go back a number of frames (usually 1).
-    backlevel = level or 1
-    while backlevel > 0:
-        frame = frame.f_back
-        backlevel -= 1
-    if parent:
-        func = '{}.{}'.format(parent.__class__.__name__, frame.f_code.co_name)
-        return func
-
-    return frame.f_code.co_name
-
-
-def ne_msg(a, b, msg=None):
-    """ Builds a better message for when assertEqual fails. """
-    return _equality_msg('!=', a, b, msg=msg)
-
-
-@no_type_check
-class ColrTest(unittest.TestCase):
+class ColrTests(ColrTestCase):
 
     def setUp(self):
         # hex2termhex known values. (input, output)
@@ -133,11 +78,7 @@ class ColrTest(unittest.TestCase):
         s = 'test'
         a = s.encode()
         b = bytes(Colr(s))
-        self.assertEqual(
-            a,
-            b,
-            msg=ne_msg(a, b, msg='Encoded Colr is not the same.')
-        )
+        self.assertEqual(a, b, msg='Encoded Colr is not the same.')
 
     def test_chained_attr(self):
         """ Colr should allow chained color named methods. """
@@ -171,16 +112,19 @@ class ColrTest(unittest.TestCase):
             Colr,
             msg='Failed to create Colr with chained b_rgb method.'
         )
-
-        with self.assertRaises(InvalidColr):
-            Colr().rgb(256, 0, 0)
-        with self.assertRaises(InvalidColr):
-            Colr().rgb(-1, 0, 0)
-        # Invalid rgb codes should raise a InvalidColr.
-        with self.assertRaises(InvalidColr):
-            Colr().b_rgb(256, 0, 0)
-        with self.assertRaises(InvalidColr):
-            Colr().b_rgb(256, 0, 0)
+        for invalidargs in ((256, 0, 0), (-1, 0, 0)):
+            with self.assertCallRaises(
+                    InvalidColr,
+                    func=Colr.rgb,
+                    args=invalidargs,
+                    msg='Failed to raise for invalid values.'):
+                Colr().rgb(*invalidargs)
+            with self.assertCallRaises(
+                    InvalidColr,
+                    func=Colr.b_rgb,
+                    args=invalidargs,
+                    msg='Failed to raise for invalid values.'):
+                Colr().b_rgb(*invalidargs)
 
     def test_color(self):
         """ Colr.color should accept valid color names/values. """
@@ -224,17 +168,23 @@ class ColrTest(unittest.TestCase):
         for v in self.conversions:
             for code in v.values():
                 argset = (code,)
-                self.assertEqual(
+                self.assertCallEqual(
                     v,
                     ColorCode(*argset).to_dict(),
-                    msg=call_msg('Failed to translate.', *argset))
+                    func=ColorCode,
+                    args=argset,
+                    msg='Failed to translate.',
+                )
 
         for hexval, termhex in self.termhex_close:
             argset = (hexval,)
-            self.assertEqual(
+            self.assertCallEqual(
                 termhex,
                 ColorCode(*argset).hexval,
-                msg=call_msg('Failed to find known close match.', *argset))
+                func=ColorCode,
+                args=argset,
+                msg='Failed to find known close match.'
+            )
 
     def test_closingcode(self):
         """ The reset/closing code should be appended when necessary. """
@@ -250,9 +200,11 @@ class ColrTest(unittest.TestCase):
             (None, 'red'),
         )
         for argset in nocodeargs:
-            self.assertFalse(
+            self.assertCallFalse(
                 self.has_closing_code(Colr(*argset)),
-                msg=call_msg('Closing code should not be added.', *argset)
+                func=Colr,
+                args=argset,
+                msg='Closing code should not be added.',
             )
 
         withcodeargs = {
@@ -263,40 +215,49 @@ class ColrTest(unittest.TestCase):
             'juststyle': {'style': 'bright'},
         }
         for text, kwargs in withcodeargs.items():
-            self.assertTrue(
+            self.assertCallTrue(
                 self.has_closing_code(Colr(text, **kwargs)),
-                msg=call_msg('Failed to add closing code.', text, **kwargs),
+                func=Colr,
+                args=[text],
+                kwargs=kwargs,
+                msg='Failed to add closing code.',
             )
 
         # Normally falsey values should also append a code if color/style
         # args are given. Only `None` and `''` are exempt from this.
         for value in (False, 0):
             argset = (value, 'red')
-            self.assertTrue(
+            self.assertCallTrue(
                 self.has_closing_code(Colr(*argset)),
-                msg=call_msg(
-                    'Failed to add closing code for falsey value.',
-                    *argset
-                )
+                func=Colr,
+                args=argset,
+                msg='Failed to add closing code for falsey value.',
             )
 
     def test_fix_hex(self):
         """ fix_hex should translate short-form hex strings. """
         for argset in (('#f',), ('#ffffffXX',), ('',)):
-            with self.assertRaises(
+            with self.assertCallRaises(
                     ValueError,
-                    msg=call_msg('Failed to raise.', *argset)):
-                _ = fix_hex(*argset)  # noqa
+                    func=fix_hex,
+                    args=argset,
+                    msg='Failed to raise.'):
+                fix_hex(*argset)
 
         for argset, expected in (
             (('#fff',), 'ffffff'),
+            (('fff',), 'ffffff'),
+            (('000',), '000000'),
             (('##000',), '000000'),
             (('aaaaaa',), 'aaaaaa')
         ):
-            self.assertEqual(
+            self.assertCallEqual(
                 expected,
                 fix_hex(*argset),
-                msg=call_msg('Failed to fix hex string.', *argset))
+                func=fix_hex,
+                args=argset,
+                msg='Failed to fix hex string.',
+            )
 
     def test_format(self):
         """ Colr.__format__ should use Colr.ljust and friends. """
@@ -371,20 +332,15 @@ class ColrTest(unittest.TestCase):
 
         for fmt, fmtinfo in testformats.items():
             val = fmt.format(
-                    Colr('Test', 'red'),
-                    **(fmtinfo.get('kwargs', {}))
-                )
-            self.assertEqual(
+                Colr('Test', 'red'),
+                **(fmtinfo.get('kwargs', {}))
+            )
+            self.assertCallEqual(
                 val,
                 fmtinfo['expected'],
-                msg=ne_msg(
-                    val,
-                    fmtinfo['expected'],
-                    msg='{} failed for Colr.__format__({!r})'.format(
-                        fmtinfo['name'],
-                        fmt,
-                    )
-                )
+                func=Colr.__format__,
+                args=[fmt],
+                msg='Colr.__format__ failed for valid format.',
             )
 
         # Colr.format should not break this.
@@ -395,11 +351,7 @@ class ColrTest(unittest.TestCase):
         self.assertEqual(
             str(val),
             expected,
-            msg=ne_msg(
-                val,
-                expected,
-                msg='Colr(\'{}\').format(Colr()) breaks formatting!'
-            )
+            msg='Colr(\'{}\').format(Colr()) breaks formatting!',
         )
 
     def test_hash(self):
@@ -408,45 +360,142 @@ class ColrTest(unittest.TestCase):
         self.assertEqual(
             a,
             b,
-            msg=ne_msg(a, b, msg='Mismatched hash values.')
+            msg='Mismatched hash values.',
         )
         a, b = hash(Colr('test', 'red')), hash(Colr('test', 'blue'))
         self.assertNotEqual(
             a,
             b,
-            msg=eq_msg(a, b, msg='Hash values should not match.')
+            msg='Hash values should not match.',
         )
+
+    def test_hex(self):
+        """ Colr.color should recognize hex colors. """
+        s = 'test'
+        # Short/long hex values with/without hash should work.
+        hexcodes = {
+            'fff': 'short hex color without a hash',
+            'ffffff': 'hex color without a hash',
+            '#fff': 'short hex color',
+            '#ffffff': 'hex color',
+        }
+        for hexcolr, desc in hexcodes.items():
+            try:
+                hexcolr = Colr(s, hexcolr)
+            except InvalidColr as ex:
+                self.fail('Failed to recognize {}.'.format(desc))
+            termcolr = Colr(s, 231)
+            self.assertEqual(
+                hexcolr,
+                termcolr,
+                msg='Basic hex color did not match closest term color.',
+            )
+
+        # Hex values with rgb_mode=False should produce a close match.
+        closematches = {
+            'd7d7ff': 189,
+            '008787': 30,
+            'afd75f': 149,
+            '000': 16,
+            '000000': 16,
+            'fff': 231,
+            'ffffff': 231,
+        }
+        for hexval in sorted(closematches):
+            closeterm = closematches[hexval]
+            closetermcolr = Colr(s, closeterm)
+            for hexvalue in (hexval, '#{}'.format(hexval)):
+                hexcolr = Colr(s, hexvalue)
+                self.assertCallEqual(
+                    hexcolr,
+                    closetermcolr,
+                    func=Colr.color,
+                    args=[s, hexvalue],
+                    msg='Hex value is not the same output as close term.',
+                )
+                chainedhexcolr = Colr().hex(hexvalue, s, rgb_mode=False)
+                self.assertCallEqual(
+                    chainedhexcolr,
+                    closetermcolr,
+                    func=Colr.hex,
+                    args=[hexval, s],
+                    kwargs={'rgb_mode': False},
+                    msg='Chained hex value is not the same as close term.'
+                )
+
+    def test_hex_rgb_mode(self):
+        """ Colr.hex should use true color when rgb_mode is True. """
+        s = 'test'
+        # Hex values with rgb_mode=True should do a straight conversion.
+        hexrgb = {
+            'bada55': (186, 218, 85),
+            'cafeba': (202, 254, 186),
+            '858585': (133, 133, 133),
+            '010203': (1, 2, 3),
+        }
+        for hexval, rgbval in hexrgb.items():
+            hexcolr = Colr().hex(hexval, s, rgb_mode=True)
+            rgbcolr = Colr().rgb(*rgbval, s)
+            self.assertCallEqual(
+                hexcolr,
+                rgbcolr,
+                func=Colr.hex,
+                args=[hexval, s],
+                kwargs={'rgb_mode': True},
+                msg='Chained hex in rgb_mode did not match rgb.',
+            )
+            hexcolr = Colr(s).b_hex(hexval, rgb_mode=True)
+            rgbcolr = Colr(s).b_rgb(*rgbval)
+            self.assertCallEqual(
+                hexcolr,
+                rgbcolr,
+                func=Colr.b_hex,
+                args=[hexval],
+                kwargs={'rgb_mode': True},
+                msg='Chained b_hex in rgb_mode did not match b_rgb.',
+            )
 
     def test_hex2rgb(self):
         """ hex2rgb should translate well-formed codes, and raise on errors.
         """
         testargs = (('',), ('00 0000',))
         for argset in testargs:
-            with self.assertRaises(
+            with self.assertCallRaises(
                     ValueError,
-                    msg=call_msg('Failed to raise.', *argset)):
-                _ = hex2rgb(*argset)
+                    func=hex2rgb,
+                    args=argset,
+                    msg='Failed to raise.'):
+                hex2rgb(*argset)
 
         argset = ('#f00',)
         kwset = {'allow_short': False}
-        with self.assertRaises(
+        with self.assertCallRaises(
                 ValueError,
-                msg=call_msg('Failed to raise without.', *argset, **kwset)):
-            _ = hex2rgb(*argset, **kwset)  # noqa
+                func=hex2rgb,
+                args=argset,
+                kwargs=kwset,
+                msg='Failed to raise without.'):
+            hex2rgb(*argset, **kwset)
 
         argset = (' #FF0000',)
-        self.assertTupleEqual(
+        self.assertCallTupleEqual(
             hex2rgb(*argset),
             (255, 0, 0),
-            msg=call_msg('Failed to convert padded hex string.', *argset))
+            func=hex2rgb,
+            args=argset,
+            msg='Failed to convert padded hex string.',
+        )
 
         argset = ('#f00',)
         kwset = {'allow_short': True}
-        self.assertTupleEqual(
+        self.assertCallTupleEqual(
             hex2rgb(*argset, **kwset),
             (255, 0, 0),
-            msg=call_msg(
-                'Failed to convert short form hex string.', *argset, **kwset))
+            func=hex2rgb,
+            args=argset,
+            kwargs=kwset,
+            msg='Failed to convert short form hex string.',
+        )
 
     def test_is_code(self):
         """ colr.trans.is_code should recognize a color code. """
@@ -507,62 +556,23 @@ class ColrTest(unittest.TestCase):
             'There should be none after stripping.'
         ))
 
-        self.assertEqual(
-            s,
-            strip_codes(
-                Colr(s, fore='green', back='blue', style='bright')
-            ),
-            msg=call_msg('Failed to strip codes from Colr string.')
-        )
-
-        self.assertEqual(
-            s,
-            strip_codes(
-                color(s, fore='red', back='blue', style='bright')
-            ),
-            msg=call_msg('Failed to strip codes from color string.')
-        )
-
-        self.assertEqual(
-            s,
-            strip_codes(
-                Colr().red().bggreen().bright(s)
-            ),
-            msg=call_msg('Failed to strip codes from chained Colr string.')
-        )
-
-        self.assertEqual(
-            s,
-            strip_codes(
-                Colr().f_55().b_55().bright(s)
-            ),
-            msg=call_msg('Failed to strip codes from extended Colr string.')
-        )
-
-        self.assertEqual(
-            s,
-            strip_codes(
-                Colr().rgb(25, 25, 25).b_rgb(55, 55, 55).bright(s)
-            ),
-            msg=call_msg('Failed to strip codes from rgb Colr string.')
-        )
-
-        self.assertEqual(
-            s,
-            strip_codes(
-                Colr(s).rainbow()
-            ),
-            msg=call_msg('Failed to strip codes from Colr.rainbow string.')
-        )
-        self.assertEqual(
-            s,
-            strip_codes(
-                Colr(s).rainbow(rgb_mode=True)
-            ),
-            msg=call_msg(
-                'Failed to strip codes from Colr.rainbow rgb string.'
+        colrvals = {
+            'Colr': Colr(s, fore='green', back='blue', style='bright'),
+            'color func': color(s, fore='red', back='blue', style='bright'),
+            'chained': Colr().red().bggreen().bright(s),
+            'chained extended': Colr().f_55().b_55().bright(s),
+            'chained rgb': Colr().rgb(25, 25, 25).b_rgb(55, 55, 55).bright(s),
+            'Colr.rainbow': Colr(s).rainbow(),
+            'Colr.rainbow rgb': Colr(s).rainbow(rgb_mode=True),
+        }
+        for desc, colrval in colrvals.items():
+            self.assertCallEqual(
+                s,
+                strip_codes(colrval),
+                func=strip_codes,
+                args=[colrval],
+                msg='Failed to strip codes from {} string.'.format(desc),
             )
-        )
 
     def test_stripped(self):
         """ Colr.stripped() should return strip_codes(Colr()). """
@@ -571,23 +581,17 @@ class ColrTest(unittest.TestCase):
         datalen = len(data)
         stripped = c.stripped()
         strippedlen = len(stripped)
-        self.assertEqual(
+        self.assertCallEqual(
             datalen,
             strippedlen,
-            call_msg(
-                'Stripped Colr has different length.',
-                datalen,
-                strippedlen,
-            ),
+            func=c.stripped,
+            msg='Stripped Colr has different length.',
         )
-        self.assertEqual(
+        self.assertCallEqual(
             data,
             stripped,
-            call_msg(
-                'Stripped Colr has different content.',
-                data,
-                stripped,
-            ),
+            func=c.stripped,
+            msg='Stripped Colr has different content.',
         )
 
     def test_trans(self):
@@ -595,61 +599,133 @@ class ColrTest(unittest.TestCase):
         for v in self.conversions:
             # hex2*
             argset = (v['hexval'],)
-            self.assertTupleEqual(
+            self.assertCallTupleEqual(
                 v['rgb'],
                 hex2rgb(*argset),
-                msg=call_msg('Failed to translate.', *argset))
+                func=hex2rgb,
+                args=argset,
+                msg='Failed to translate.',
+            )
 
             argset = (v['hexval'],)
-            self.assertEqual(
+            self.assertCallEqual(
                 v['code'],
                 hex2term(*argset),
-                msg=call_msg('Failed to translate.', *argset))
+                func=hex2term,
+                args=argset,
+                msg='Failed to translate.',
+            )
 
             argset = (v['hexval'],)
-            self.assertEqual(
+            self.assertCallEqual(
                 v['hexval'],
                 hex2termhex(*argset),
-                msg=call_msg('Failed to translate.', *argset))
+                func=hex2termhex,
+                args=argset,
+                msg='Failed to translate.',
+            )
 
             # rgb2*
             argset = v['rgb']
-            self.assertEqual(
+            self.assertCallEqual(
                 v['hexval'],
                 rgb2hex(*argset),
-                msg=call_msg('Failed to translate.', *argset))
+                func=rgb2hex,
+                args=argset,
+                msg='Failed to translate.',
+            )
 
             argset = v['rgb']
-            self.assertEqual(
+            self.assertCallEqual(
                 v['code'],
                 rgb2term(*argset),
-                msg=call_msg('Failed to translate.', *argset))
+                func=rgb2term,
+                args=argset,
+                msg='Failed to translate.',
+            )
 
             argset = v['rgb']
-            self.assertEqual(
+            self.assertCallEqual(
                 v['hexval'],
                 rgb2termhex(*argset),
-                msg=call_msg('Failed to translate.', *argset))
+                func=rgb2termhex,
+                args=argset,
+                msg='Failed to translate.',
+            )
 
             # term2*
             argset = (v['code'],)
-            self.assertEqual(
+            self.assertCallEqual(
                 v['hexval'],
                 term2hex(*argset),
-                msg=call_msg('Failed to translate.', *argset))
+                func=term2hex,
+                args=argset,
+                msg='Failed to translate.',
+            )
 
             argset = (v['code'],)
-            self.assertTupleEqual(
+            self.assertCallTupleEqual(
                 v['rgb'],
                 term2rgb(*argset),
-                msg=call_msg('Failed to translate.', *argset))
+                func=term2rgb,
+                args=argset,
+                msg='Failed to translate.',
+            )
 
             for hexval, termhex in self.termhex_close:
                 argset = (hexval,)
-                self.assertEqual(
+                self.assertCallEqual(
                     termhex,
                     hex2termhex(*argset),
-                    msg=call_msg('Failed on close match.', *argset))
+                    func=hex2termhex,
+                    args=argset,
+                    msg='Failed on close match.',
+                )
+
+
+# # These are failing tests, to check the format for ColrTestCase messages.
+# class FailingTests(ColrTestCase):
+#     def test_fail_eq(self):
+#         """ Non-equal failures should print a pretty message. """
+        # self.assertEqual(1, 2, msg='Nope, not equal.')
+        # self.assertNotEqual(1, 1, msg='Oops, they are equal')
+        # self.assertCallEqual(
+        #     1,
+        #     2,
+        #     func=str,
+        #     args=[1],
+        #     kwargs={'testing': True},
+        #     msg='Nope, not equal.',
+        # )
+        # self.assertCallTupleEqual(
+        #     (1,),
+        #     (2,),
+        #     func=str,
+        #     args=[1],
+        #     kwargs={'testing': True},
+        #     msg='Nope, not equal.',
+        # )
+        # self.assertCallTrue(
+        #     False,
+        #     func=str,
+        #     args=[1],
+        #     kwargs={'testing': True},
+        #     msg='Nope not true.',
+        # )
+        # self.assertCallFalse(
+        #     True,
+        #     func=str,
+        #     args=[1],
+        #     kwargs={'testing': True},
+        #     msg='Nope not false.',
+        # )
+        # with self.assertCallRaises(
+        #         ValueError,
+        #         func=str,
+        #         args=[1],
+        #         kwargs={'testing': True},
+        #         msg='Nope, did not raise.'):
+        #     pass
 
 
 if __name__ == '__main__':

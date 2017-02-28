@@ -19,6 +19,7 @@ from colr import (
     name_data,
     InvalidColr,
     InvalidStyle,
+    rgb2hex,
 )
 from colr.__main__ import (
     __version__,
@@ -97,6 +98,12 @@ class ColrToolTests(unittest.TestCase):
                 for _ in range(max_vals)
             ))
         )
+
+        # Valid hex values.
+        self.valid_hex_vals = ['000', 'fff', 'f0f', 'aba']
+        for rgb in self.valid_rgb_vals:
+            rgbtup = tuple(int(x) for x in rgb.split(','))
+            self.valid_hex_vals.append(rgb2hex(*rgbtup))
 
         # Valid style names/values.
         self.valid_style_vals = (
@@ -188,8 +195,28 @@ class ColrToolTests(unittest.TestCase):
             )
         # Invalid color values should raise a InvalidColr.
         badargsets = (
-            {'FORE': '257', 'BACK': r.choice(self.valid_ext_vals)},
+            {'FORE': '1000', 'BACK': r.choice(self.valid_ext_vals)},
             {'BACK': '-1', 'FORE': r.choice(self.valid_ext_vals)},
+        )
+        for argset in badargsets:
+            argd.update(argset)
+            with self.assertRaises(InvalidColr):
+                self.run_main_test(argd, should_fail=True)
+
+    def test_hex_colors(self):
+        """ colr tool should recognize hex colors. """
+        argd = {'TEXT': 'Hello World', 'FORE': 'd7d7d7'}
+        for _ in range(10):
+            argd['FORE'] = r.choice(self.valid_hex_vals)
+            argd['BACK'] = r.choice(self.valid_hex_vals)
+            self.assertEqual(
+                0,
+                self.run_main_test(argd, should_fail=False)
+            )
+        # Invalid color values should raise a InvalidColr.
+        badargsets = (
+            {'FORE': 'ffooll', 'BACK': r.choice(self.valid_hex_vals)},
+            {'BACK': 'oopsie', 'FORE': r.choice(self.valid_hex_vals)},
         )
         for argset in badargsets:
             argd.update(argset)
@@ -211,7 +238,7 @@ class ColrToolTests(unittest.TestCase):
             {'FORE': '-1,25,25', 'BACK': r.choice(self.valid_rgb_vals)},
             {'BACK': '257,25,25', 'FORE': r.choice(self.valid_rgb_vals)},
             {'FORE': 'a,255,255', 'BACK': r.choice(self.valid_rgb_vals)},
-            {'BACK': 'abc', 'FORE': r.choice(self.valid_rgb_vals)},
+            {'BACK': 'xxx', 'FORE': r.choice(self.valid_rgb_vals)},
         )
         for argset in badargsets:
             argd.update(argset)
