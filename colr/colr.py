@@ -56,6 +56,7 @@ from .trans import (
     ColorCode,
     hex2rgb,
     hex2term,
+    hex2termhex,
 )
 from .name_data import names as name_data
 
@@ -565,7 +566,10 @@ def in_range(x: int, minimum: int, maximum: int) -> bool:
     return (x >= minimum and x <= maximum)
 
 
-def parse_colr_arg(s: str, default: Optional[Any]=None) -> ColorArg:
+def parse_colr_arg(
+        s: str,
+        default: Optional[Any]=None,
+        rgb_mode: Optional[bool]=False) -> ColorArg:
     """ Parse a user argument into a usable fore/back color value for Colr.
         If a falsey value is passed, default is returned.
         Raises InvalidColr if the argument is unusable.
@@ -609,10 +613,11 @@ def parse_colr_arg(s: str, default: Optional[Any]=None) -> ColorArg:
 
             # Not a basic/extended/known name, try as hex.
             try:
-                rgb = hex2rgb(val, allow_short=True)
+                if rgb_mode:
+                    return hex2rgb(val, allow_short=True)
+                return hex2termhex(val, allow_short=True)
             except ValueError:
                 raise InvalidColr(val)
-            return rgb
         else:
             # Got rgb. Do some validation.
             if not all((in_range(x, 0, 255) for x in (r, g, b))):
@@ -625,11 +630,11 @@ def parse_colr_arg(s: str, default: Optional[Any]=None) -> ColorArg:
             # May have been a hex value confused as an int.
             if len(val) in (3, 6):
                 try:
-                    rgb = hex2rgb(val, allow_short=True)
+                    if rgb_mode:
+                        return hex2rgb(val, allow_short=True)
+                    return hex2termhex(val, allow_short=True)
                 except ValueError:
                     raise InvalidColr(val)
-                else:
-                    return rgb
             raise InvalidColr(intval)
         # Valid int value.
         return intval
@@ -1972,15 +1977,16 @@ class InvalidArg(ValueError):
 class InvalidColr(InvalidArg):
     """ A ValueError for when user passes an invalid colr name, value, rgb.
     """
-    default_label = 'Expecting colr name/value:\n    {types}.'.format(
+    accepted_values = (
+        ('hex', '[#]rgb/[#]rrggbb'),
+        ('name', 'white/black/etc.'),
+        ('rgb', '0-255, 0-255, 0-255'),
+        ('value', '0-255'),
+    )
+    default_label = 'Expecting colr name/value:\n    {types}'.format(
         types=',\n    '.join(
-            '{lbl} ({val})'.format(lbl=l, val=v)
-            for l, v in (
-                ('hex', '[#]rgb/[#]rrggbb'),
-                ('name', 'white/black/etc.'),
-                ('rgb', '0-255, 0-255, 0-255'),
-                ('value', '0-255'),
-            )
+            '{lbl:<5} ({val})'.format(lbl=l, val=v)
+            for l, v in accepted_values
         )
     )
     default_format = '{label}\n    Got: {value}'
@@ -1998,16 +2004,11 @@ class InvalidColr(InvalidArg):
             label=Colr(':\n    ').join(
                 Colr('Expecting colr name/value', **label_args),
                 ',\n    '.join(
-                    '{lbl} ({val})'.format(
+                    '{lbl:<5} ({val})'.format(
                         lbl=Colr(l, **type_args),
                         val=Colr(v, **type_val_args),
                     )
-                    for l, v in (
-                        ('hex', '[#]rgb/[#]rrggbb'),
-                        ('name', 'white/black/etc.'),
-                        ('rgb', '0-255, 0-255, 0-255'),
-                        ('value', '0-255'),
-                    )
+                    for l, v in self.accepted_values
                 )
             ),
             value=Colr(repr(self.value), **value_args)

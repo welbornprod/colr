@@ -21,7 +21,7 @@ def _equality_msg(op, a, b, msg=None):
         fmta = '{} ({})'.format(fmta, a)
     fmtb = str(Colr(repr(b), 'green'))
     if repr(b) != str(b):
-        fmta = '{} ({})'.format(fmta, b)
+        fmtb = '{} ({})'.format(fmtb, b)
 
     return '\n'.join((
         '\n  {} {}'.format(

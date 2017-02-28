@@ -55,9 +55,9 @@ USAGESTR = """{versionstr}
     Usage:
         {script} -h | -v
         {script} [TEXT] [FORE] [BACK] [STYLE]
-             [-a] [-e] [-c num | -l num | -r num] [-n] [-D]
+             [-a] [-e] [-c num | -l num | -r num] [-T] [-n] [-D]
         {script} [TEXT] [-f fore] [-b back] [-s style]
-             [-a] [-e] [-c num | -l num | -r num] [-n] [-D]
+             [-a] [-e] [-c num | -l num | -r num] [-T] [-n] [-D]
         {script} [TEXT] [FORE] [BACK] [STYLE] [-a] [-e]
              [-c num | -l num | -r num] [-n] -g name
              [-q num] [-w num] [-T] [-D]
@@ -125,6 +125,8 @@ USAGESTR = """{versionstr}
         -t,--translate            : Translate one or more term codes,
                                     hex values, or rgb values.
         -T,--truecolor            : Use RGB mode when applicable.
+                                    Hex values will be converted to RGB
+                                    colors when used for color names.
         -u,--unique               : Only report unique color codes with -z.
         -w num,--spread num       : Spread/width of each color in the rainbow
                                     or gradient.
@@ -231,10 +233,15 @@ def dict_pop_or(d, key, default=None):
 
 def get_colr(txt, argd):
     """ Return a Colr instance based on user args. """
-    fore = parse_colr_arg(get_name_arg(argd, '--fore', 'FORE', default=None))
-    back = parse_colr_arg(get_name_arg(argd, '--back', 'BACK', default=None))
+    fore = parse_colr_arg(
+        get_name_arg(argd, '--fore', 'FORE', default=None),
+        rgb_mode=argd['--truecolor'],
+    )
+    back = parse_colr_arg(
+        get_name_arg(argd, '--back', 'BACK', default=None),
+        rgb_mode=argd['--truecolor'],
+    )
     style = get_name_arg(argd, '--style', 'STYLE', default=None)
-
     if argd['--gradient']:
         # Build a gradient from user args.
         return C(txt).gradient(

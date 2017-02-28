@@ -16,6 +16,8 @@ import sys
 import unittest
 
 from colr import (
+    Colr,
+    hex2rgb,
     name_data,
     InvalidColr,
     InvalidStyle,
@@ -23,8 +25,12 @@ from colr import (
 )
 from colr.__main__ import (
     __version__,
+    get_colr,
     main
 )
+
+from .testing_tools import ColrTestCase
+
 r = random.SystemRandom()
 
 print('Testing Colr Tool v. {}'.format(__version__))
@@ -33,7 +39,7 @@ print('Testing Colr Tool v. {}'.format(__version__))
 name_data_names = list(name_data)
 
 
-class ColrToolTests(unittest.TestCase):
+class ColrToolTests(ColrTestCase):
     def setUp(self):
         # Default argd, when no flags are given.
         self.argd = {
@@ -213,7 +219,37 @@ class ColrToolTests(unittest.TestCase):
                 0,
                 self.run_main_test(argd, should_fail=False)
             )
+
+        # Without -T, close matches should be used.
+        argd = {'TEXT': 'Hello World', '--truecolor': False}
+        hexvals = {
+            '010203': '#000000',
+            '040506': '#000000',
+        }
+        for hexval, closematch in hexvals.items():
+            argd['FORE'] = hexval
+            self.assertEqual(
+                get_colr(argd['TEXT'], self.make_argd(argd)),
+                Colr(argd['TEXT'], closematch),
+                msg='Hex value close match failed without --truecolor.',
+            )
+        # With -T, rgb mode should be used.
+        argd = {'TEXT': 'Hello World', '--truecolor': True}
+        hexvals = (
+            '010203',
+            '040506',
+        )
+        for hexval in hexvals:
+            argd['FORE'] = hexval
+            self.assertEqual(
+                get_colr(argd['TEXT'], self.make_argd(argd)),
+                Colr(argd['TEXT'], hex2rgb(argd['FORE'])),
+                msg='Hex value failed with --truecolor.',
+            )
         # Invalid color values should raise a InvalidColr.
+        argd['--truecolor'] = False
+
+        argd = {'TEXT': 'Hello World'}
         badargsets = (
             {'FORE': 'ffooll', 'BACK': r.choice(self.valid_hex_vals)},
             {'BACK': 'oopsie', 'FORE': r.choice(self.valid_hex_vals)},
