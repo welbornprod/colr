@@ -223,8 +223,8 @@ class ColrToolTests(ColrTestCase):
         # Without -T, close matches should be used.
         argd = {'TEXT': 'Hello World', '--truecolor': False}
         hexvals = {
-            '010203': '#000000',
-            '040506': '#000000',
+            '010203': '000000',
+            '040506': '000000',
         }
         for hexval, closematch in hexvals.items():
             argd['FORE'] = hexval
