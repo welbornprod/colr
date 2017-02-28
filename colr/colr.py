@@ -52,7 +52,11 @@ from typing import (  # noqa
 )
 from typing.io import IO
 
-from .trans import hex2term, ColorCode
+from .trans import (
+    ColorCode,
+    hex2rgb,
+    hex2term,
+)
 from .name_data import names as name_data
 
 # Types for the type checker.
@@ -287,9 +291,10 @@ def _format_code(
         try:
             n = int(cast(int, number))
         except ValueError:
+            # Not an rgb code, or a valid code number.
             raise InvalidColr(
                 number,
-                'Expecting 0-255 for {} code.'.format(codetype)
+                'Expecting RGB or 0-255 for {} code.'.format(codetype)
             )
         if light:
             if not in_range(n, 0, 9):
@@ -602,8 +607,12 @@ def parse_colr_arg(s: str, default: Optional[Any]=None) -> ColorArg:
                 # A known named color.
                 return val
 
-            # Not a basic/extended/known name.
-            raise InvalidColr(val)
+            # Not a basic/extended/known name, try as hex.
+            try:
+                rgb = hex2rgb(val, allow_short=True)
+            except ValueError:
+                raise InvalidColr(val)
+            return rgb
         else:
             # Got rgb. Do some validation.
             if not all((in_range(x, 0, 255) for x in (r, g, b))):
@@ -613,6 +622,14 @@ def parse_colr_arg(s: str, default: Optional[Any]=None) -> ColorArg:
     else:
         # Int value.
         if not in_range(intval, 0, 255):
+            # May have been a hex value confused as an int.
+            if len(val) in (3, 6):
+                try:
+                    rgb = hex2rgb(val, allow_short=True)
+                except ValueError:
+                    raise InvalidColr(val)
+                else:
+                    return rgb
             raise InvalidColr(intval)
         # Valid int value.
         return intval
@@ -1356,6 +1373,29 @@ class Colr(object):
             **colorkwargs
         )
 
+    def b_hex(self, value, text=None, fore=None, style=None, rgb_mode=False):
+        """ A chained method that sets the back color to an hex value.
+            Arguments:
+                value    : Hex value to convert.
+                text     : Text to style if not building up color codes.
+                fore     : Fore color for the text.
+                style    : Style for the text.
+                rgb_mode : If False, the closest extended code is used,
+                           otherwise true color (rgb) mode is used.
+
+        """
+        if rgb_mode:
+            try:
+                colrval = hex2rgb(value, allow_short=True)
+            except ValueError:
+                raise InvalidColr(value)
+        else:
+            try:
+                colrval = hex2term(value, allow_short=True)
+            except ValueError:
+                raise InvalidColr(value)
+        return self.chained(text=text, fore=fore, back=colrval, style=style)
+
     def b_rgb(self, r, g, b, text=None, fore=None, style=None):
         """ A chained method that sets the back color to an RGB value.
             Arguments:
@@ -1485,6 +1525,11 @@ class Colr(object):
                     codetype
                 )
             )
+        # Try as hex.
+        with suppress(ValueError):
+            value = int(hex2term(value, allow_short=True))
+            return converter(value, extended=True)
+
         named_data = name_data.get(valuefmt, None)
         if named_data is not None:
             # A known named color.
@@ -1498,15 +1543,17 @@ class Colr(object):
         # Not a known color name/value, try rgb.
         try:
             r, g, b = (int(x) for x in value)
-            # This does not mean we have 3 ints. It could 'abc'.
+            # This does not mean we have a 3 int tuple. It could '111'.
             # The converter should catch it though.
         except (TypeError, ValueError):
             # Not an rgb value.
             if codetype == 'style':
                 raise InvalidStyle(value)
-            raise InvalidColr(value)
-
-        return converter(value)
+        try:
+            escapecode = converter(value)
+        except ValueError as ex:
+            raise InvalidColr(value) from ex
+        return escapecode
 
     def gradient(
             self, text=None, name=None, fore=None, back=None, style=None,
@@ -1715,6 +1762,29 @@ class Colr(object):
             )
         )
 
+    def hex(self, value, text=None, back=None, style=None, rgb_mode=False):
+        """ A chained method that sets the fore color to an hex value.
+            Arguments:
+                value    : Hex value to convert.
+                text     : Text to style if not building up color codes.
+                back     : Back color for the text.
+                style    : Style for the text.
+                rgb_mode : If False, the closest extended code is used,
+                           otherwise true color (rgb) mode is used.
+
+        """
+        if rgb_mode:
+            try:
+                colrval = hex2rgb(value, allow_short=True)
+            except ValueError:
+                raise InvalidColr(value)
+        else:
+            try:
+                colrval = hex2term(value, allow_short=True)
+            except ValueError:
+                raise InvalidColr(value)
+        return self.chained(text=text, fore=colrval, back=back, style=style)
+
     def join(self, *colrs, **colorkwargs):
         """ Like str.join, except it returns a Colr.
             Arguments:
@@ -1906,9 +1976,10 @@ class InvalidColr(InvalidArg):
         types=',\n    '.join(
             '{lbl} ({val})'.format(lbl=l, val=v)
             for l, v in (
+                ('hex', '[#]rgb/[#]rrggbb'),
                 ('name', 'white/black/etc.'),
-                ('value', '0-255'),
                 ('rgb', '0-255, 0-255, 0-255'),
+                ('value', '0-255'),
             )
         )
     )
@@ -1932,9 +2003,10 @@ class InvalidColr(InvalidArg):
                         val=Colr(v, **type_val_args),
                     )
                     for l, v in (
+                        ('hex', '[#]rgb/[#]rrggbb'),
                         ('name', 'white/black/etc.'),
-                        ('value', '0-255'),
                         ('rgb', '0-255, 0-255, 0-255'),
+                        ('value', '0-255'),
                     )
                 )
             ),

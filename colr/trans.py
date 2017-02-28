@@ -297,7 +297,13 @@ term2hex_map = {
 }
 
 # Create a map from hex to escape codes.
-hex2term_map = {v: k for k, v in term2hex_map.items()}
+# WARNING: This map must be sorted first, for consistency.
+# The term2hex_map contains duplicate values:
+#   000000 = 00, 16
+#   ffffff = 15, 231
+# Unsorted, hex2term_map could contain either value at runtime!
+# Sorting it means that the last duplicated value will always be used.
+hex2term_map = {term2hex_map[k]: k for k in sorted(term2hex_map)}
 
 
 def fix_hex(hexval: str) -> str:
@@ -321,7 +327,15 @@ def hex2rgb(hexval: str, allow_short: bool=False) -> Sequence[int]:
                 hexval
             )
         )
-    hexval = hexval.strip().lstrip('#')
+    try:
+        hexval = hexval.strip().lstrip('#')
+    except AttributeError:
+        raise ValueError(
+            'Expecting hex string (#RGB, #RRGGBB), got: ({}) {!r}'.format(
+                type(hexval).__name__,
+                hexval
+            )
+        )
     if allow_short:
         hexval = fix_hex(hexval)
     if not len(hexval) == 6:

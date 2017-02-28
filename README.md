@@ -108,6 +108,35 @@ from colr import Colr as C
 print(C().b_rgb(0, 0, 0).rgb(255, 0, 0, 'Hello there.'))
 ```
 
+## Examples (Hex):
+
+### Simple:
+
+```python
+from colr import color
+# When not using the Colr.hex method, the closest matching extended code
+# is used. For true color, just use:
+#     fore=hex2rgb('ff0000')
+# or
+#     Colr.hex('ff0000', rgb_mode=True)
+print(color('Hello there.', fore='ff0000', back='000'))
+```
+
+### Chainable:
+
+```python
+from colr import Colr as C
+# Foreground colors are set with the `hex()` method.
+# Background colors are set with the `b_hex()` method.
+# Text for the chained methods should be chained after or during
+# the call to the methods.
+print(C().b_hex('#000').hex('ff0000', 'Hello there.'))
+
+# With rgb_mode set, this is these are the same:
+print(C().hex('ff0000', 'test', rgb_mode=True))
+print(C().rgb(255, 0, 0, 'test'))
+```
+
 _______________________________________________________________________________
 
 
@@ -172,6 +201,21 @@ to not shift at all (the default is `None`).
 
 ```python
 C('This is pretty fancy.').gradient_rgb((0, 0, 255), (255, 0, 0), step=5)
+```
+
+### Colr.hex
+
+This will set the fore color using hex values. It accepts
+the same args as the other chained methods, except the hex value should be the
+first argument. With `rgb_mode=True`, the value is converted straight to
+a true color (rgb) code.
+
+```python
+# This will use true color (rgb) codes, equivalent to Colr.rgb(255, 55, 55).
+Colr().hex('ff3737', rgb_mode=True).bgwhite('Test')
+# Without `rgb_mode`, it finds the nearset extended terminal color.
+# This is equivalent to extended code 203, or rgb(255, 95, 95).
+Colr().hex('ff3737').bgwhite('Test')
 ```
 
 ### Colr.join
