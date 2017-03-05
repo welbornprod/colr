@@ -132,7 +132,7 @@ from colr import Colr as C
 # the call to the methods.
 print(C().b_hex('#000').hex('ff0000', 'Hello there.'))
 
-# With rgb_mode set, this is these are the same:
+# With rgb_mode set, these are the same:
 print(C().hex('ff0000', 'test', rgb_mode=True))
 print(C().rgb(255, 0, 0, 'test'))
 ```
