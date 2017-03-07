@@ -14,17 +14,25 @@ import sys
 from time import sleep
 from contextlib import suppress
 
+from .control_codes import (
+    EraseMethod,
+    cursor,
+    erase,
+    escape_sequence,
+    move,
+    position,
+    scroll,
+)
+
 
 def cursor_hide(file=sys.stdout):
     """ Hide the cursor. """
-    file.write('\033[?25l')
-    file.flush()
+    cursor.hide().write(file=file)
 
 
 def cursor_show(file=sys.stdout):
     """ Show the cursor. """
-    file.write('\033[?25h')
-    file.flush()
+    cursor.show().write(file=file)
 
 
 def ensure_tty(file=sys.stdout):
@@ -48,7 +56,7 @@ def ensure_tty(file=sys.stdout):
     return True
 
 
-def erase_display(method=2, file=sys.stdout):
+def erase_display(method=EraseMethod.ALL_MOVE, file=sys.stdout):
     """ Clear the screen or part of the screen, and possibly moves the cursor
         to the "home" position (0, 0). See `method` argument below.
 
@@ -56,31 +64,23 @@ def erase_display(method=2, file=sys.stdout):
 
         Arguments:
             method: One of these possible values:
-                        0 : Clear from cursor to the end of the screen.
-                        1 : Clear from cursor to the beginning of the screen.
-                        2 : Clear all, and move home.
-                        3 : Clear all, and erase scrollback buffer.
-                        4 : Like doing 2 and 3 in succession.
-                            This is a feature of Colr, and is not standard.
-                    Default: 2
+                        EraseMethod.END or 0:
+                            Clear from cursor to the end of the screen.
+                        EraseMethod.START or 1:
+                            Clear from cursor to the start of the screen.
+                        EraseMethod.ALL_MOVE or 2:
+                            Clear all, and move home.
+                        EraseMethod.ALL_ERASE or 3:
+                            Clear all, and erase scrollback buffer.
+                        EraseMethod.ALL_MOVE_ERASE or 4:
+                            Like doing 2 and 3 in succession.
+                            This is a feature of Colr. It is not standard.
+                    Default: EraseMethod.ALL_MOVE (2)
     """
-    accepted_methods = ('0', '1', '2', '3', '4')
-    methodstr = str(method)
-    if methodstr not in accepted_methods:
-        raise ValueError('Invalid method, expected {}. Got: {!r}'.format(
-            ', '.join(accepted_methods),
-            method,
-        ))
-    if methodstr == '4':
-        methods = (2, 3)
-    else:
-        methods = (method, )
-    for m in methods:
-        file.write('\033[{}J'.format(m))
-        file.flush()
+    erase.display(method).write(file=file)
 
 
-def erase_line(method=2, file=sys.stdout):
+def erase_line(method=EraseMethod.ALL, file=sys.stdout):
     """ Erase a line, or part of a line. See `method` argument below.
         Cursor position does not change.
 
@@ -88,19 +88,15 @@ def erase_line(method=2, file=sys.stdout):
 
         Arguments:
             method : One of these possible values:
-                        0 : Clear from cursor to the end of the line.
-                        1 : Clear from cursor to the beginning of the line.
-                        2 : Clear the entire line.
-                     Default: 2
+                        EraseMethod.END or 0:
+                            Clear from cursor to the end of the line.
+                        EraseMethod.START or 1:
+                            Clear from cursor to the start of the line.
+                        EraseMethod.ALL or 2:
+                            Clear the entire line.
+                     Default: EraseMethod.ALL (2)
     """
-    methods = ('0', '1', '2')
-    if str(method) not in methods:
-        raise ValueError('Invalid method, expected {}. Got: {!r}'.format(
-            ', '.join(methods),
-            method,
-        ))
-    file.write('\033[{}K'.format(method))
-    file.flush()
+    erase.line(method).write(file=file)
 
 
 def move_back(columns=1, file=sys.stdout):
@@ -111,8 +107,7 @@ def move_back(columns=1, file=sys.stdout):
         changing lines. If the cursor is already in the leftmost column,
         ANSI.SYS ignores this sequence.
     """
-    file.write('\033[{}D'.format(columns))
-    file.flush()
+    move.back(columns).write(file=file)
 
 
 def move_column(column=1, file=sys.stdout):
@@ -120,8 +115,7 @@ def move_column(column=1, file=sys.stdout):
 
         Esc[<column>G
     """
-    file.write('\033[{}G'.format(column))
-    file.flush()
+    move.column(column).write(file=file)
 
 
 def move_down(lines=1, file=sys.stdout):
@@ -132,8 +126,7 @@ def move_down(lines=1, file=sys.stdout):
         changing columns. If the cursor is already on the bottom line,
         ANSI.SYS ignores this sequence.
     """
-    file.write('\033[{}B'.format(lines))
-    file.flush()
+    move.down(lines).write(file=file)
 
 
 def move_forward(columns=1, file=sys.stdout):
@@ -144,8 +137,7 @@ def move_forward(columns=1, file=sys.stdout):
         changing lines. If the cursor is already in the rightmost column,
         ANSI.SYS ignores this sequence.
     """
-    file.write('\033[{}C'.format(columns))
-    file.flush()
+    move.forward(columns).write(file=file)
 
 
 def move_next(lines=1, file=sys.stdout):
@@ -154,8 +146,7 @@ def move_next(lines=1, file=sys.stdout):
 
         Esc[<lines>E
     """
-    file.write('\033[{}E'.format(lines))
-    file.flush()
+    move.next(lines).write(file=file)
 
 
 def move_pos(line=1, column=1, file=sys.stdout):
@@ -166,8 +157,7 @@ def move_pos(line=1, column=1, file=sys.stdout):
         or
         Esc[<line>;<column>f
     """
-    file.write('\033[{line};{col}H'.format(line=line, col=column))
-    file.flush()
+    move.pos(line=line, col=column).write(file=file)
 
 
 def move_prev(lines=1, file=sys.stdout):
@@ -176,16 +166,17 @@ def move_prev(lines=1, file=sys.stdout):
 
         Esc[<lines>F
     """
-    file.write('\033[{}F'.format(lines))
-    file.flush()
+    move.prev(lines).write(file=file)
 
 
 def move_return(file=sys.stdout):
     """ Move the cursor to the beginning of the line, using \r.
         This should act just like `move_column(1)`.
     """
-    file.write('\r')
-    file.flush()
+    move.carriage_return().write(file=file)
+
+
+move_carriage_return = move_ret = move_return
 
 
 def move_up(lines=1, file=sys.stdout):
@@ -196,8 +187,7 @@ def move_up(lines=1, file=sys.stdout):
         columns. If the cursor is already on the top line, ANSI.SYS ignores
         this sequence.
     """
-    file.write('\033[{}A'.format(lines))
-    file.flush()
+    move.up(lines).write(file=file)
 
 
 def pos_restore(file=sys.stdout):
@@ -207,8 +197,7 @@ def pos_restore(file=sys.stdout):
         Returns the cursor to the position stored by the
         'save cursor position' sequence (`pos_restore()`).
     """
-    file.write('\033[u')
-    file.flush()
+    position.restore().write(file=file)
 
 
 def pos_save(file=sys.stdout):
@@ -219,8 +208,7 @@ def pos_save(file=sys.stdout):
         saved cursor position by using the 'restore cursor position' sequence
         (`pos_restore()`).
     """
-    file.write('\033[s')
-    file.flush()
+    position.save().write(file=file)
 
 
 # Alias for move_pos, since both deal with moving/positions.
@@ -300,7 +288,7 @@ def scroll_down(lines=1, file=sys.stdout):
 
         Esc[<lines>T
     """
-    file.write('\033[{}T'.format(lines))
+    scroll.down(lines).write(file=file)
 
 
 def scroll_up(lines=1, file=sys.stdout):
@@ -309,169 +297,316 @@ def scroll_up(lines=1, file=sys.stdout):
 
         Esc[<lines>S
     """
-    file.write('\033[{}S'.format(lines))
+    scroll.up(lines).write(file=file)
 
 
-def _example(delay=0.05):
-    """ This is a test of the print_* functions. """
-    from random import randint
-    print(C(
-        'This file is not meant to be executed from the command line.\n',
-        'red'
-    ))
-    sleep(0.5)
-    # This is just a rough estimate, based on my machine.
-    multiplier = 440
-    print(
-        C(
-            'This will probably take about {:0.0f} seconds.\n'.format(
-                delay * multiplier
+class Control(object):
+    """ Like Colr, but for control codes. It allows method chaining to build
+        up control sequences.
+    """
+    def __init__(self, data=None):
+        """ Initialize a new Control str. """
+        self.data = str(data or '')
+
+    def __add__(self, other):
+        """ Allow the old string concat methods through addition. """
+        if hasattr(other, 'data') and isinstance(other.data, str):
+            return self.__class__(''.join(self.data, other.data))
+        elif isinstance(other, str):
+            return self.__class__(''.join((self.data, other)))
+        raise TypeError(
+            'Colr cannot be added to non Colr, Control, or str: {}'.format(
+                getattr(other, '__name__', type(other).__name__)
             )
-        ).rainbow()
-    )
-    sleep(0.5)
-    print_overwrite(
-        '...but you get to see some text animations.',
-        delay=delay,
-    )
-    print(C('\nI\'m just gonna put this: ', 'cyan'), end='')
-    for val in (C('here', 'red'), C('there', 'green'), C('nowhere', 'blue')):
-        sleep(delay)
-        print_inplace(val, delay=delay)
-
-    move_column(1)
-    for col in range(len('I\'m just gonna put this: nowhere')):
-        print_flush(C('X', randint(0, 255)), end='')
-        sleep(delay)
-    erase_line()
-    print('\nFinished with print functions.\n')
-
-
-def _example2(delay=0.05):
-    """ This is a rough test of the scroll_* functions. """
-    linedelay = delay * 6
-    height = 6
-    height_dbl = height * 2
-    start_colr = 255 - height_dbl
-    for i in range(height):
-        print_flush(
-            C('Scrolled to {} lines.'.format((i * 2) + 1), start_colr + i),
-            end='',
         )
-        scroll_up(2)
-        move_column(1)
-        sleep(linedelay)
-    sleep(0.5)
-    for _ in range(height_dbl):
-        # Scroll down to start writing again.
-        scroll_down()
-    for i in range(height_dbl):
-        print_flush(
-            C('Scrolled down, overwriting {}.'.format(i + 1), start_colr + i)
+
+    def __bool__(self):
+        """ A Control is truthy if it has some .data. """
+        return bool(self.data)
+
+    def __bytes__(self):
+        """ A Control's bytes() value is just str(self.data).encode().
+            For other encodings, you can use self.data.encode('ascii') or
+            whatever encoding you want to use.
+        """
+        return str(self.data or '').encode()
+
+    def __eq__(self, other):
+        """ Controls are equal if their .data is the same. """
+        return isinstance(other, self.__class__) and other.data == self.data
+
+    def __format__(self, fmt):
+        """ Allow format specs to  apply to self.data """
+        # Fallback to plain str modifier.
+        return str(self).__format__(fmt)
+
+    def __getitem__(self, key):
+        """ Allow subscripting self.data.
+            Returns another Control instance.
+        """
+        return self.__class__(self.data[key])
+
+    def __hash__(self):
+        """ A Colr's hash value is based on self.data. """
+        return hash(str(self.data or ''))
+
+    def __len__(self):
+        """ Return len() for any built up string data. This will count color
+            codes, so it's not that useful.
+        """
+        return len(self.data)
+
+    def __lt__(self, other):
+        """ Colr is less another color if self.data < other.data.
+            Colr cannot be compared to any other type.
+        """
+        if not isinstance(other, self.__class__):
+            raise TypeError('Cannot compare. Expected: {}, got: {}.'.format(
+                self.__class__.__name__,
+                getattr(other, '__name__', type(other).__name__)))
+        return self.data < other.data
+
+    def __mul__(self, n):
+        """ Allow the same multiplication operator as str,
+            except return a Colr.
+        """
+        if not isinstance(n, int):
+            raise TypeError(
+                'Cannot multiply Control by non-int type: {}'.format(
+                    getattr(n, '__name__', type(n).__name__)
+                )
+            )
+
+        return self.__class__(self.data * n)
+
+    def __radd__(self, other):
+        """ Allow a Colr to be added to a str. """
+        if hasattr(other, 'data') and isinstance(other.data, str):
+            return self.__class__(''.join((other.data, self.data)))
+        elif isinstance(other, str):
+            return self.__class__(''.join((other, self.data)))
+
+        raise TypeError(
+            'Colr cannot be added to non Colr, Control, or str: {}'.format(
+                getattr(other, '__name__', type(other).__name__)
+            )
         )
-        sleep(linedelay)
 
-    print('\nFinished with scroll functions.\n')
+    def __rmul__(self, n):
+        return self * n
+
+    def __repr__(self):
+        return repr(self.data)
+
+    def __str__(self):
+        return self.data
+
+    def chained(self, data):
+        """ Called by the various Control methods to build a single string
+
+            Arguments:
+                data  : str data to add to this Control.
+        """
+        self.data = ''.join((
+            self.data,
+            str(data),
+        ))
+        return self
+
+    def cursor_hide(self):
+        """ Hide the cursor. """
+        return self.chained(cursor.hide())
+
+    def cursor_show(self):
+        """ Show the cursor. """
+        return self.chained(cursor.show())
+
+    def delay(self, seconds):
+        """ `time.sleep(seconds)`, and return self. """
+        sleep(seconds)
+        return self
+
+    def erase_display(self, method=EraseMethod.ALL_MOVE):
+        """ Clear the screen or part of the screen.
+            Arguments:
+                method: One of these possible values:
+                            EraseMethod.END or 0:
+                                Clear from cursor to the end of the screen.
+                            EraseMethod.START or 1:
+                                Clear from cursor to the start of the screen.
+                            EraseMethod.ALL_MOVE or 2:
+                                Clear all, and move home.
+                            EraseMethod.ALL_ERASE or 3:
+                                Clear all, and erase scrollback buffer.
+                            EraseMethod.ALL_MOVE_ERASE or 4:
+                                Like doing 2 and 3 in succession.
+                                This is a feature of Colr. It is not standard.
+                        Default: EraseMethod.ALL_MOVE (2)
+        """
+        return self.chained(erase.display(method))
+
+    def erase_line(self, method=EraseMethod.ALL):
+        """ Erase a line, or part of a line.
+            Arguments:
+                method : One of these possible values:
+                            EraseMethod.END or 0:
+                                Clear from cursor to the end of the line.
+                            EraseMethod.START or 1:
+                                Clear from cursor to the start of the line.
+                            EraseMethod.ALL or 2:
+                                Clear the entire line.
+                         Default: EraseMethod.ALL (2)
+        """
+        return self.chained(erase.line(method=method))
+
+    def last_code(self):
+        """ Return the last escape code in `self.data`.
+            If no escape codes are found, '' is returned.
+        """
+        codes = self.data.split(escape_sequence)
+        if not codes:
+            return ''
+        return ''.join((escape_sequence, codes[-1]))
+
+    def move_back(self, columns=1):
+        """ Move the cursor back a number of columns.
+            Default: 1
+        """
+        return self.chained(move.back(columns))
+
+    def move_carriage_return(self):
+        """ Move the cursor to the beginning of the line, using \\r.
+            This is the same as `self.move_column(1)`.
+        """
+        return self.chained(move.carriage_return())
+
+    def move_column(self, column=1):
+        """ Move the cursor to a specific column.
+            Default: 1
+        """
+        return self.chained(move.column(column))
+
+    def move_down(self, lines=1):
+        """ Move the cursor down a number of lines.
+            Default: 1
+        """
+        return self.chained(move.down(lines))
+
+    def move_forward(self, columns=1):
+        """ Move the cursor forward a number of columns.
+            Default: 1
+        """
+        return self.chained(move.forward(columns))
+
+    def move_next(self, lines=1):
+        """ Move the cursor to the beginning of the line, a number of lines
+            down.
+            Default: 1
+        """
+        return self.chained(move.next(lines))
+
+    def move_pos(self, line=1, column=1):
+        """ Move the cursor to a new position.
+            Default: line 1, column 1
+        """
+        return self.chained(move.pos(line=line, column=column))
+
+    def move_prev(self, lines=1):
+        """ Move the cursor to the beginning of the line, a number of lines
+            up.
+            Default: 1
+        """
+        return self.chained(move.prev(lines))
+
+    def move_up(self, lines=1):
+        """ Move the cursor up a number of lines.
+            Default: 1
+        """
+        return self.chained(move.up(lines))
+
+    def pos_restore(self):
+        """ Restore the cursor position saved with `self.pos_save()`.
+        """
+        return self.chained(position.restore())
+
+    def pos_save(self):
+        """ Save current cursor position. Can be restored with
+            `self.pos_restore()`.
+        """
+        return self.chained(position.save())
+
+    def repeat(self, count=1):
+        """ Repeat the last control code a number of times.
+            Returns a new Control with this one's data and the repeated code.
+        """
+        try:
+            return self.__class__(''.join((
+                str(self),
+                self.last_code() * count,
+            )))
+        except TypeError as ex:
+            raise TypeError(
+                '`count` must be an integer. Got: {!r}'.format(count)
+            ) from ex
+
+    def repeat_all(self, count=1):
+        """ Repeat this entire Control code a number of times.
+            Returns a new Control with this one's data repeated.
+        """
+        try:
+            return self.__class__(''.join(str(self) * count))
+        except TypeError as ex:
+            raise TypeError(
+                '`count` must be an integer. Got: {!r}'.format(count)
+            )
+
+    def scroll_down(self, lines=1):
+        """ Scroll the whole page down a number of lines, new lines are added
+            to the top.
+        """
+        return self.chained(scroll.down(lines))
+
+    def scroll_up(self, lines=1):
+        """ Scroll the whole page up a number of lines, new lines are added
+            to the bottom.
+        """
+        return self.chained(scroll.up(lines))
+
+    def text(self, text):
+        """ Add some text to this Control sequence. """
+        return self.chained(text)
+
+    def write(self, file=sys.stdout, end='', delay=None):
+        """ Write this control code str to a file, clear self.data, and
+            return self.
+            Default: sys.stdout
+        """
+        if delay is None:
+            file.write(str(self))
+        else:
+            for c in str(self):
+                file.write(c)
+                file.flush()
+                sleep(delay)
+        if end:
+            file.write(end)
+        file.flush()
+        self.data = ''
+        return self
 
 
-def _example3(delay=0.025):
-    """ This is a rough test of the move_* functions. """
-    width = 48
-    height = 24
-    # Draw a block of Xs.
-    print_flush(C('\n'.join(('X' * width) for _ in range(height))).rainbow())
-    move_up(height)
-    width_half = width // 2
-
-    # Draw a line down the middle.
-    move_column(width_half)
-    for _ in range(height - 1):
-        print_flush(C('|', 'blue'), end='')
-        sleep(delay)
-        move_back(1)
-        move_down()
-
-    # Draw a line at the top left half.
-    move_up(height - 1)
-    move_column(1)
-    for _ in range(width_half):
-        print_flush(C('-', 'blue'), end='')
-        sleep(delay)
-    # Draw a line at the bottom right half.
-    move_down(height - 1)
-    move_back(1)
-    for _ in range(width_half + 1):
-        print_flush(C('-', 'blue'), end='')
-        sleep(delay)
-
-    # Erase the right half.
-    move_column(width_half + 1)
-    erase_line(0)
-    for _ in range(height - 1):
-        move_up()
-        erase_line(0)
-        sleep(delay)
-
-    # Erase the left half.
-    move_column(width_half - 1)
-    erase_line(1)
-    for _ in range(height - 1):
-        move_down()
-        erase_line(1)
-        sleep(delay)
-
-    # Widen the "stick".
-    start_colr = 255 - width_half
-    for colrval in range(start_colr + width_half, start_colr, -1):
-        move_up(height - 1)
-        move_column(width + (start_colr - colrval))
-        print_flush(C('-', colrval), end='')
-        for _ in range(height - 2):
-            move_down()
-            move_back()
-            print_flush(C('|', colrval), end='')
-        move_down()
-        move_back()
-        print_flush(C('-', colrval), end='')
-        sleep(delay)
-
-    # Shrink the "sticks".
-    move_up(height - 1)
-    chardelay = delay / 3
-    for _ in range(height // 2):
-        move_column(width)
-        for _ in range(width_half + 2):
-            erase_line(0)
-            move_back()
-            sleep(chardelay)
-        move_down()
-        move_column(width_half)
-        for _ in range(width_half):
-            print_flush(' ', end='')
-            sleep(chardelay)
-        move_down()
-
-    # Move to the end.
-    move_down(height + 1)
-    move_column(width)
-    print('\nFinished with move functions.\n')
+# Alias for move_pos, because they both deal with cursor positions.
+Control.pos_set = Control.move_pos
 
 
 if __name__ == '__main__':
-    import os
-    sys.path.insert(0, os.path.abspath('../'))
-    from colr import Colr as C
-    delay = 0.05
-    cursor_hide()
-    try:
-        _example(delay=delay)
-        _example2(delay=delay)
-        _example3(delay=delay / 2)
-        cursor_show()
-        msg = 'Erase the terminal contents/scrollback? (y/N): '
-        if input(msg).lower().strip().startswith('y'):
-            erase_display(4)
-    except KeyboardInterrupt:
-        print('\nUser cancelled.\n', file=sys.stderr)
-    finally:
-        cursor_show()
+    print(
+        '\n'.join((
+            'This file is not meant to run from the command line.',
+            'If you\'ve cloned the repo you can run:',
+            '    ./test/run_controls.py',
+            'It will show some example for Colr.controls.',
+        )),
+        file=sys.stderr
+    )
+    sys.exit(1)

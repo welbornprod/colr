@@ -689,13 +689,12 @@ class Colr(object):
 
     def __add__(self, other: 'Colr') -> 'Colr':
         """ Allow the old string concat methods through addition. """
-        if isinstance(other, self.__class__):
-            return self.__class__(''.join((self.data, other.data)))
+        if hasattr(other, 'data') and isinstance(other.data, str):
+            return self.__class__(''.join(self.data, other.data))
         elif isinstance(other, str):
             return self.__class__(''.join((self.data, other)))
-
         raise TypeError(
-            'Colr cannot be added to non Colr/str type: {}'.format(
+            'Colr cannot be added to non Colr, Control, or str: {}'.format(
                 getattr(other, '__name__', type(other).__name__)
             )
         )
@@ -845,13 +844,13 @@ class Colr(object):
 
     def __radd__(self, other):
         """ Allow a Colr to be added to a str. """
-        if isinstance(other, self.__class__):
+        if hasattr(other, 'data') and isinstance(other.data, str):
             return self.__class__(''.join((other.data, self.data)))
         elif isinstance(other, str):
             return self.__class__(''.join((other, self.data)))
 
         raise TypeError(
-            'Colr cannot be added to non Colr/str type: {}'.format(
+            'Colr cannot be added to non Colr, Control, or str: {}'.format(
                 getattr(other, '__name__', type(other).__name__)
             )
         )
