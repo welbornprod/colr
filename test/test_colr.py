@@ -30,6 +30,7 @@ from colr import (
     term2rgb,
     strip_codes,
 )
+from colr.controls import Control
 from colr.trans import (
     is_code,
     is_ext_code,
@@ -72,6 +73,39 @@ class ColrTests(ColrTestCase):
     def has_closing_code(self, clr):
         """ Return True if a Colr() ends with a closing code. """
         return str(clr).endswith(closing_code)
+
+    def test_add(self):
+        """ Colrs should be added to each other, Controls, or strs. """
+        types = {
+            'Colr': Colr('Test', 'red'),
+            'Control': Control().move_down(1),
+            'str': 'testing',
+        }
+        for othername, other in types.items():
+            clr = Colr('Testing', 'blue')
+            try:
+                newclr = clr + other
+            except TypeError as ex:
+                self.fail(
+                    'Colr + {} should not raise a TypeError.'.format(
+                        othername
+                    ))
+            else:
+
+                self.assertIsInstance(
+                    newclr,
+                    Colr,
+                    msg=(
+                        'Adding {} to a Colr did not return a Colr.'
+                    ).format(othername)
+                )
+                clr_str_result = ''.join((str(clr), str(other)))
+                s = str(newclr)
+                self.assertEqual(
+                    clr_str_result,
+                    s,
+                    msg='str(Colr()) did not match.'
+                )
 
     def test_bytes(self):
         """ bytes(Colr()) should encode self.data. """
@@ -357,15 +391,21 @@ class ColrTests(ColrTestCase):
     def test_hash(self):
         """ hash(Colr()) should return a unique hash for self.data. """
         a, b = hash(Colr('test', 'red')), hash(Colr('test', 'red'))
-        self.assertEqual(
+        self.assertCallEqual(
             a,
             b,
+            func=hash,
+            args=(a, ),
+            otherargs=(b, ),
             msg='Mismatched hash values.',
         )
-        a, b = hash(Colr('test', 'red')), hash(Colr('test', 'blue'))
-        self.assertNotEqual(
+        b = hash(Colr('test', 'blue'))
+        self.assertCallNotEqual(
             a,
             b,
+            func=hash,
+            args=(a, ),
+            otherargs=(b, ),
             msg='Hash values should not match.',
         )
 
@@ -684,9 +724,9 @@ class ColrTests(ColrTestCase):
 
 
 # # These are failing tests, to check the format for ColrTestCase messages.
-# class FailingTests(ColrTestCase):
-#     def test_fail_eq(self):
-#         """ Non-equal failures should print a pretty message. """
+class FailingTests(ColrTestCase):
+    def test_fail_eq(self):
+        """ Non-equal failures should print a pretty message. """
         # self.assertEqual(1, 2, msg='Nope, not equal.')
         # self.assertNotEqual(1, 1, msg='Oops, they are equal')
         # self.assertCallEqual(
@@ -694,8 +734,20 @@ class ColrTests(ColrTestCase):
         #     2,
         #     func=str,
         #     args=[1],
+        #     otherargs=[2],
         #     kwargs={'testing': True},
+        #     otherkwargs={'testing': True},
         #     msg='Nope, not equal.',
+        # )
+        # self.assertCallNotEqual(
+        #     1,
+        #     1,
+        #     func=str,
+        #     args=[1],
+        #     kwargs={'testing': True},
+        #     otherargs=[1],
+        #     otherkwargs={'testing': True},
+        #     msg='Oops, they are equal.',
         # )
         # self.assertCallTupleEqual(
         #     (1,),
@@ -703,6 +755,8 @@ class ColrTests(ColrTestCase):
         #     func=str,
         #     args=[1],
         #     kwargs={'testing': True},
+        #     otherargs=[2],
+        #     otherkwargs={'testing': True},
         #     msg='Nope, not equal.',
         # )
         # self.assertCallTrue(
@@ -721,7 +775,7 @@ class ColrTests(ColrTestCase):
         # )
         # with self.assertCallRaises(
         #         ValueError,
-        #         func=str,
+        #         func=None,#str,
         #         args=[1],
         #         kwargs={'testing': True},
         #         msg='Nope, did not raise.'):

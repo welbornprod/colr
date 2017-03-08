@@ -37,10 +37,54 @@ def call_msg(s: str, *args: Any, **kwargs: Mapping[Any, Any]):
     """ Return a message suitable for the `msg` arg in asserts,
         including the calling function name.
     """
+    stdmsg, _, msg = s.partition(':')
+    return '{funcsig}: {stdmsg}{msgdiv}{msg}'.format(
+        funcsig=format_call_str(*args, **kwargs),
+        stdmsg=Colr(stdmsg, 'red', style='bright'),
+        msgdiv=': ' if msg else '',
+        msg=Colr(msg, 'red'),
+    )
+
+
+def format_call_str(*args: Any, **kwargs: Mapping[Any, Any]):
+    """ Build a formatted string for a function signature. """
     use_func_name = None
     with suppress(KeyError):
         use_func = kwargs.pop('_call_func')
-        use_func_name = use_func.__qualname__
+        if use_func is not None:
+            use_func_name = use_func.__qualname__
+        else:
+            # Default level uses the caller of format_call_str.
+            kwargs.setdefault('_level', 3)
+
+    otherargs = None
+    otherkwargs = None
+    with suppress(KeyError):
+        otherargs = kwargs.pop('_other_args')
+    with suppress(KeyError):
+        otherkwargs = kwargs.pop('_other_kwargs')
+    op = 'and'
+    with suppress(KeyError):
+        userop = kwargs.pop('_op')
+        op = userop or op
+    funcsig = format_func_sig(use_func_name, *args, **kwargs)
+    if otherargs or otherkwargs:
+        otherargs = otherargs or []
+        otherkwargs = otherkwargs or {}
+        otherkwargs['_level'] = kwargs.get('_level', None)
+        funcsig = ' {} '.format(op).join((
+            funcsig,
+            format_func_sig(use_func_name, *otherargs, **otherkwargs)
+        ))
+    return funcsig
+
+
+def format_func_sig(name, *args, **kwargs):
+    """ Format a function signature.
+        Pass None for a name and use _level=<frames_backward> to use the
+        calling function.
+    """
+    # Default level uses the caller of format_func_sig.
     level = 2
     with suppress(KeyError):
         level = kwargs.pop('_level')
@@ -51,16 +95,13 @@ def call_msg(s: str, *args: Any, **kwargs: Mapping[Any, Any]):
         for k, v in kwargs.items()
     )
     argrepr = Colr(', ').join(s for s in (argstr, kwargstr) if s)
-    stdmsg, _, msg = s.partition(':')
-    return '{funcname}{args}: {stdmsg}: {msg}'.format(
+    return '{funcname}{args}'.format(
         funcname=Colr(
-            use_func_name or func_name(level=level),
+            name or func_name(level=level),
             'blue',
             style='bright'
         ),
         args=Colr(argrepr).join('(', ')', style='bright'),
-        stdmsg=Colr(stdmsg, 'red', style='bright'),
-        msg=Colr(msg, 'red'),
     )
 
 
@@ -81,6 +122,11 @@ def func_name(level: Optional[int]=1, parent: Optional[Callable]=None) -> str:
 
 @no_type_check
 class ColrAssertRaisesContext(_AssertRaisesContext):
+    # This is how many frames it takes to get back to the test method
+    # that calls the assert method that uses this context.
+    # It's for getting the calling test name when building messages.
+    calling_test_level = 6
+
     def __init__(
             self, expected, test_case, expected_regex=None,
             func=None, args=None, kwargs=None):
@@ -96,15 +142,22 @@ class ColrAssertRaisesContext(_AssertRaisesContext):
                 *self.args,
                 **self.kwargs,
                 _call_func=self.func,
-                _level=4,
+                _level=self.calling_test_level,
             )
         )
 
 
 @no_type_check
 class ColrTestCase(unittest.TestCase):
+    # This is how many frames it takes to get back to the test method
+    # that calls these assert methods.
+    # It's for getting the calling test name when building messages.
+    calling_test_level = 5
+
     def assertCallEqual(
-            self, a, b, func=None, args=None, kwargs=None, msg=None):
+            self, a, b, func=None,
+            args=None, kwargs=None,
+            otherargs=None, otherkwargs=None, msg=None):
         """ Like self.assertEqual, but includes the func call info. """
         if a == b:
             return None
@@ -117,7 +170,10 @@ class ColrTestCase(unittest.TestCase):
                 *callargs,
                 **callkwargs,
                 _call_func=func,
-                _level=3,
+                _level=self.calling_test_level,
+                _other_args=otherargs,
+                _other_kwargs=otherkwargs,
+                _op='!=',
             )
         )
 
@@ -134,7 +190,31 @@ class ColrTestCase(unittest.TestCase):
                 *callargs,
                 **callkwargs,
                 _call_func=func,
-                _level=3,
+                _level=self.calling_test_level,
+                _op='!=',
+            )
+        )
+
+    def assertCallNotEqual(
+            self, a, b, func=None,
+            args=None, kwargs=None,
+            otherargs=None, otherkwargs=None, msg=None):
+        """ Like self.assertNotEqual, but includes the func call info. """
+        if a != b:
+            return None
+
+        callargs = args or []
+        callkwargs = kwargs or {}
+        raise self.failureException(
+            call_msg(
+                _equality_msg('==', a, b, msg=msg),
+                *callargs,
+                **callkwargs,
+                _call_func=func,
+                _level=self.calling_test_level,
+                _other_args=otherargs,
+                _other_kwargs=otherkwargs,
+                _op='==',
             )
         )
 
@@ -151,7 +231,8 @@ class ColrTestCase(unittest.TestCase):
                 *callargs,
                 **callkwargs,
                 _call_func=func,
-                _level=3,
+                _level=self.calling_test_level,
+                _op='!=',
             )
         )
 
@@ -168,7 +249,9 @@ class ColrTestCase(unittest.TestCase):
         return context.handle('assertCallRaises', [], {'msg': msg})
 
     def assertCallTupleEqual(
-            self, a, b, func=None, args=None, kwargs=None, msg=None):
+            self, a, b, func=None,
+            args=None, kwargs=None,
+            otherargs=None, otherkwargs=None, msg=None):
         try:
             super().assertTupleEqual(a, b, msg=msg)
         except self.failureException as ex:
@@ -180,8 +263,11 @@ class ColrTestCase(unittest.TestCase):
                     _equality_msg('!=', a, b, msg=stdmsg),
                     *callargs,
                     **callkwargs,
+                    _other_args=otherargs,
+                    _other_kwargs=otherkwargs,
                     _call_func=func,
-                    level=3,
+                    _level=3,
+                    _op='!=',
                 )
             )
 
