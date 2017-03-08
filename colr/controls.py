@@ -311,7 +311,7 @@ class Control(object):
     def __add__(self, other):
         """ Allow the old string concat methods through addition. """
         if hasattr(other, 'data') and isinstance(other.data, str):
-            return self.__class__(''.join(self.data, other.data))
+            return self.__class__(''.join((self.data, other.data)))
         elif isinstance(other, str):
             return self.__class__(''.join((self.data, other)))
         raise TypeError(
@@ -535,14 +535,18 @@ class Control(object):
         """
         return self.chained(position.save())
 
-    def repeat(self, count=1):
+    def repeat(self, count=2):
         """ Repeat the last control code a number of times.
             Returns a new Control with this one's data and the repeated code.
         """
+        # Subtracting one from the count means the code mentioned is
+        # truly repeated exactly `count` times.
+        # Control().move_up().repeat(3) ==
+        # Control().move_up().move_up().move_up()
         try:
             return self.__class__(''.join((
                 str(self),
-                self.last_code() * count,
+                self.last_code() * (count - 1),
             )))
         except TypeError as ex:
             raise TypeError(

@@ -218,7 +218,7 @@ def run_scroll(delay=0.05):
         ).scroll_up(2).move_column(1).write()
         sleep(linedelay)
     sleep(0.5)
-    Control().scroll_down(1).repeat(height_dbl - 1).write()
+    Control().scroll_down(1).repeat(height_dbl).write()
     for i in range(height_dbl):
         Control(
             C('Scrolled down, overwriting {}.'.format(i + 1), start_colr + i)

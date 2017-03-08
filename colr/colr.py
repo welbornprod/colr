@@ -690,7 +690,7 @@ class Colr(object):
     def __add__(self, other: 'Colr') -> 'Colr':
         """ Allow the old string concat methods through addition. """
         if hasattr(other, 'data') and isinstance(other.data, str):
-            return self.__class__(''.join(self.data, other.data))
+            return self.__class__(''.join((self.data, other.data)))
         elif isinstance(other, str):
             return self.__class__(''.join((self.data, other)))
         raise TypeError(
