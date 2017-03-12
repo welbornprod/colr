@@ -124,6 +124,7 @@ __all__ = [
     'strip_codes',
     # controls functions/classes made available.
     'Control',
+    # progress functions/classes made available.
     'Frames',
     'FrameList',
     'Progress',

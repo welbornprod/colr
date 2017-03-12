@@ -32,9 +32,11 @@ try:
         erase_display,
         print_inplace,
         print_overwrite,
-        Progress,
-        Frames,
         sleep,
+    )
+    from colr.progress import (
+        Frames,
+        Progress,
     )
 except ImportError as ex:
     print('\nUnable to import colr modules: {}\n'.format(ex), file=sys.stderr)
