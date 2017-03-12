@@ -686,6 +686,17 @@ def try_parse_int(
 class Colr(object):
 
     """ This class colorizes text for an ansi terminal. """
+    # Known offsets for `Colr.rainbow` that will start with a certain color.
+    gradient_names = {
+        'green': 0,
+        'orange': 9,
+        'lightred': 15,
+        'magenta': 20,
+        'red': 80,
+        'yellow': 62,
+        'blue': 34,
+        'cyan': 48,
+    }
 
     def __init__(
             self,
@@ -1637,16 +1648,7 @@ class Colr(object):
                 )
             try:
                 # Get rainbow offset from known name.
-                offset = {
-                    'green': 0,
-                    'orange': 9,
-                    'lightred': 15,
-                    'magenta': 20,
-                    'red': 80,
-                    'yellow': 62,
-                    'blue': 34,
-                    'cyan': 48,
-                }[name]
+                self.gradient_names[name]
             except KeyError:
                 raise ValueError('Unknown gradient name: {}'.format(name))
 

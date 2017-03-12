@@ -222,19 +222,18 @@ def run_progress(delay=0.1):
     """ This is a rough test of the Progress class. """
     print(C('Testing Progress class...', 'cyan'))
     p = Progress(
-        'This is a test.',
+        'Walking the root directory.',
         frames=Frames.dots_gradient_cyan,
         interval=delay,
         show_time=True,
-        char_delay=0.01,
     )
     p.start()
     # Simulate some busy work.
-    sleep(1)
-    p.text = 'Changed the message.'
-    sleep(2)
-    p.text = C('Another message changed, hah.').rainbow()
-    sleep(5)
+    total = 0
+    for root, dirs, files in os.walk('/'):
+        total += 1
+        if int(p.elapsed % 5) == 0:
+            p.text = ' [{}] Walking ({}) {}'.format(p.elapsed, total, root)
     p.stop()
     print('\nFinished with progress functions.\n')
 

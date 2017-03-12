@@ -61,9 +61,13 @@ from .colr import (  # noqa
 
 from .controls import (  # noqa
     Control,
-    Progress,
 )
 
+from .progress import (
+    Frames,
+    FrameList,
+    Progress,
+)
 try:
     from .colr_docopt import docopt  # noqa
     has_docopt = True
@@ -120,6 +124,8 @@ __all__ = [
     'strip_codes',
     # controls functions/classes made available.
     'Control',
+    'Frames',
+    'FrameList',
     'Progress',
     # trans functions made available.
     'ColorCode',
