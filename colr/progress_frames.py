@@ -17,6 +17,9 @@ class FrameList(UserList):
     def __init__(self, iterable=None):
         super().__init__(iterable)
 
+    def __bool__(self):
+        return bool(self.data)
+
     def as_colr(self, **kwargs):
         """ Wrap each frame in a Colr object, using `kwargs` for Colr().
             Keyword Arguments:

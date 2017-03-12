@@ -8,7 +8,11 @@
 
 import os
 import sys
+from ctypes import c_bool, c_double
+from multiprocessing import Lock, Pipe, Value
 from random import randint
+
+from timedop import timed_call, TimedOut
 
 parentdir = os.path.split(os.path.abspath(sys.path[0]))[0]
 if parentdir.endswith('colr'):
@@ -36,6 +40,8 @@ try:
     )
     from colr.progress import (
         Frames,
+        ProcessWriter,
+        ProcessWriterBase,
         Progress,
     )
 except ImportError as ex:
@@ -54,16 +60,18 @@ USAGESTR = """{versionstr}
 
     Usage:
         {script} -e | -h | -v
-        {script} [-d secs] [-m] [-p] [-P] [-s]
+        {script} [-d secs] [-b] [-m] [-p] [-P] [-s] [-S]
 
     Options:
+        -b,--processbase      : Run processbase tests.
         -d secs,--delay secs  : Time in seconds for delay.
                                 Default: 0.05
         -e,--erase            : Erase display/scrollback.
         -h,--help             : Show this help message.
-        -m,--move             : Run move function tests.
-        -p,--print            : Run print function tests.
-        -P,--progress         : Run progress function tests.
+        -m,--move             : Run move tests.
+        -p,--print            : Run print tests.
+        -P,--progress         : Run progress tests.
+        -S,--process          : Run progress process tests.
         -s,--scroll           : Run scroll function tests.
         -v,--version          : Show version.
 
@@ -82,11 +90,12 @@ def main(argd):
     test_flags = (
         ('--move', run_move, delay),
         ('--print', run_print, delay),
+        ('--process', run_process, None),
+        ('--processbase', run_processbase, None),
         ('--progress', run_progress, None),
         ('--scroll', run_scroll, delay / 2),
     )
-    flags = ('--move', '--print', '--progress', '--scroll')
-    do_all = not any(argd[f] for f in flags)
+    do_all = not any(argd[f] for f, _, _ in test_flags)
     cursor_hide()
     try:
         for flag, func, funcdelay in test_flags:
@@ -220,24 +229,92 @@ def run_print(delay=0.05):
     print('\nFinished with print functions.\n')
 
 
+def run_process(delay=None):
+    """ This is a rough test of the ProgressProcess class. """
+    print(C('Testing ProgressProcess class...', 'cyan'))
+
+    p = ProcessWriter(
+        '.',
+        file=sys.stdout,
+    )
+    p.start()
+    sleep(1)
+    p.text = '!'
+    sleep(1)
+    p.stop()
+    # Test elapsed time changes.
+    assert p.elapsed > 1
+    print()
+    for attr in ('stopped', 'started', 'elapsed'):
+        val = getattr(p, attr)
+        print('{:>16}: {}'.format(attr, val))
+
+    print('\nFinished with ProgressProcess functions.\n')
+
+
+def run_processbase(delay=None):
+    """ This is a rough test of the ProgressProcessBase class. """
+    print(C('Testing ProgressProcessBase class...', 'cyan'))
+    write_lock = Lock()
+    piperecv, pipesend = Pipe()
+
+    stopped = Value(c_bool, True)
+    time_started = Value(c_double, 0)
+    time_elapsed = Value(c_double, 0)
+    p = ProcessWriterBase(
+        piperecv,
+        write_lock,
+        stopped,
+        time_started,
+        time_elapsed,
+        file=sys.stdout,
+    )
+    pipesend.send('.')
+    p.start()
+    sleep(3)
+    p.stop()
+    print()
+    for attr in ('stop_flag', 'time_started', 'time_elapsed'):
+        val = getattr(p, attr).value
+        print('{:>16}: {}'.format(attr, val))
+
+    print('\nFinished with ProgressProcessBase functions.\n')
+
+
 def run_progress(delay=0.1):
     """ This is a rough test of the Progress class. """
     print(C('Testing Progress class...', 'cyan'))
+
     p = Progress(
         'Walking the root directory.',
         frames=Frames.dots_gradient_cyan,
         interval=delay,
+        char_delay=None,
         show_time=True,
     )
+    p.stop()
     p.start()
+    try:
+        timed_call(run_progress_helper, args=(p, ), timeout=4)
+    except TimedOut:
+        pass
+    p.stop()
+    print('\nTotal time was: {:2.1f}'.format(p.elapsed))
+    print('\nFinished with progress functions.\n')
+
+
+def run_progress_helper(progress):
+    """ Busy-work simulator for run_progress tests. """
     # Simulate some busy work.
     total = 0
     for root, dirs, files in os.walk('/'):
         total += 1
-        if int(p.elapsed % 5) == 0:
-            p.text = ' [{}] Walking ({}) {}'.format(p.elapsed, total, root)
-    p.stop()
-    print('\nFinished with progress functions.\n')
+        if total % 100 == 0:
+            progress.text = 'Walking ({}) {}'.format(
+                total,
+                root,
+            )
+    return total
 
 
 def run_scroll(delay=0.05):
