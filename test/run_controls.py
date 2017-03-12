@@ -285,21 +285,22 @@ def run_progress(delay=0.1):
     """ This is a rough test of the Progress class. """
     print(C('Testing Progress class...', 'cyan'))
 
-    p = Progress(
-        'Walking the root directory.',
-        frames=Frames.dots_gradient_cyan,
-        interval=delay,
-        char_delay=None,
-        show_time=True,
-    )
-    p.stop()
-    p.start()
-    try:
-        timed_call(run_progress_helper, args=(p, ), timeout=4)
-    except TimedOut:
-        pass
-    p.stop()
-    print('\nTotal time was: {:2.1f}'.format(p.elapsed))
+    def run_frame_type(frames, framename):
+        p = Progress(
+            'Testing frame type: {}'.format(framename),
+            frames=frames,
+            interval=delay,
+            char_delay=None,
+            show_time=True,
+        )
+        p.stop()
+        p.start()
+        sleep(2)
+        p.stop()
+
+    for name in Frames.names:
+        frames = getattr(Frames, name)
+        run_frame_type(frames, name)
     print('\nFinished with progress functions.\n')
 
 
