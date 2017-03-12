@@ -13,7 +13,12 @@ from random import randint
 parentdir = os.path.split(os.path.abspath(sys.path[0]))[0]
 if parentdir.endswith('colr'):
     # Use dev version before installed version.
+    print(
+        '..inserting parent dir into sys.path: {}'.format(parentdir),
+        file=sys.stderr,
+    )
     sys.path.insert(0, parentdir)
+
 try:
     from colr import (
         Colr as C,
@@ -27,6 +32,8 @@ try:
         erase_display,
         print_inplace,
         print_overwrite,
+        Progress,
+        Frames,
         sleep,
     )
 except ImportError as ex:
@@ -45,7 +52,7 @@ USAGESTR = """{versionstr}
 
     Usage:
         {script} -e | -h | -v
-        {script} [-d secs] [-m] [-p] [-s]
+        {script} [-d secs] [-m] [-p] [-P] [-s]
 
     Options:
         -d secs,--delay secs  : Time in seconds for delay.
@@ -54,6 +61,7 @@ USAGESTR = """{versionstr}
         -h,--help             : Show this help message.
         -m,--move             : Run move function tests.
         -p,--print            : Run print function tests.
+        -P,--progress         : Run progress function tests.
         -s,--scroll           : Run scroll function tests.
         -v,--version          : Show version.
 
@@ -63,17 +71,20 @@ USAGESTR = """{versionstr}
 
 def main(argd):
     """ Main entry point, expects doctopt arg dict as argd. """
+
     if argd['--erase']:
         erase_display(EraseMethod.ALL_MOVE_ERASE)
         return 0
 
     delay = parse_float_arg(argd['--delay'], default=0.05)
     test_flags = (
-        ('--print', run_print, delay),
-        ('--scroll', run_scroll, delay / 2),
         ('--move', run_move, delay),
+        ('--print', run_print, delay),
+        ('--progress', run_progress, None),
+        ('--scroll', run_scroll, delay / 2),
     )
-    do_all = not any(argd[f] for f in ('--move', '--print', '--scroll'))
+    flags = ('--move', '--print', '--progress', '--scroll')
+    do_all = not any(argd[f] for f in flags)
     cursor_hide()
     try:
         for flag, func, funcdelay in test_flags:
@@ -84,9 +95,10 @@ def main(argd):
         print('\nUser cancelled.\n', file=sys.stderr)
     finally:
         cursor_show()
-        msg = '\nErase the terminal contents/scrollback? (y/N): '
-        if input(msg).lower().strip().startswith('y'):
-            erase_display(EraseMethod.ALL_MOVE_ERASE)
+        if all((x is None) for x in sys.exc_info()):
+            msg = '\nErase the terminal contents/scrollback? (y/N): '
+            if input(msg).lower().strip().startswith('y'):
+                erase_display(EraseMethod.ALL_MOVE_ERASE)
     return 0
 
 
@@ -204,6 +216,27 @@ def run_print(delay=0.05):
 
     print(Control().erase_line())
     print('\nFinished with print functions.\n')
+
+
+def run_progress(delay=0.1):
+    """ This is a rough test of the Progress class. """
+    print(C('Testing Progress class...', 'cyan'))
+    p = Progress(
+        'This is a test.',
+        frames=Frames.dots_gradient_cyan,
+        interval=delay,
+        show_time=True,
+        char_delay=0.01,
+    )
+    p.start()
+    # Simulate some busy work.
+    sleep(1)
+    p.text = 'Changed the message.'
+    sleep(2)
+    p.text = C('Another message changed, hah.').rainbow()
+    sleep(5)
+    p.stop()
+    print('\nFinished with progress functions.\n')
 
 
 def run_scroll(delay=0.05):

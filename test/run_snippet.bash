@@ -86,7 +86,12 @@ cd "$proj_root" || fail "Failed to cd to project root: $proj_root"
 # Basic setup code for snippets, whether in debug or not.
 setupcode="
 import traceback
-from colr import InvalidColr, Colr
+from colr import (
+    InvalidColr,
+    Colr,
+    Control,
+    Progress,
+)
 C = Colr
 
 "

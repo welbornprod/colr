@@ -59,6 +59,11 @@ from .colr import (  # noqa
     strip_codes,
 )
 
+from .controls import (  # noqa
+    Control,
+    Progress,
+)
+
 try:
     from .colr_docopt import docopt  # noqa
     has_docopt = True
@@ -113,6 +118,9 @@ __all__ = [
     'rgbforeformat',
     'rgbbackformat',
     'strip_codes',
+    # controls functions/classes made available.
+    'Control',
+    'Progress',
     # trans functions made available.
     'ColorCode',
     'fix_hex',

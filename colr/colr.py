@@ -147,8 +147,23 @@ extbackformat = '\033[48;5;{}m'.format  # type: CodeFormatFunc
 rgbforeformat = '\033[38;2;{};{};{}m'.format  # type: CodeFormatRgbFunc
 rgbbackformat = '\033[48;2;{};{};{}m'.format  # type: CodeFormatRgbFunc
 
-# Used to strip codes from a string.
-codepat = re.compile('\033\[([\d;]+)?m')
+_codepats = (
+    # Colors.
+    r'(([\d;]+)?m)',
+    # Cursor show/hide.
+    r'(\?25l)',
+    r'(\?25h)',
+    # Move position.
+    r'(([\d]+[;])?([\d]+[Hf]))',
+    # Save/restore position.
+    r'([su])',
+    # Others (move, erase).
+    r'([\d]+[ABCDEFGHJKST])',
+)
+# Used to strip escape codes from a string.
+codepat = re.compile(
+    '\033\[({})'.format('|'.join(_codepats))
+)
 # Used to grab codes from a string.
 codegrabpat = re.compile('\033\[[\d;]+?m')
 
