@@ -69,6 +69,8 @@ class Frames(object):
 
     # Basic non-color framelists.
     arc = FrameList('◜◠◝◞◡◟' * 3, name='arc')
+    # arrows kinda works in a 'TERM=linux' terminal, the black arrows will be
+    # missing.
     arrows = FrameList(
         (
             '▹▹▹▹▹',
@@ -81,6 +83,7 @@ class Frames(object):
         name='arrows',
     )
     bounce = FrameList('⠁⠂⠄⠂' * 6, name='bounce')
+    # bouncing_ball works in a 'TERM=linux' terminal (basic, with bad fonts)
     bouncing_ball = FrameList(
         (
             '( ●    )',
@@ -183,18 +186,6 @@ class Frames(object):
             return val
 
 
-_colornames = (
-    # 'black',
-    'red',
-    'green',
-    'yellow',
-    'blue',
-    'magenta',
-    'cyan',
-    'white',
-)
-
-
 def _build_color_frames():
     """ Build colorized variants of all frames and return a list of
         all frame object names.
@@ -211,6 +202,18 @@ def _build_color_frames():
 
     # Initially, frame_names only contains the basic framelist types.
     frame_names = [frameobj.name for frameobj in frametypes]
+
+    _colornames = [
+        # 'black', disabled for now, it won't show on my terminal.
+        'red',
+        'green',
+        'yellow',
+        'blue',
+        'magenta',
+        'cyan',
+        'white',
+    ]
+    _colornames.extend('light{}'.format(s) for s in _colornames[:])
     for colorname in _colornames:
         for framesobj in frametypes:
             framename = '{}_{}'.format(framesobj.name, colorname)
@@ -220,6 +223,9 @@ def _build_color_frames():
             frame_names.append(framename)
 
     for gradname in C.gradient_names:
+        if gradname in ('white', ):
+            # This gradient name does not work as advertised.
+            continue
         for framesobj in frametypes:
             framename = '{}_gradient_{}'.format(framesobj.name, gradname)
             newframes = framesobj.as_gradient(name=gradname)
@@ -233,7 +239,7 @@ def _build_color_frames():
         newframes.name = framename
         setattr(Frames, framename, newframes)
         frame_names.append(framename)
-    return frame_names
+    return sorted(frame_names)
 
 
 Frames.names = _build_color_frames()

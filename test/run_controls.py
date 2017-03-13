@@ -286,8 +286,8 @@ def run_progress(delay=0.1):
         C(len(Frames.names), 'blue', style='bright'),
         C().join(C('frame types', 'cyan'), ':')
     ))
-    print('    {}\n'.format('\n    '.join(Frames.names)))
-    
+    # print('    {}\n'.format('\n    '.join(Frames.names)))
+
     def run_frame_type(frames, framename):
         s = 'Testing frame type: {}'.format(framename)
         p = AnimatedProgress(
