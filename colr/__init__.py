@@ -66,8 +66,15 @@ from .controls import (  # noqa
 from .progress import (
     Frames,
     FrameList,
-    Progress,
+    AnimatedProgress,
+    WriterProcess,
 )
+
+from .progress_frames import (
+    FrameList,
+    Frames,
+)
+
 try:
     from .colr_docopt import docopt  # noqa
     has_docopt = True
@@ -125,9 +132,13 @@ __all__ = [
     # controls functions/classes made available.
     'Control',
     # progress functions/classes made available.
-    'Frames',
+    'AnimatedProgress',
     'FrameList',
-    'Progress',
+    'Frames',
+    'WriterProcess',
+    # progress frame classes made available.
+    'FrameList',
+    'Frames',
     # trans functions made available.
     'ColorCode',
     'fix_hex',

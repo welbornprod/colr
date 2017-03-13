@@ -12,8 +12,6 @@ from ctypes import c_bool, c_double
 from multiprocessing import Lock, Pipe, Value
 from random import randint
 
-from timedop import timed_call, TimedOut
-
 parentdir = os.path.split(os.path.abspath(sys.path[0]))[0]
 if parentdir.endswith('colr'):
     # Use dev version before installed version.
@@ -40,9 +38,9 @@ try:
     )
     from colr.progress import (
         Frames,
-        ProcessWriter,
-        ProcessWriterBase,
-        Progress,
+        WriterProcess,
+        WriterProcessBase,
+        AnimatedProgress,
     )
 except ImportError as ex:
     print('\nUnable to import colr modules: {}\n'.format(ex), file=sys.stderr)
@@ -90,9 +88,9 @@ def main(argd):
     test_flags = (
         ('--move', run_move, delay),
         ('--print', run_print, delay),
-        ('--process', run_process, None),
-        ('--processbase', run_processbase, None),
-        ('--progress', run_progress, None),
+        ('--process', run_process, delay),
+        ('--processbase', run_processbase, delay),
+        ('--progress', run_progress, delay),
         ('--scroll', run_scroll, delay / 2),
     )
     do_all = not any(argd[f] for f, _, _ in test_flags)
@@ -233,7 +231,7 @@ def run_process(delay=None):
     """ This is a rough test of the ProgressProcess class. """
     print(C('Testing ProgressProcess class...', 'cyan'))
 
-    p = ProcessWriter(
+    p = WriterProcess(
         '.',
         file=sys.stdout,
     )
@@ -261,7 +259,7 @@ def run_processbase(delay=None):
     stopped = Value(c_bool, True)
     time_started = Value(c_double, 0)
     time_elapsed = Value(c_double, 0)
-    p = ProcessWriterBase(
+    p = WriterProcessBase(
         piperecv,
         write_lock,
         stopped,
@@ -286,36 +284,24 @@ def run_progress(delay=0.1):
     print(C('Testing Progress class...', 'cyan'))
 
     def run_frame_type(frames, framename):
-        p = Progress(
-            'Testing frame type: {}'.format(framename),
+        s = 'Testing frame type: {}'.format(framename)
+        p = AnimatedProgress(
+            s,
             frames=frames,
-            interval=delay,
+            delay=delay,
             char_delay=None,
+            fmt=None,
             show_time=True,
         )
-        p.stop()
         p.start()
-        sleep(2)
+        # Should be enough time to see the animation play through twice.
+        sleep(delay * (len(frames) * 2))
         p.stop()
 
     for name in Frames.names:
         frames = getattr(Frames, name)
         run_frame_type(frames, name)
     print('\nFinished with progress functions.\n')
-
-
-def run_progress_helper(progress):
-    """ Busy-work simulator for run_progress tests. """
-    # Simulate some busy work.
-    total = 0
-    for root, dirs, files in os.walk('/'):
-        total += 1
-        if total % 100 == 0:
-            progress.text = 'Walking ({}) {}'.format(
-                total,
-                root,
-            )
-    return total
 
 
 def run_scroll(delay=0.05):

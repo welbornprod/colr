@@ -324,6 +324,7 @@ class Control(object):
     """ Like Colr, but for control codes. It allows method chaining to build
         up control sequences.
     """
+
     def __init__(self, data=None):
         """ Initialize a new Control str. """
         self.data = str(data or '')
@@ -611,17 +612,20 @@ class Control(object):
             Default: sys.stdout
         """
         s = str(self)
-        if delay is None:
-            file.write(s)
-        else:
-            # Refactor the delay time for Control/Colr instances.
-            # Escape codes should not count against the delay.
-            strippedtime = len(self.stripped()) * delay
-            newdelay = strippedtime / len(s)
-            for c in str(self):
-                file.write(c)
-                file.flush()
-                sleep(newdelay)
+        if s:
+            if delay is None:
+                file.write(s)
+            else:
+                # Refactor the delay time for Control/Colr instances.
+                # Escape codes and whitespace should not count for the delay.
+                strippedtime = len(self.stripped()) * delay
+                whitespacecnt = sum(s.count(char) for char in ' \n\t')
+                newdelay = strippedtime / (len(s) - whitespacecnt)
+                for c in str(self):
+                    file.write(c)
+                    file.flush()
+                    if c not in ' \n\t':
+                        sleep(newdelay)
         if end:
             file.write(end)
         file.flush()
