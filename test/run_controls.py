@@ -282,7 +282,12 @@ def run_processbase(delay=None):
 def run_progress(delay=0.1):
     """ This is a rough test of the Progress class. """
     print(C('Testing Progress class...', 'cyan'))
-
+    print(C(' ').join(
+        C(len(Frames.names), 'blue', style='bright'),
+        C().join(C('frame types', 'cyan'), ':')
+    ))
+    print('    {}\n'.format('\n    '.join(Frames.names)))
+    
     def run_frame_type(frames, framename):
         s = 'Testing frame type: {}'.format(framename)
         p = AnimatedProgress(
