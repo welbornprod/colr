@@ -65,14 +65,12 @@ from .controls import (  # noqa
 
 from .progress import (
     AnimatedProgress,
-    FrameList,
-    Frames,
     StaticProgress,
     WriterProcess,
 )
 
 from .progress_frames import (
-    FrameList,
+    FrameSet,
     Frames,
 )
 
@@ -134,12 +132,10 @@ __all__ = [
     'Control',
     # progress functions/classes made available.
     'AnimatedProgress',
-    'FrameList',
-    'Frames',
     'StaticProgress',
     'WriterProcess',
     # progress frame classes made available.
-    'FrameList',
+    'FrameSet',
     'Frames',
     # trans functions made available.
     'ColorCode',

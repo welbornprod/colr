@@ -12,7 +12,6 @@ from ctypes import (
 
 from multiprocessing import (
     Lock,
-    Pipe,
     Process,
     Queue,
     Value,
@@ -27,7 +26,7 @@ from time import (
 
 from .colr import Colr as C
 from .controls import Control
-from .progress_frames import Frames, FrameList  # noqa
+from .progress_frames import Frames, FrameSet  # noqa
 
 
 class WriterProcessBase(Process):
@@ -292,10 +291,10 @@ class StaticProgress(WriterProcess):
 
 
 class AnimatedProgress(StaticProgress):
-    """ A subprocess that writes FrameLists and handles advancing frames.
+    """ A subprocess that writes FrameSets and handles advancing frames.
         The text is updated by setting `self.text` or overriding
         `self.write()`.
-        A frame in this context is a single element of a FrameList.
+        A frame in this context is a single element of a FrameSet.
         The frame, optional elapsed time, and text are written in place
         over and over until `self.stop()` is called. The animation is updated
         after every write. The delay between writes can be set using
@@ -334,7 +333,8 @@ class AnimatedProgress(StaticProgress):
             ))
 
         # Delay in seconds between frame renders.
-        self.delay = (delay or self.default_delay) - self.nice_delay
+        self.delay = self._get_delay(delay, frames)
+
         # Format for the progress frame, optional time, and text.
         if show_time:
             default_fmt = self.default_format_time
@@ -377,6 +377,22 @@ class AnimatedProgress(StaticProgress):
         self.current_frame += 1
         if self.current_frame == self.frame_len:
             self.current_frame = 0
+
+    def _get_delay(self, userdelay, frameslist):
+        """ Get the appropriate delay value to use, trying in this order:
+                userdelay
+                frameslist.delay
+                default_delay
+
+            The user can override the frameslist's delay by specifiying a
+            value, and if neither are given the default is used.
+        """
+        # User frameslists might not be a FrameSet.
+        delay = userdelay or getattr(frameslist, 'delay', None)
+        delay = (delay or self.default_delay) - self.nice_delay
+        if delay < 0:
+            delay = 0
+        return delay
 
     def write(self):
         """ Writes a single frame of the progress spinner to the terminal.

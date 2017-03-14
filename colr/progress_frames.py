@@ -4,25 +4,59 @@
 
     -Christopher Welborn 3-12-17
 """
-
-from collections import UserList
+from functools import total_ordering
 
 from .colr import Colr as C
 
 
-class FrameList(UserList):
-    """ A single spinner frame list, with helper methods for colorizing each
-        frame.
+@total_ordering
+class FrameSet(object):
+    """ A single spinner/progress frame list, with helper methods for
+        colorizing each frame. A FrameSet actually behaves like a `tuple`.
+        It is immutable, hashable, and comparable.
     """
-    def __init__(self, iterable=None, name=None):
-        super().__init__(iterable)
-        self.name = name or self.__class__.__qualname__
+    def __init__(self, name, iterable):
+        self.data = tuple(iterable)
+        if not self.data:
+            raise ValueError(
+                'Empty FrameSet is not allowed. Got: {!r}'.format(
+                    iterable,
+                )
+            )
+        self.name = str(name).strip().lower()
+        if not self.name:
+            raise ValueError('Empty name is not allowed. Got: {!r}'.format(
+                name,
+            ))
 
     def __bool__(self):
         return bool(self.data)
 
+    def __contains__(self, value):
+        return value in self.data
+
+    def __getitem__(self, index):
+        return self.data[index]
+
     def __hash__(self):
-        return hash(''.join(str(x) for x in self.data))
+        return hash(self.data)
+
+    def __iter__(self):
+        return self.data.__iter__()
+
+    def __len__(self):
+        return len(self.data)
+
+    def __lt__(self, other):
+        if isinstance(getattr(other, 'data', None), tuple):
+            return self.data < other.data
+        return self.data < other
+
+    def __reversed__(self):
+        return self.__class__(reversed(self.data))
+
+    def __setitem__(self, key, value):
+        raise TypeError('FrameSet does not support assignment.')
 
     def as_colr(self, **kwargs):
         """ Wrap each frame in a Colr object, using `kwargs` for Colr().
@@ -31,7 +65,10 @@ class FrameList(UserList):
                 back  : Back color for each frame.
                 style : Style for each frame.
         """
-        return self.__class__(C(s, **kwargs) for s in self)
+        return self.__class__(
+            'custom_{}_as_colr'.format((self.name)),
+            (C(s, **kwargs) for s in self)
+        )
 
     def as_gradient(self, name=None, style=None):
         """ Wrap each frame in a Colr object, using `Colr.gradient`.
@@ -49,7 +86,10 @@ class FrameList(UserList):
                     spread=1,
                 )
             )
-        return self.__class__(colrs)
+        return self.__class__(
+            'custom_{}_as_gradient'.format(self.name),
+            colrs
+        )
 
     def as_rainbow(self, offset=35, style=None):
         """ Wrap each frame in a Colr object, using `Colr.rainbow`. """
@@ -62,7 +102,7 @@ class FrameList(UserList):
                     spread=1,
                 )
             )
-        return self.__class__(colrs)
+        return self.__class__('custom_{}_as_rainbow'.format(self.name), colrs)
 
 
 class Frames(object):
@@ -71,10 +111,11 @@ class Frames(object):
     names = []
 
     # Basic non-color framelists.
-    arc = FrameList('◜◠◝◞◡◟' * 3, name='arc')
+    arc = FrameSet('arc', '◜◠◝◞◡◟' * 3)
     # arrows kinda works in a 'TERM=linux' terminal, the black arrows will be
     # missing.
-    arrows = FrameList(
+    arrows = FrameSet(
+        'arrows',
         (
             '▹▹▹▹▹',
             '▸▹▹▹▹',
@@ -83,11 +124,11 @@ class Frames(object):
             '▹▹▹▸▹',
             '▹▹▹▹▸'
         ),
-        name='arrows',
     )
-    bounce = FrameList('⠁⠂⠄⠂' * 6, name='bounce')
+    bounce = FrameSet('bounce', '⠁⠂⠄⠂' * 6)
     # bouncing_ball works in a 'TERM=linux' terminal (basic, with bad fonts)
-    bouncing_ball = FrameList(
+    bouncing_ball = FrameSet(
+        'bouncing_ball',
         (
             '( ●    )',
             '(  ●   )',
@@ -100,11 +141,11 @@ class Frames(object):
             '( ●    )',
             '(●     )',
         ),
-        name='bouncing_ball',
     )
-    dots = FrameList('⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏' * 3, name='dots')
-    dots_orbit = FrameList('⢄⢂⢁⡁⡈⡐⡠' * 3, name='dots_orbit')
-    dots_chase = FrameList(
+    dots = FrameSet('dots', '⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏' * 3)
+    dots_orbit = FrameSet('dots_orbit', '⢄⢂⢁⡁⡈⡐⡠' * 3)
+    dots_chase = FrameSet(
+        'dots_chase',
         (
             '⢀⠀',
             '⡀⠀',
@@ -162,10 +203,9 @@ class Frames(object):
             '⠀⠠',
             '⠀⢀',
             '⠀⡀',
-        ),
-        name='dots_chase',
+        )
     )
-    hamburger = FrameList(('☱ ', '☲ ', '☴ '), name='hamburger')
+    hamburger = FrameSet('hamburger', ('☱ ', '☲ ', '☴ '))
 
     @classmethod
     def get_by_name(cls, name):
@@ -182,7 +222,7 @@ class Frames(object):
                 if valname == name:
                     return val
             else:
-                raise ValueError('No FrameList with that name: {}'.format(
+                raise ValueError('No FrameSet with that name: {}'.format(
                     name
                 ))
         else:
@@ -200,7 +240,7 @@ def _build_color_frames():
         except AttributeError:
             # Has happened before, not here. I've seen it though.
             continue
-        if isinstance(frameobj, FrameList):
+        if isinstance(frameobj, FrameSet):
             frametypes.append(frameobj)
 
     # Initially, frame_names only contains the basic framelist types.
