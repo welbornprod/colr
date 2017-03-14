@@ -142,12 +142,13 @@ class StaticProgress(WriterProcess):
         Text is only written if it changes (by setting `self.text`),
         and is overwritten by the next text change.
     """
+    default_delay = 0.1
     default_format = ('{text}', )
     default_format_time = ('{elapsed:>2.0f}s', '{text}')
     join_str = ' '
 
     def __init__(
-            self, text=None, delay=0.1, fmt=None,
+            self, text=None, delay=None, fmt=None,
             show_time=False, char_delay=None, file=None):
         self.file = file or sys.stdout
         # Delay in seconds between frame renders.
@@ -321,7 +322,7 @@ class AnimatedProgress(StaticProgress):
     default_format_time = ('{frame}', '{elapsed:>2.0f}s', '{text}')
 
     def __init__(
-            self, text=None, frames=None, delay=0.1,
+            self, text=None, frames=None, delay=None,
             frame_before=True, fmt=None, show_time=False,
             char_delay=None, file=None):
         self.file = file or sys.stdout
@@ -331,9 +332,6 @@ class AnimatedProgress(StaticProgress):
             raise ValueError('Must have at least one frame. Got: {!r}'.format(
                 self.frames
             ))
-
-        # Delay in seconds between frame renders.
-        self.delay = self._get_delay(delay, frames)
 
         # Format for the progress frame, optional time, and text.
         if show_time:
@@ -356,6 +354,7 @@ class AnimatedProgress(StaticProgress):
             text=text,
             file=self.file,
             char_delay=char_delay,
+            delay=self._get_delay(delay, frames),
         )
 
     def __str__(self):
