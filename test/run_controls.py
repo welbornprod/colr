@@ -9,9 +9,6 @@
 import os
 import random
 import sys
-from ctypes import c_bool, c_double
-from multiprocessing import Lock, Queue, Value
-from random import randint
 
 parentdir = os.path.split(os.path.abspath(sys.path[0]))[0]
 if parentdir.endswith('colr'):
@@ -37,13 +34,6 @@ try:
         print_overwrite,
         sleep,
     )
-    from colr.progress import (
-        AnimatedProgress,
-        Frames,
-        StaticProgress,
-        WriterProcess,
-        WriterProcessBase,
-    )
 except ImportError as ex:
     print('\nUnable to import colr modules: {}\n'.format(ex), file=sys.stderr)
     sys.exit(1)
@@ -60,19 +50,15 @@ USAGESTR = """{versionstr}
 
     Usage:
         {script} -e | -h | -v
-        {script} [-d secs] [-a] [-b] [-c] [-m] [-p] [-s] [-S]
+        {script} [-d secs] [-m] [-p] [-s]
 
     Options:
-        -a,--animatedprogress  : Run progress tests.
-        -b,--processbase       : Run processbase tests.
-        -c,--process           : Run progress process tests.
         -d secs,--delay secs   : Time in seconds for delay.
                                  Default: 0.05
         -e,--erase             : Erase display/scrollback.
         -h,--help              : Show this help message.
         -m,--move              : Run move tests.
         -p,--print             : Run print tests.
-        -S,--staticprogress    : Run static progress tests
         -s,--scroll            : Run scroll function tests.
         -v,--version           : Show version.
 
@@ -89,13 +75,9 @@ def main(argd):
 
     delay = parse_float_arg(argd['--delay'], default=0.05)
     test_flags = (
-        ('--animatedprogress', run_animatedprogress, delay),
         ('--move', run_move, delay),
         ('--print', run_print, delay),
-        ('--process', run_process, delay),
-        ('--processbase', run_processbase, delay),
         ('--scroll', run_scroll, delay / 2),
-        ('--staticprogress', run_staticprogress, delay),
     )
     do_all = not any(argd[f] for f, _, _ in test_flags)
     cursor_hide()
@@ -108,7 +90,7 @@ def main(argd):
         print('\nUser cancelled.\n', file=sys.stderr)
     finally:
         cursor_show()
-        if all((x is None) for x in sys.exc_info()):
+        if not any(sys.exc_info()):
             msg = '\nErase the terminal contents/scrollback? (y/N): '
             if input(msg).lower().strip().startswith('y'):
                 erase_display(EraseMethod.ALL_MOVE_ERASE)
@@ -127,44 +109,6 @@ def parse_float_arg(s, default=None):
     except ValueError:
         raise InvalidArg('not a float: {}'.format(val))
     return val
-
-
-def run_animatedprogress(delay=0.1):
-    """ This is a rough test of the AnimatedProgress class. """
-    print(C('Testing AnimatedProgress class...', 'cyan'))
-    maxtypes = 10
-    print(C(' ').join(
-        C('Testing', 'cyan'),
-        C(maxtypes, 'blue', style='bright'),
-        C().join(C('random frame types', 'cyan'), ':')
-    ))
-    # print('    {}\n'.format('\n    '.join(Frames.names)))
-
-    def run_frame_type(frames, framename):
-        s = 'Testing frame type: {}'.format(framename)
-        p = AnimatedProgress(
-            s,
-            frames=frames,
-            delay=delay,
-            char_delay=None,
-            fmt=None,
-            show_time=True,
-        )
-        p.start()
-        sleepsecs = (delay * len(frames)) * 2
-        # Should be enough time to see the animation play through once.
-        sleep(sleepsecs)
-        p.text = 'Almost through with: {}'.format(framename)
-        sleep(sleepsecs)
-        p.stop()
-
-    frametypes = set()
-    while len(frametypes) < maxtypes:
-        frametypes.add(Frames.get_by_name(random.choice(Frames.names)))
-
-    for framesobj in sorted(frametypes):
-        run_frame_type(framesobj, framesobj.name)
-    print('\nFinished with animated progress functions.\n')
 
 
 def run_move(delay=0.025):
@@ -263,71 +207,10 @@ def run_print(delay=0.05):
         print_inplace(val, delay=delay)
     Control().move_column(1).write()
     for col in range(len('I\'m just gonna put this: nowhere')):
-        Control(C('X', randint(0, 255))).write().delay(delay)
+        Control(C('X', random.randint(0, 255))).write().delay(delay)
 
     print(Control().erase_line())
     print('\nFinished with print functions.\n')
-
-
-def run_process(delay=None):
-    """ This is a rough test of the WriterProcess class. """
-    print(C('Testing WriterProcess class...', 'cyan'))
-
-    p = WriterProcess(
-        '.',
-        file=sys.stdout,
-    )
-    p.start()
-    sleep(1)
-    p.text = '!'
-    sleep(1)
-    p.text = '?'
-    sleep(1)
-    p.stop()
-    # Test elapsed time changes.
-    assert p.elapsed > 1
-    print()
-    for attr in ('stopped', 'started', 'elapsed'):
-        val = getattr(p, attr)
-        print('{:>16}: {}'.format(attr, val))
-
-    print('\nFinished with WriterProcess functions.\n')
-
-
-def run_processbase(delay=None):
-    """ This is a rough test of the WriterProcessBase class. """
-    print(C('Testing WriterProcessBase class...', 'cyan'))
-    write_lock = Lock()
-    queue = Queue()
-    stopped = Value(c_bool, True)
-    time_started = Value(c_double, 0)
-    time_elapsed = Value(c_double, 0)
-
-    def change_text(s):
-        queue.put_nowait(s)
-
-    p = WriterProcessBase(
-        queue,
-        write_lock,
-        stopped,
-        time_started,
-        time_elapsed,
-        file=sys.stdout,
-    )
-    change_text('.')
-    p.start()
-    sleep(1)
-    change_text('!')
-    sleep(1)
-    change_text('?')
-    sleep(1)
-    p.stop()
-    print()
-    for attr in ('stop_flag', 'time_started', 'time_elapsed'):
-        val = getattr(p, attr).value
-        print('{:>16}: {}'.format(attr, val))
-
-    print('\nFinished with WriterProcessBase functions.\n')
 
 
 def run_scroll(delay=0.05):
@@ -350,36 +233,6 @@ def run_scroll(delay=0.05):
         sleep(linedelay)
 
     print('\nFinished with scroll functions.\n')
-
-
-def run_staticprogress(delay=0.1):
-    """ This is a rough test of the StaticProgress class. """
-    print(C('Testing StaticProgress class...', 'cyan'))
-
-    s = 'Testing StaticProgress.'
-    msgs = (
-        'Further testing in progress.',
-        'Switching the messages up a little bit.',
-        'Another message for you.',
-        'Just ran out of messages.',
-    )
-    p = StaticProgress(
-        s,
-        delay=delay,
-        fmt=None,
-        show_time=True,
-    )
-    p.start()
-    for i, msg in enumerate(msgs):
-        if i % 2 == 0:
-            p.char_delay = 0.1
-        else:
-            p.char_delay = None
-        p.text = '{}: {}'.format(i + 1, msg)
-        sleep(1)
-    p.stop()
-
-    print('\nFinished with static progress functions.\n')
 
 
 def print_err(*args, **kwargs):
