@@ -64,9 +64,10 @@ from .controls import (  # noqa
 )
 
 from .progress import (
-    Frames,
-    FrameList,
     AnimatedProgress,
+    FrameList,
+    Frames,
+    StaticProgress,
     WriterProcess,
 )
 
@@ -135,6 +136,7 @@ __all__ = [
     'AnimatedProgress',
     'FrameList',
     'Frames',
+    'StaticProgress',
     'WriterProcess',
     # progress frame classes made available.
     'FrameList',

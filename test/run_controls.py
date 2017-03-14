@@ -9,16 +9,16 @@
 import os
 import sys
 from ctypes import c_bool, c_double
-from multiprocessing import Lock, Pipe, Value
+from multiprocessing import Lock, Queue, Value
 from random import randint
 
 parentdir = os.path.split(os.path.abspath(sys.path[0]))[0]
 if parentdir.endswith('colr'):
     # Use dev version before installed version.
-    print(
-        '..inserting parent dir into sys.path: {}'.format(parentdir),
-        file=sys.stderr,
-    )
+    # print(
+    #     '..inserting parent dir into sys.path: {}'.format(parentdir),
+    #     file=sys.stderr,
+    # )
     sys.path.insert(0, parentdir)
 
 try:
@@ -37,10 +37,11 @@ try:
         sleep,
     )
     from colr.progress import (
+        AnimatedProgress,
         Frames,
+        StaticProgress,
         WriterProcess,
         WriterProcessBase,
-        AnimatedProgress,
     )
 except ImportError as ex:
     print('\nUnable to import colr modules: {}\n'.format(ex), file=sys.stderr)
@@ -58,20 +59,21 @@ USAGESTR = """{versionstr}
 
     Usage:
         {script} -e | -h | -v
-        {script} [-d secs] [-b] [-m] [-p] [-P] [-s] [-S]
+        {script} [-d secs] [-a] [-b] [-c] [-m] [-p] [-s] [-S]
 
     Options:
-        -b,--processbase      : Run processbase tests.
-        -d secs,--delay secs  : Time in seconds for delay.
-                                Default: 0.05
-        -e,--erase            : Erase display/scrollback.
-        -h,--help             : Show this help message.
-        -m,--move             : Run move tests.
-        -p,--print            : Run print tests.
-        -P,--progress         : Run progress tests.
-        -S,--process          : Run progress process tests.
-        -s,--scroll           : Run scroll function tests.
-        -v,--version          : Show version.
+        -a,--animatedprogress  : Run progress tests.
+        -b,--processbase       : Run processbase tests.
+        -c,--process           : Run progress process tests.
+        -d secs,--delay secs   : Time in seconds for delay.
+                                 Default: 0.05
+        -e,--erase             : Erase display/scrollback.
+        -h,--help              : Show this help message.
+        -m,--move              : Run move tests.
+        -p,--print             : Run print tests.
+        -S,--staticprogress    : Run static progress tests
+        -s,--scroll            : Run scroll function tests.
+        -v,--version           : Show version.
 
     The default action is to run all the tests.
 """.format(script=SCRIPT, versionstr=VERSIONSTR)
@@ -86,12 +88,13 @@ def main(argd):
 
     delay = parse_float_arg(argd['--delay'], default=0.05)
     test_flags = (
+        ('--animatedprogress', run_animatedprogress, delay),
         ('--move', run_move, delay),
         ('--print', run_print, delay),
         ('--process', run_process, delay),
         ('--processbase', run_processbase, delay),
-        ('--progress', run_progress, delay),
         ('--scroll', run_scroll, delay / 2),
+        ('--staticprogress', run_staticprogress, delay),
     )
     do_all = not any(argd[f] for f, _, _ in test_flags)
     cursor_hide()
@@ -123,6 +126,39 @@ def parse_float_arg(s, default=None):
     except ValueError:
         raise InvalidArg('not a float: {}'.format(val))
     return val
+
+
+def run_animatedprogress(delay=0.1):
+    """ This is a rough test of the AnimatedProgress class. """
+    print(C('Testing AnimatedProgress class...', 'cyan'))
+    print(C(' ').join(
+        C(len(Frames.names), 'blue', style='bright'),
+        C().join(C('frame types', 'cyan'), ':')
+    ))
+    # print('    {}\n'.format('\n    '.join(Frames.names)))
+
+    def run_frame_type(frames, framename):
+        s = 'Testing frame type: {}'.format(framename)
+        p = AnimatedProgress(
+            s,
+            frames=frames,
+            delay=delay,
+            char_delay=None,
+            fmt=None,
+            show_time=True,
+        )
+        p.start()
+        sleepsecs = delay * len(frames)
+        # Should be enough time to see the animation play through once.
+        sleep(sleepsecs)
+        p.text = 'Almost through with: {}'.format(framename)
+        sleep(sleepsecs)
+        p.stop()
+
+    for name in Frames.names:
+        frames = getattr(Frames, name)
+        run_frame_type(frames, name)
+    print('\nFinished with animated progress functions.\n')
 
 
 def run_move(delay=0.025):
@@ -228,8 +264,8 @@ def run_print(delay=0.05):
 
 
 def run_process(delay=None):
-    """ This is a rough test of the ProgressProcess class. """
-    print(C('Testing ProgressProcess class...', 'cyan'))
+    """ This is a rough test of the WriterProcess class. """
+    print(C('Testing WriterProcess class...', 'cyan'))
 
     p = WriterProcess(
         '.',
@@ -247,66 +283,40 @@ def run_process(delay=None):
         val = getattr(p, attr)
         print('{:>16}: {}'.format(attr, val))
 
-    print('\nFinished with ProgressProcess functions.\n')
+    print('\nFinished with WriterProcess functions.\n')
 
 
 def run_processbase(delay=None):
-    """ This is a rough test of the ProgressProcessBase class. """
-    print(C('Testing ProgressProcessBase class...', 'cyan'))
+    """ This is a rough test of the WriterProcessBase class. """
+    print(C('Testing WriterProcessBase class...', 'cyan'))
     write_lock = Lock()
-    piperecv, pipesend = Pipe()
+    queue = Queue()
 
     stopped = Value(c_bool, True)
     time_started = Value(c_double, 0)
     time_elapsed = Value(c_double, 0)
     p = WriterProcessBase(
-        piperecv,
+        queue,
         write_lock,
         stopped,
         time_started,
         time_elapsed,
         file=sys.stdout,
     )
-    pipesend.send('.')
+    queue.put_nowait('.')
     p.start()
-    sleep(3)
+    sleep(1)
+    queue.put_nowait('!')
+    sleep(1)
+    queue.put_nowait('?')
+    sleep(1)
     p.stop()
     print()
     for attr in ('stop_flag', 'time_started', 'time_elapsed'):
         val = getattr(p, attr).value
         print('{:>16}: {}'.format(attr, val))
 
-    print('\nFinished with ProgressProcessBase functions.\n')
-
-
-def run_progress(delay=0.1):
-    """ This is a rough test of the Progress class. """
-    print(C('Testing Progress class...', 'cyan'))
-    print(C(' ').join(
-        C(len(Frames.names), 'blue', style='bright'),
-        C().join(C('frame types', 'cyan'), ':')
-    ))
-    # print('    {}\n'.format('\n    '.join(Frames.names)))
-
-    def run_frame_type(frames, framename):
-        s = 'Testing frame type: {}'.format(framename)
-        p = AnimatedProgress(
-            s,
-            frames=frames,
-            delay=delay,
-            char_delay=None,
-            fmt=None,
-            show_time=True,
-        )
-        p.start()
-        # Should be enough time to see the animation play through twice.
-        sleep(delay * (len(frames) * 2))
-        p.stop()
-
-    for name in Frames.names:
-        frames = getattr(Frames, name)
-        run_frame_type(frames, name)
-    print('\nFinished with progress functions.\n')
+    print('\nFinished with WriterProcessBase functions.\n')
 
 
 def run_scroll(delay=0.05):
@@ -329,6 +339,33 @@ def run_scroll(delay=0.05):
         sleep(linedelay)
 
     print('\nFinished with scroll functions.\n')
+
+
+def run_staticprogress(delay=0.1):
+    """ This is a rough test of the StaticProgress class. """
+    print(C('Testing StaticProgress class...', 'cyan'))
+
+    s = 'Testing StaticProgress.'
+    msgs = (
+        'Further testing in progress.',
+        'Switching the messages up a little bit.',
+        'Another message for you.',
+        'Just ran out of messages.',
+    )
+    p = StaticProgress(
+        s,
+        delay=delay,
+        char_delay=None,
+        fmt=None,
+        show_time=True,
+    )
+    p.start()
+    for msg in msgs:
+        p.text = msg
+        sleep(1)
+    p.stop()
+
+    print('\nFinished with static progress functions.\n')
 
 
 def print_err(*args, **kwargs):

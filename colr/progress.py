@@ -9,12 +9,16 @@ from ctypes import (
     c_bool,
     c_double,
 )
+
 from multiprocessing import (
     Lock,
-    Pipe,
     Process,
+    Queue,
     Value,
 )
+
+from multiprocessing.queues import Empty
+
 from time import (
     sleep,
     time,
@@ -33,11 +37,12 @@ class WriterProcessBase(Process):
     nice_delay = 0.001
 
     def __init__(
-            self, pipe, lock, stopped, time_started, time_elapsed, file=None):
+            self, queue, lock, stopped, time_started, time_elapsed,
+            file=None):
         self.file = file or sys.stdout
         self.lock = lock
-        self.pipe = pipe
-        self.text = None
+        self.text_queue = queue
+        self._text = None
         self.stop_flag = stopped
         self.time_started = time_started
         self.time_elapsed = time_elapsed
@@ -80,20 +85,19 @@ class WriterProcessBase(Process):
             This also updates the elapsed time.
         """
         self.write()
-        newtext = None
-
-        if self.pipe.poll():
-            newtext = self.pipe.recv()
-        if (newtext != self.text):
-            self.text = newtext
+        try:
+            newtext = self.text_queue.get_nowait()
+            self._text = newtext
+        except Empty:
+            pass
 
     def write(self):
         """ Write the current text to self.file, and flush it.
             This can be overridden to handle custom writes.
         """
-        if self.text is not None:
+        if self._text is not None:
             with self.lock:
-                self.file.write(str(self.text))
+                self.file.write(str(self._text))
                 self.file.flush()
 
 
@@ -107,14 +111,14 @@ class WriterProcess(WriterProcessBase):
 
     def __init__(self, text=None, file=None):
         self.file = file or sys.stdout
-        self.piperecv, self.pipesend = Pipe()
+        self.text_queue = Queue()
         stop_flag = Value(c_bool, True)
         time_started = Value(c_double, 0)
         time_elapsed = Value(c_double, 0)
         # This will set self._text, and send it through the pipe initially.
         self.text = text or ''
         super().__init__(
-            self.piperecv,
+            self.text_queue,
             self.lock,
             stop_flag,
             time_started,
@@ -129,15 +133,149 @@ class WriterProcess(WriterProcessBase):
     @text.setter
     def text(self, value):
         self._text = value
-        if self.pipesend.writable:
-            try:
-                self.pipesend.send(self._text)
-            except BrokenPipeError:
-                # Something is very wrong.
-                self.file.write('\nBroken pipe in ProgressProcess.\n')
+        self.text_queue.put_nowait(value)
 
 
-class AnimatedProgress(WriterProcess):
+class StaticProgress(WriterProcess):
+    """ A subprocess that writes status updates the terminal.
+        Text is only written if it changes (by setting `self.text`),
+        and is overwritten by the next text change.
+    """
+    default_format = ('{text}', )
+    default_format_time = ('{elapsed:>2.0f}s', '{text}')
+    join_str = ' '
+
+    def __init__(
+            self, text=None, delay=0.1, fmt=None,
+            show_time=False, char_delay=None, file=None):
+        self.file = file or sys.stdout
+        # Delay in seconds between frame renders.
+        self.delay = (delay or self.default_delay) - self.nice_delay
+        # Format for the progress frame, optional time, and text.
+        if show_time:
+            default_fmt = self.default_format_time
+        else:
+            default_fmt = self.default_format
+        # This is updated when `self.fmt` is set.
+        self._fmt = default_fmt
+        self.fmt = fmt or default_fmt
+        self.fmt_len = len(self.fmt)
+
+        # Time in seconds to delay between character writes.
+        self.char_delay = char_delay or None
+        # Keep track of the last message displayed, for char_delay animations.
+        self._last_text = None
+        # Initialize the basic ProgressProcess.
+        super().__init__(
+            text=text,
+            file=self.file,
+        )
+
+    def __str__(self):
+        """ Basic string representation of a Progress is it's current frame
+            string. No character delay can be used when using this to write
+            to terminal. `self.write()` can write custom codes/formats and
+            handle `self.char_delay`.
+        """
+        return self.join_str.join(self.fmt).format(
+            elapsed=self.elapsed,
+            text=self.text,
+        )
+
+    @property
+    def fmt(self):
+        return self._fmt
+
+    @fmt.setter
+    def fmt(self, value):
+        """ Sets self.fmt, with some extra help for plain format strings. """
+        if isinstance(value, str):
+            value = value.split(self.join_str)
+        if not (value and isinstance(value, (list, tuple))):
+            raise TypeError(
+                ' '.join((
+                    'Expecting str or list/tuple of formats {!r}.',
+                    'Got: ({}) {!r}'
+                )).format(
+                    self.default_format,
+                    type(value).__name__,
+                    value,
+                ))
+        self._fmt = value
+
+    def run(self):
+        """ Overrides WriterProcess.run, to handle KeyboardInterrupts better.
+            This should not be called by any user. `multiprocessing` calls
+            this in a subprocess.
+            Use `self.start` to start a Progress.
+        """
+        try:
+            Control().cursor_hide().write(file=self.file)
+            super().run()
+        except KeyboardInterrupt:
+            self.stop()
+        finally:
+            Control().cursor_show().write(file=self.file)
+
+    def stop(self):
+        """ Stop this progress if it has been started. Otherwise, do nothing.
+        """
+        if not self.stopped:
+            with self.lock:
+                (
+                    Control().text(C(' ', style='reset_all'))
+                    .pos_restore().move_column(1).erase_line()
+                    .write(self.file)
+                )
+        super().stop()
+
+    def write(self):
+        """ Writes a single frame of the progress spinner to the terminal.
+            This function updates the current frame before returning.
+        """
+        if self.text is None:
+            # Text has not been sent through the pipe yet.
+            # Do not write anything until it is set to non-None value.
+            return None
+        if self._last_text == self.text:
+            char_delay = None
+        else:
+            char_delay = self.char_delay
+            self._last_text = self.text
+        with self.lock:
+            ctl = Control().move_column(1).pos_save().erase_line()
+            if char_delay is None:
+                ctl.text(str(self)).write(file=self.file)
+            else:
+                self.write_char_delay(ctl, char_delay)
+            ctl.delay(self.delay)
+        return None
+
+    def write_char_delay(self, ctl, delay):
+        """ Write the formatted format pieces in order, applying a delay
+            between characters for the text only.
+        """
+        for i, fmt in enumerate(self.fmt):
+            if '{text' in fmt:
+                # The text will use a write delay.
+                ctl.text(fmt.format(text=self.text))
+                if i != (self.fmt_len - 1):
+                    ctl.text(self.join_str)
+                ctl.write(
+                    file=self.file,
+                    delay=delay
+                )
+            else:
+                # Anything else is written with no delay.
+                ctl.text(fmt.format(elapsed=self.elapsed))
+                if i != (self.fmt_len - 1):
+                    # Add the join_str to pieces, except the last piece.
+                    ctl.text(self.join_str)
+                ctl.write(file=self.file)
+        return ctl
+
+
+class AnimatedProgress(StaticProgress):
     """ A subprocess that writes FrameLists and handles advancing frames.
         The text is updated by setting `self.text` or overriding
         `self.write()`.
@@ -191,8 +329,6 @@ class AnimatedProgress(WriterProcess):
         self.fmt = fmt or default_fmt
         self.fmt_len = len(self.fmt)
 
-        # Whether the animation frame comes before or after the text/time.
-        self.frame_before = frame_before
         # Length of frames, used for setting the current frame.
         self.frame_len = len(self.frames)
         self.current_frame = 0
@@ -226,70 +362,11 @@ class AnimatedProgress(WriterProcess):
         if self.current_frame == self.frame_len:
             self.current_frame = 0
 
-    @property
-    def fmt(self):
-        return self._fmt
-
-    @fmt.setter
-    def fmt(self, value):
-        """ Sets self.fmt, with some extra help for plain format strings. """
-        if isinstance(value, str):
-            value = value.split(self.join_str)
-        if not (value and isinstance(value, (list, tuple))):
-            raise TypeError(
-                'Expecting list/tuple of formats {!r}. Got: ({}) {!r}'.format(
-                    self.default_format,
-                    type(value).__name__,
-                    value,
-                ))
-        self._fmt = value
-
-    def run(self):
-        """ Overrides WriterProcess.run, to handle KeyboardInterrupts better.
-            This should not be called by any user. `multiprocessing` calls
-            this in a subprocess.
-            Use `self.start` to start a Progress.
-        """
-        try:
-            Control().cursor_hide().write(file=self.file)
-            super().run()
-        except KeyboardInterrupt:
-            self.stop()
-        finally:
-            Control().cursor_show().write(file=self.file)
-
-    def stop(self):
-        """ Stop this progress if it has been started. Otherwise, do nothing.
-        """
-        if not self.stopped:
-            with self.lock:
-                (
-                    Control().text(C(' ', style='reset_all'))
-                    .pos_restore().move_column(1).erase_line()
-                    .write(self.file)
-                )
-        super().stop()
-
     def write(self):
         """ Writes a single frame of the progress spinner to the terminal.
             This function updates the current frame before returning.
         """
-        if self.text is None:
-            # Text has not been sent through the pipe yet.
-            # Do not write anything until it is set to non-None value.
-            return None
-        if self._last_text == self.text:
-            char_delay = None
-        else:
-            char_delay = self.char_delay
-            self._last_text = self.text
-        with self.lock:
-            ctl = Control().move_column(1).pos_save().erase_line()
-            if char_delay is None:
-                ctl.text(str(self)).write(file=self.file)
-            else:
-                self.write_char_delay(ctl, char_delay)
-            ctl.delay(self.delay)
+        super().write()
         self._advance_frame()
         return self.current_frame
 
