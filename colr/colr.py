@@ -849,11 +849,18 @@ class Colr(object):
         """ Colr is less another color if self.data < other.data.
             Colr cannot be compared to any other type.
         """
-        if not isinstance(other, self.__class__):
-            raise TypeError('Cannot compare. Expected: {}, got: {}.'.format(
+        if hasattr(other, 'data') and isinstance(other.data, str):
+            return self.data < other.data
+        elif isinstance(other, str):
+            return self.data < other
+
+        raise TypeError(
+            'Cannot compare. Expected: {} or str, got: ({}) {!r}.'.format(
                 self.__class__.__name__,
-                getattr(other, '__name__', type(other).__name__)))
-        return self.data < other.data
+                type(other).__name__,
+                other,
+            )
+        )
 
     def __mul__(self, n):
         """ Allow the same multiplication operator as str,

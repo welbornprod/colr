@@ -7,6 +7,7 @@
 """
 
 import os
+import random
 import sys
 from ctypes import c_bool, c_double
 from multiprocessing import Lock, Queue, Value
@@ -131,9 +132,11 @@ def parse_float_arg(s, default=None):
 def run_animatedprogress(delay=0.1):
     """ This is a rough test of the AnimatedProgress class. """
     print(C('Testing AnimatedProgress class...', 'cyan'))
+    maxtypes = 10
     print(C(' ').join(
-        C(len(Frames.names), 'blue', style='bright'),
-        C().join(C('frame types', 'cyan'), ':')
+        C('Testing', 'cyan'),
+        C(maxtypes, 'blue', style='bright'),
+        C().join(C(' random frame types', 'cyan'), ':')
     ))
     # print('    {}\n'.format('\n    '.join(Frames.names)))
 
@@ -148,16 +151,19 @@ def run_animatedprogress(delay=0.1):
             show_time=True,
         )
         p.start()
-        sleepsecs = delay * len(frames)
+        sleepsecs = (delay * len(frames)) * 2
         # Should be enough time to see the animation play through once.
         sleep(sleepsecs)
         p.text = 'Almost through with: {}'.format(framename)
         sleep(sleepsecs)
         p.stop()
 
-    for name in Frames.names:
-        frames = getattr(Frames, name)
-        run_frame_type(frames, name)
+    frametypes = set()
+    while len(frametypes) < maxtypes:
+        frametypes.add(Frames.get_by_name(random.choice(Frames.names)))
+
+    for framesobj in sorted(frametypes):
+        run_frame_type(framesobj, framesobj.name)
     print('\nFinished with animated progress functions.\n')
 
 
@@ -275,6 +281,8 @@ def run_process(delay=None):
     sleep(1)
     p.text = '!'
     sleep(1)
+    p.text = '?'
+    sleep(1)
     p.stop()
     # Test elapsed time changes.
     assert p.elapsed > 1
@@ -291,10 +299,13 @@ def run_processbase(delay=None):
     print(C('Testing WriterProcessBase class...', 'cyan'))
     write_lock = Lock()
     queue = Queue()
-
     stopped = Value(c_bool, True)
     time_started = Value(c_double, 0)
     time_elapsed = Value(c_double, 0)
+
+    def change_text(s):
+        queue.put_nowait(s)
+
     p = WriterProcessBase(
         queue,
         write_lock,
@@ -303,12 +314,12 @@ def run_processbase(delay=None):
         time_elapsed,
         file=sys.stdout,
     )
-    queue.put_nowait('.')
+    change_text('.')
     p.start()
     sleep(1)
-    queue.put_nowait('!')
+    change_text('!')
     sleep(1)
-    queue.put_nowait('?')
+    change_text('?')
     sleep(1)
     p.stop()
     print()
@@ -355,17 +366,16 @@ def run_staticprogress(delay=0.1):
     p = StaticProgress(
         s,
         delay=delay,
-        char_delay=0.01,
         fmt=None,
         show_time=True,
     )
     p.start()
     for i, msg in enumerate(msgs):
-        # if i % 2 == 0:
-        #     p.char_delay = 0.1
-        # else:
-        #     p.char_delay = None
-        p.text = msg
+        if i % 2 == 0:
+            p.char_delay = 0.1
+        else:
+            p.char_delay = None
+        p.text = '{}: {}'.format(i + 1, msg)
         sleep(1)
     p.stop()
 

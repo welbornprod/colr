@@ -12,6 +12,7 @@ from ctypes import (
 
 from multiprocessing import (
     Lock,
+    Pipe,
     Process,
     Queue,
     Value,
@@ -111,7 +112,7 @@ class WriterProcess(WriterProcessBase):
 
     def __init__(self, text=None, file=None):
         self.file = file or sys.stdout
-        self.text_queue = Queue()
+        self.text_queue = Queue(maxsize=1)
         stop_flag = Value(c_bool, True)
         time_started = Value(c_double, 0)
         time_elapsed = Value(c_double, 0)
@@ -134,7 +135,7 @@ class WriterProcess(WriterProcessBase):
     @text.setter
     def text(self, value):
         self._text = value
-        self.text_queue.put_nowait(value)
+        self.text_queue.put(value)
 
 
 class StaticProgress(WriterProcess):
