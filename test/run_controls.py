@@ -136,7 +136,7 @@ def run_animatedprogress(delay=0.1):
     print(C(' ').join(
         C('Testing', 'cyan'),
         C(maxtypes, 'blue', style='bright'),
-        C().join(C(' random frame types', 'cyan'), ':')
+        C().join(C('random frame types', 'cyan'), ':')
     ))
     # print('    {}\n'.format('\n    '.join(Frames.names)))
 
@@ -146,7 +146,7 @@ def run_animatedprogress(delay=0.1):
             s,
             frames=frames,
             delay=delay,
-            char_delay=0.005,
+            char_delay=None,
             fmt=None,
             show_time=True,
         )
