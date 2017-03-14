@@ -37,8 +37,8 @@ class WriterProcessBase(Process):
     nice_delay = 0.001
 
     def __init__(
-            self, queue, lock, stopped, time_started, time_elapsed,
-            file=None):
+            self, queue, lock, stopped, time_started,
+            time_elapsed, file=None):
         self.file = file or sys.stdout
         self.lock = lock
         self.text_queue = queue
@@ -116,6 +116,7 @@ class WriterProcess(WriterProcessBase):
         time_started = Value(c_double, 0)
         time_elapsed = Value(c_double, 0)
         # This will set self._text, and send it through the pipe initially.
+        self._text = None
         self.text = text or ''
         super().__init__(
             self.text_queue,
@@ -162,7 +163,8 @@ class StaticProgress(WriterProcess):
         self.fmt_len = len(self.fmt)
 
         # Time in seconds to delay between character writes.
-        self.char_delay = char_delay or None
+        self._char_delay = Value(c_double, char_delay or 0.0)
+
         # Keep track of the last message displayed, for char_delay animations.
         self._last_text = None
         # Initialize the basic ProgressProcess.
@@ -181,6 +183,19 @@ class StaticProgress(WriterProcess):
             elapsed=self.elapsed,
             text=self.text,
         )
+
+    @property
+    def char_delay(self):
+        """ Wrapper for multiprocessing Value, `self._char_delay`.
+            Allows using normal python values when setting/retrieving.
+        """
+        with self._char_delay.get_lock():
+            return self._char_delay.value
+
+    @char_delay.setter
+    def char_delay(self, value):
+        with self._char_delay.get_lock():
+            self._char_delay.value = value or 0
 
     @property
     def fmt(self):
@@ -238,13 +253,13 @@ class StaticProgress(WriterProcess):
             # Do not write anything until it is set to non-None value.
             return None
         if self._last_text == self.text:
-            char_delay = None
+            char_delay = 0
         else:
             char_delay = self.char_delay
             self._last_text = self.text
         with self.lock:
             ctl = Control().move_column(1).pos_save().erase_line()
-            if char_delay is None:
+            if char_delay == 0:
                 ctl.text(str(self)).write(file=self.file)
             else:
                 self.write_char_delay(ctl, char_delay)
@@ -332,14 +347,14 @@ class AnimatedProgress(StaticProgress):
         # Length of frames, used for setting the current frame.
         self.frame_len = len(self.frames)
         self.current_frame = 0
-        # Time in seconds to delay between character writes.
-        self.char_delay = char_delay or None
+
         # Keep track of the last message displayed, for char_delay animations.
         self._last_text = None
         # Initialize the basic ProgressProcess.
         super().__init__(
             text=text,
             file=self.file,
+            char_delay=char_delay,
         )
 
     def __str__(self):

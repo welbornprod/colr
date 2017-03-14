@@ -143,7 +143,7 @@ def run_animatedprogress(delay=0.1):
             s,
             frames=frames,
             delay=delay,
-            char_delay=None,
+            char_delay=0.005,
             fmt=None,
             show_time=True,
         )
@@ -355,12 +355,16 @@ def run_staticprogress(delay=0.1):
     p = StaticProgress(
         s,
         delay=delay,
-        char_delay=None,
+        char_delay=0.01,
         fmt=None,
         show_time=True,
     )
     p.start()
-    for msg in msgs:
+    for i, msg in enumerate(msgs):
+        # if i % 2 == 0:
+        #     p.char_delay = 0.1
+        # else:
+        #     p.char_delay = None
         p.text = msg
         sleep(1)
     p.stop()
