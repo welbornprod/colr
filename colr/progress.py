@@ -174,6 +174,14 @@ class StaticProgress(WriterProcess):
             file=self.file,
         )
 
+    def __enter__(self):
+        self.start()
+        return self
+
+    def __exit__(self, exc, exctype, tb):
+        self.stop()
+        return False
+
     def __str__(self):
         """ Basic string representation of a Progress is it's current frame
             string. No character delay can be used when using this to write
@@ -315,6 +323,12 @@ class AnimatedProgress(StaticProgress):
             calibrate_frob()
             # Calling `stop()` allows for a graceful exit/cleanup.
             p.stop()
+
+        Context Manager Example:
+            with AnimatedProgress('Testing this...') as p:
+                update_foo()
+                p.text = 'Calibrating the frob...'
+                calibrate_frob()
     """
     join_str = ' '
     default_delay = 0.1
@@ -323,8 +337,7 @@ class AnimatedProgress(StaticProgress):
 
     def __init__(
             self, text=None, frames=None, delay=None,
-            frame_before=True, fmt=None, show_time=False,
-            char_delay=None, file=None):
+            fmt=None, show_time=False, char_delay=None, file=None):
         self.file = file or sys.stdout
         self.frames = frames or Frames.default
 
@@ -333,25 +346,20 @@ class AnimatedProgress(StaticProgress):
                 self.frames
             ))
 
+        # Length of frames, used for setting the current frame.
+        self.frame_len = len(self.frames)
+        self.current_frame = 0
+
         # Format for the progress frame, optional time, and text.
         if show_time:
             default_fmt = self.default_format_time
         else:
             default_fmt = self.default_format
-        # This is updated when `self.fmt` is set.
-        self._fmt = default_fmt
-        self.fmt = fmt or default_fmt
-        self.fmt_len = len(self.fmt)
 
-        # Length of frames, used for setting the current frame.
-        self.frame_len = len(self.frames)
-        self.current_frame = 0
-
-        # Keep track of the last message displayed, for char_delay animations.
-        self._last_text = None
         # Initialize the basic ProgressProcess.
         super().__init__(
             text=text,
+            fmt=fmt or default_fmt,
             file=self.file,
             char_delay=char_delay,
             delay=self._get_delay(delay, frames),
