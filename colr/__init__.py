@@ -78,8 +78,6 @@ try:
     from .colr_docopt import docopt  # noqa
     has_docopt = True
 except ImportError:
-    # docopt not available,
-    # but can still be explicitly loaded from colr_docopt.
     has_docopt = False
 
 from .trans import (
