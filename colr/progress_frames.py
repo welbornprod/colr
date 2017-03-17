@@ -137,8 +137,8 @@ class FrameSet(object):
                 style : Style for each frame.
         """
         return self.__class__(
-            'custom_{}_as_colr'.format((self.name)),
             (C(s, **kwargs) for s in self),
+            name='custom_{}_as_colr'.format((self.name)),
             delay=self.delay,
         )
 
@@ -159,8 +159,8 @@ class FrameSet(object):
                 )
             )
         return self.__class__(
-            'custom_{}_as_gradient'.format(self.name),
             colrs,
+            name='custom_{}_as_gradient'.format(self.name),
             delay=self.delay,
         )
 
@@ -176,8 +176,8 @@ class FrameSet(object):
                 )
             )
         return self.__class__(
-            'custom_{}_as_rainbow'.format(self.name),
             colrs,
+            name='custom_{}_as_rainbow'.format(self.name),
             delay=self.delay,
         )
 
