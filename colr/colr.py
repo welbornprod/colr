@@ -877,19 +877,10 @@ class Colr(object):
 
     def __radd__(self, other):
         """ Allow a Colr to be added to a str. """
-        if hasattr(other, 'data') and isinstance(other.data, str):
-            return self.__class__(''.join((other.data, self.data)))
-        elif isinstance(other, str):
-            return self.__class__(''.join((other, self.data)))
-
-        raise TypeError(
-            'Colr cannot be added to non Colr, Control, or str: {}'.format(
-                getattr(other, '__name__', type(other).__name__)
-            )
-        )
+        return self.__add__(other)
 
     def __rmul__(self, n):
-        return self * n
+        return self.__mul__(n)
 
     def __repr__(self):
         return repr(self.data)

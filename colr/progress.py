@@ -110,7 +110,6 @@ class WriterProcess(WriterProcessBase):
     lock = Lock()
 
     def __init__(self, text=None, file=None):
-        self.file = file or sys.stdout
         self.text_queue = Queue(maxsize=1)
         stop_flag = Value(c_bool, True)
         time_started = Value(c_double, 0)
@@ -124,7 +123,7 @@ class WriterProcess(WriterProcessBase):
             stop_flag,
             time_started,
             time_elapsed,
-            file=self.file,
+            file=file,
         )
 
     @property
@@ -150,7 +149,6 @@ class StaticProgress(WriterProcess):
     def __init__(
             self, text=None, delay=None, fmt=None,
             show_time=False, char_delay=None, file=None):
-        self.file = file or sys.stdout
         # Delay in seconds between frame renders.
         self.delay = (delay or self.default_delay) - self.nice_delay
         # Format for the progress frame, optional time, and text.
@@ -171,7 +169,7 @@ class StaticProgress(WriterProcess):
         # Initialize the basic ProgressProcess.
         super().__init__(
             text=text,
-            file=self.file,
+            file=file,
         )
 
     def __enter__(self):
@@ -338,7 +336,6 @@ class AnimatedProgress(StaticProgress):
     def __init__(
             self, text=None, frames=None, delay=None,
             fmt=None, show_time=False, char_delay=None, file=None):
-        self.file = file or sys.stdout
         self.frames = frames or Frames.default
 
         if not self.frames:
@@ -360,7 +357,7 @@ class AnimatedProgress(StaticProgress):
         super().__init__(
             text=text,
             fmt=fmt or default_fmt,
-            file=self.file,
+            file=file,
             char_delay=char_delay,
             delay=self._get_delay(delay, frames),
         )

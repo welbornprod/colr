@@ -17,7 +17,7 @@ class FrameSet(object):
     """
     default_delay = 0.1
 
-    def __init__(self, name, iterable, delay=None):
+    def __init__(self, iterable, name=None, delay=None):
         self.data = tuple(iterable)
         if not self.data:
             raise ValueError(
@@ -25,11 +25,7 @@ class FrameSet(object):
                     iterable,
                 )
             )
-        self.name = str(name).strip().lower()
-        if not self.name:
-            raise ValueError('Empty name is not allowed. Got: {!r}'.format(
-                name,
-            ))
+        self.name = str(name or '').strip().lower()
 
         self.delay = delay or self.default_delay
         if not (isinstance(self.delay, (float, int)) or (self.delay is None)):
@@ -43,8 +39,37 @@ class FrameSet(object):
                 )
             )
 
+    def __add__(self, other):
+        """ FrameSets can be extended with other self.data lists/tuples, or
+            builtin lists/tuples.
+        """
+        otherdata = getattr(other, 'data', None)
+        if isinstance(otherdata, tuple):
+            return self.__class__(self.data + other.data)
+        elif isinstance(otherdata, list):
+            return self.__class__(self.data + tuple(other.data))
+        elif isinstance(other, tuple):
+            return self.__class__(self.data + other)
+        elif isinstance(other, list):
+            return self.__class__(self.data + tuple(other))
+        else:
+            raise TypeError(
+                ' '.join((
+                    'Expecting list, tuple,',
+                    'or object with a list or tuple data attribute.',
+                    'Got: ({}) {!r}'
+                )).format(
+                    type(other).__name__,
+                    other,
+                )
+            )
+
     def __bool__(self):
         return bool(self.data)
+
+    def __bytes__(self):
+        """ bytes(FrameSet()) is the same as str(FrameSet()).encode(). """
+        return str(self).encode()
 
     def __contains__(self, value):
         return value in self.data
@@ -66,8 +91,27 @@ class FrameSet(object):
             return self.data < other.data
         return self.data < other
 
+    def __mul__(self, n):
+        """ The data tuple for this frameset can be multiplied by a number.
+            It returns `FrameSet(self.data * n)`.
+        """
+        if not isinstance(n, int):
+            raise TypeError(
+                'Cannot multiply FrameSet by non-int type: {}'.format(
+                    type(n).__name__
+                )
+            )
+
+        return self.__class__(self.data * n)
+
+    def __radd__(self, other):
+        return self.__add__(other)
+
     def __reversed__(self):
         return self.__class__(reversed(self.data))
+
+    def __rmul__(self, other):
+        return self.__mul__(other)
 
     def __setitem__(self, key, value):
         raise TypeError('FrameSet does not support assignment.')
@@ -193,8 +237,8 @@ class Frames(object):
                 '`name` is needed when the `frameset` has no name attribute.'
             )
         newframeset = FrameSet(
-            name,
             frameset,
+            name=name,
             delay=getattr(frameset, 'delay', None)
         )
         setattr(cls, name, newframeset)
@@ -205,7 +249,6 @@ class Frames(object):
     # arrows kinda works in a 'TERM=linux' terminal, the black arrows will be
     # missing.
     arrows = FrameSet(
-        'arrows',
         (
             '▹▹▹▹▹',
             '▸▹▹▹▹',
@@ -214,12 +257,12 @@ class Frames(object):
             '▹▹▹▸▹',
             '▹▹▹▹▸'
         ),
+        name='arrows',
         delay=0.25,
     )
-    bounce = FrameSet('bounce', '⠁⠂⠄⠂' * 6, delay=0.25)
+    bounce = FrameSet('⠁⠂⠄⠂' * 6, name='bounce', delay=0.25)
     # bouncing_ball works in a 'TERM=linux' terminal (basic, with bad fonts)
     bouncing_ball = FrameSet(
-        'bouncing_ball',
         (
             '( ●    )',
             '(  ●   )',
@@ -232,11 +275,11 @@ class Frames(object):
             '( ●    )',
             '(●     )',
         ),
+        name='bouncing_ball',
     )
-    dots = FrameSet('dots', '⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏' * 3)
-    dots_orbit = FrameSet('dots_orbit', '⢄⢂⢁⡁⡈⡐⡠' * 3)
+    dots = FrameSet('⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏' * 3, name='dots')
+    dots_orbit = FrameSet('⢄⢂⢁⡁⡈⡐⡠' * 3, name='dots_orbit')
     dots_chase = FrameSet(
-        'dots_chase',
         (
             '⢀⠀',
             '⡀⠀',
@@ -294,10 +337,11 @@ class Frames(object):
             '⠀⠠',
             '⠀⢀',
             '⠀⡀',
-        )
+        ),
+        name='dots_chase',
     )
     # The hamburger FrameSet has display problems on my terminal.
-    hamburger = FrameSet('hamburger', ('☱ ', '☲ ', '☴ '), delay=0.5)
+    hamburger = FrameSet(('☱ ', '☲ ', '☴ '), name='hamburger', delay=0.5)
 
 
 def _build_color_frames():

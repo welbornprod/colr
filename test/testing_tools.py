@@ -6,6 +6,7 @@
 import inspect
 import unittest
 from contextlib import suppress
+from io import StringIO
 from unittest.case import _AssertRaisesContext
 from typing import Any, Callable, Mapping, Optional, no_type_check
 
@@ -154,6 +155,32 @@ class ColrTestCase(unittest.TestCase):
     # It's for getting the calling test name when building messages.
     calling_test_level = 5
 
+    def assertAlmostEqual(self, a, b, places=None, msg=None, delta=None):
+        """ Like self.assertAlmostEqual, with a better message. """
+        try:
+            super().assertAlmostEqual(
+                a,
+                b,
+                places=places,
+                msg=msg,
+                delta=delta,
+            )
+        except self.failureException:
+            raise self.failureException(_equality_msg('!~', a, b, msg=msg))
+
+    def assertAlmostNotEqual(self, a, b, places=None, msg=None, delta=None):
+        """ Like self.assertAlmostNotEqual, with a better message. """
+        try:
+            super().assertAlmostNotEqual(
+                a,
+                b,
+                places=places,
+                msg=msg,
+                delta=delta,
+            )
+        except self.failureException:
+            raise self.failureException(_equality_msg('~', a, b, msg=msg))
+
     def assertCallEqual(
             self, a, b, func=None,
             args=None, kwargs=None,
@@ -217,6 +244,29 @@ class ColrTestCase(unittest.TestCase):
                 _op='==',
             )
         )
+
+    def assertCallIsInstance(
+            self, obj, cls, func=None,
+            args=None, kwargs=None,
+            otherargs=None, otherkwargs=None, msg=None):
+        try:
+            super().assertIsInstance(obj, cls, msg=msg)
+        except self.failureException as ex:
+            stdmsg = ex.args[0] if ex.args else None
+            callargs = args or []
+            callkwargs = kwargs or {}
+            raise self.failureException(
+                call_msg(
+                    _equality_msg('is not', obj, cls, msg=stdmsg),
+                    *callargs,
+                    **callkwargs,
+                    _other_args=otherargs,
+                    _other_kwargs=otherkwargs,
+                    _call_func=func,
+                    _level=3,
+                    _op='is not',
+                )
+            )
 
     def assertCallTrue(
             self, val, func=None, args=None, kwargs=None, msg=None):
@@ -289,3 +339,15 @@ class ColrTestCase(unittest.TestCase):
             raise self.failureException(
                 _equality_msg('!=', a, b, msg=stdmsg)
             )
+
+
+class TestFile(StringIO):
+    """ A file object that deletes it's content every time you call
+        str(TestFile).
+    """
+    def __str__(self):
+        self.seek(0)
+        s = self.read()
+        self.truncate(0)
+        self.seek(0)
+        return s

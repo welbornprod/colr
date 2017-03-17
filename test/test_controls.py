@@ -1,15 +1,14 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-""" test_colr.py
-    Unit tests for colr.py.
+""" test_controls.py
+    Unit tests for colr/controls.py.
 
-    -Christopher Welborn 12-09-2015
+    -Christopher Welborn 3-7-2017
 """
 
 import sys
 import unittest
-from io import StringIO
 
 from colr import (
     __version__,
@@ -126,18 +125,6 @@ class ControlTests(ColrTestCase):
             str(ctl.repeat_all(count)),
             msg='Control.repeat_all produced an unexpected result.',
         )
-
-
-class TestFile(StringIO):
-    """ A file object that deletes it's content every time you call
-        str(TestFile).
-    """
-    def __str__(self):
-        self.seek(0)
-        s = self.read()
-        self.truncate(0)
-        self.seek(0)
-        return s
 
 
 if __name__ == '__main__':
