@@ -28,14 +28,6 @@ from .testing_tools import (
     TestFile,
 )
 
-# Green has a problem with initializing a Process with a Value attached:
-GREEN_ISSUE_URL = 'https://github.com/CleanCut/green/issues/154'
-# Until this issue is resolved, the WriterProcessBase subclasses can't be
-# tested. All of this can be deleted when the issue is resolved.
-GREEN_ISSUE_RESOLVED = False
-GREEN_ISSUE_MSG = 'Waiting for resolution for: {}'.format(GREEN_ISSUE_URL)
-
-
 print('Testing Colr.Progress v. {}'.format(__version__))
 
 
@@ -134,7 +126,6 @@ class FrameSetTests(ColrTestCase):
             )
 
 
-@unittest.skipUnless(GREEN_ISSUE_RESOLVED, GREEN_ISSUE_MSG)
 class AnimatedProgressTests(ColrTestCase):
     """ Tests for colr.progress.AnimatedProgress. """
 
@@ -171,16 +162,7 @@ class AnimatedProgressTests(ColrTestCase):
             msg='FrameSet delay was not overridden.',
         )
 
-        import multiprocessing as mp
-        for finalizer in mp.util._finalizer_registry.values():
-            for arg in finalizer._args:
-                addr = getattr(arg, 'address', None)
-                if addr is None:
-                    continue
-                print('ADDRESS: {}'.format(addr))
 
-
-@unittest.skipUnless(GREEN_ISSUE_RESOLVED, GREEN_ISSUE_MSG)
 class WriterProcessTests(ColrTestCase):
     """ Tests for the WriterProcess. """
     def test_init(self):
@@ -193,7 +175,6 @@ class WriterProcessTests(ColrTestCase):
         )
 
 
-@unittest.skipUnless(GREEN_ISSUE_RESOLVED, GREEN_ISSUE_MSG)
 class WriterProcessBaseTests(ColrTestCase):
     """ Tests for the WriterProcessBase. """
     def test_init(self):
@@ -213,29 +194,6 @@ class WriterProcessBaseTests(ColrTestCase):
             p,
             WriterProcessBase,
             msg='Failed to initialize WriterProcessBase.',
-        )
-
-
-# Minimum test case for GREEN_ISSUE_URL.
-DEBUGGING_GREEN_ISSUE = True
-
-
-@unittest.skipUnless(DEBUGGING_GREEN_ISSUE, 'No need to run a non-test.')
-class ProcessTests(unittest.TestCase):
-    """ Debugging FileNotFoundError when using a multiprocessing.Value. """
-
-    def test_process(self):
-
-        def func(v):
-            v.value = 1.23
-            print(v.value)
-        import multiprocessing
-        from ctypes import c_double
-
-        val = multiprocessing.Value(c_double, 0)
-        multiprocessing.Process(
-            target=func,
-            args=(val, )
         )
 
 
