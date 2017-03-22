@@ -131,7 +131,7 @@ def move_back(columns=1, file=sys.stdout):
 
 
 def move_column(column=1, file=sys.stdout):
-    """ Move the cursor to a certain column, default 1.
+    """ Move the cursor to the specified column, default 1.
 
         Esc[<column>G
     """
@@ -574,7 +574,7 @@ class Control(object):
                 '`count` must be an integer. Got: {!r}'.format(count)
             ) from ex
 
-    def repeat_all(self, count=1):
+    def repeat_all(self, count=2):
         """ Repeat this entire Control code a number of times.
             Returns a new Control with this one's data repeated.
         """
