@@ -61,6 +61,7 @@ from .colr import (  # noqa
 
 from .controls import (  # noqa
     Control,
+    EraseMethod,
 )
 
 from .progress import (
@@ -128,6 +129,7 @@ __all__ = [
     'strip_codes',
     # controls functions/classes made available.
     'Control',
+    'EraseMethod',
     # progress functions/classes made available.
     'AnimatedProgress',
     'StaticProgress',
