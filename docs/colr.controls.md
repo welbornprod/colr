@@ -2,8 +2,8 @@
 
 This module contains functions and classes to work with escape codes that
 control the cursor or screen.
-You can use the file-writing [functions](#Functions), or
-for `Colr`-like, chained behavior you can use the [`Control`](#colr.Control)
+You can use the file-writing [functions](#functions), or
+for `Colr`-like, chained behavior you can use the [`Control`](#colrcontrol)
 object.
 
 ## Functions
@@ -12,7 +12,7 @@ Module-level functions will write the appropriate escape code to their `file`
 argument (Default: `sys.stdout`).
 
 If you would like to retrieve the escape code strings themselves, then use a
-[`Control`](#colr.Control) object, or one of the `cursor`, `erase`, `move`,
+[`Control`](#colrcontrol) object, or one of the `cursor`, `erase`, `move`,
 `position`, or `scroll` `EscapeCode` objects from `colr.control_codes`.
 
 ### cursor_hide

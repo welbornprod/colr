@@ -34,11 +34,11 @@ with StaticProgress('Loading the thing.', show_time=True) as p:
 ```
 ## colr.AnimatedProgress
 
-This is like the [`StaticProgress`](#colr.StaticProgress), but it can be
+This is like the [`StaticProgress`](#colrstaticprogress), but it can be
 given a set of "frames" to cycle through while printing, to create animations.
 Each frame is a character or string to print, and advances/loops after each
-delay. There are some predefined [`FrameSet`](#colr.FrameSet)s in the
-[`Frames`](#colr.Frames) class.
+delay. There are some predefined [`FrameSet`](#colrframeset)s in the
+[`Frames`](#colrframes) class.
 
 ### Example
 
@@ -75,9 +75,9 @@ with p:
 
 A `FrameSet` is basically a tuple of strings, with a name and an optional
 suggested `delay` attribute.
-The [`AnimatedProgress`](#colr.AnimatedProgress) class will honor a `FrameSet`s
+The [`AnimatedProgress`](#colranimatedprogress) class will honor a `FrameSet`s
 `delay`, as long as the user doesn't override it when intializing the
-[`AnimatedProgress`](#colr.AnimatedProgress).
+[`AnimatedProgress`](#colranimatedprogress).
 
 ### Example
 
@@ -111,7 +111,7 @@ and the `style` arg is forwarded.
 
 ## colr.Frames
 
-The `Frames` class is a collection of [`FrameSet`s](#colr.FrameSet) included with
+The `Frames` class is a collection of [`FrameSet`s](#colrframeset) included with
 `colr` by default. It includes the basic plain animations, and many colorized
 versions of those animations (generated with `FrameSet.as_colr`,
 `FrameSet.as_gradient`, and `FrameSet.as_rainbow`).
@@ -159,8 +159,8 @@ Each of these has a color, light-color, gradient, and rainbow variant. You
 can access them by the names listed below, where `<name>` is the name of the
 basic `FrameSet`.
 
-Also, as noted in the [`FrameSet`](#colr.FrameSet) documentation, you can
-always make your own [colorized variants](#FrameSet.as_colr).
+Also, as noted in the [`FrameSet`](#colrframeset) documentation, you can
+always make your own [colorized variants](#framesetas_colr).
 
 ##### Basic Colors
 
