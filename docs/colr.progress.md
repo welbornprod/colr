@@ -75,9 +75,9 @@ with p:
 
 A `FrameSet` is basically a tuple of strings, with a name and an optional
 suggested `delay` attribute.
-The [`AnimatedProgress`](#AnimatedProgress) class will honor a `FrameSet`s
+The [`AnimatedProgress`](#colr.AnimatedProgress) class will honor a `FrameSet`s
 `delay`, as long as the user doesn't override it when intializing the
-[`AnimatedProgress`](#AnimatedProgress).
+[`AnimatedProgress`](#colr.AnimatedProgress).
 
 ### Example
 
@@ -111,7 +111,7 @@ and the `style` arg is forwarded.
 
 ## colr.Frames
 
-The `Frames` class is a collection of [`FrameSet`s](#FrameSet) included with
+The `Frames` class is a collection of [`FrameSet`s](#colr.FrameSet) included with
 `colr` by default. It includes the basic plain animations, and many colorized
 versions of those animations (generated with `FrameSet.as_colr`,
 `FrameSet.as_gradient`, and `FrameSet.as_rainbow`).
