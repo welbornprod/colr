@@ -245,7 +245,7 @@ class Frames(object):
         return newframeset
 
     # Basic non-color framelists.
-    arc = FrameSet('arc', '◜◠◝◞◡◟' * 3, delay=0.25)
+    arc = FrameSet('◜◠◝◞◡◟' * 3, name='arc', delay=0.25)
     # arrows kinda works in a 'TERM=linux' terminal, the black arrows will be
     # missing.
     arrows = FrameSet(
