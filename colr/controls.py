@@ -78,7 +78,7 @@ def ensure_tty(file=sys.stdout):
 
 def erase_display(method=EraseMethod.ALL_MOVE, file=sys.stdout):
     """ Clear the screen or part of the screen, and possibly moves the cursor
-        to the "home" position (0, 0). See `method` argument below.
+        to the "home" position (1, 1). See `method` argument below.
 
         Esc[<method>J
 

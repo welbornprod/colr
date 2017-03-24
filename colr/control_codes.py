@@ -62,7 +62,7 @@ class EraseCodes(object):
     @staticmethod
     def display(method=EraseMethod.ALL_MOVE):
         """ Clear the screen or part of the screen, and possibly moves the cursor
-            to the "home" position (0, 0). See `method` argument below.
+            to the "home" position (1, 1). See `method` argument below.
 
             Esc[<method>J
 

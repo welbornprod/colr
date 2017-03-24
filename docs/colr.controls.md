@@ -28,8 +28,9 @@ Show the cursor.
 ### erase_display
 `erase_display(method=EraseMethod.ALL_MOVE, file=sys.stdout)`
 
-Clear the screen or part of the screen, and possibly moves the cursor to the
-"home" position (0, 0). See `method` argument below.
+Clear the screen or part of the screen,
+and possibly moves the cursor to the "home" position (1, 1).
+See `method` argument below.
 
 The `method` argument can be one of these possible values:
 
@@ -195,8 +196,8 @@ Run `time.sleep(seconds)` and return this `Control`.
 `Control.erase_display(method=EraseMethod.ALL_MOVE)`
 
 Appends the code to clear the screen or part of the screen,
-and possibly move the cursor to the
-"home" position (0, 0). See `method` argument below.
+and possibly move the cursor to the "home" position (1, 1).
+See `method` argument below.
 
 The `method` argument can be one of these possible values:
 
