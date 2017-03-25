@@ -10,6 +10,7 @@
 import os
 import subprocess
 import sys
+import traceback
 
 from green import __version__ as green_version
 from colr import (
@@ -19,6 +20,26 @@ from colr import (
     Colr as C,
 )
 
+
+try:
+    from test import test_colr_tool  # noqa
+    from test import test_colr  # noqa
+    from test import test_controls  # noqa
+    from test import test_progress  # noqa
+except Exception as ex:
+    print(
+        C('\n').join(
+            C('Failed to import test modules. Something is wrong:', 'red'),
+            '{}: {}'.format(
+                C(type(ex).__name__, 'red', style='bright'),
+                C(ex, 'magenta'),
+            )
+        ),
+        file=sys.stderr,
+    )
+
+    traceback.print_exc()
+    sys.exit(1)
 colr_auto_disable()
 
 NAME = 'Colr Test Runner'

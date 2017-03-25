@@ -26,7 +26,12 @@ from time import (
 
 from .colr import Colr as C
 from .controls import Control
-from .progress_frames import Frames, FrameSet  # noqa
+from .progress_frames import (  # noqa
+    Bars,
+    BarSet,
+    Frames,
+    FrameSet,
+)
 
 
 class WriterProcessBase(Process):
@@ -46,7 +51,7 @@ class WriterProcessBase(Process):
         self.stop_flag = stopped
         self.time_started = time_started
         self.time_elapsed = time_elapsed
-        self.update()
+        self.update_text()
         super().__init__(name=self.__class__.__qualname__)
 
     @property
@@ -62,7 +67,7 @@ class WriterProcessBase(Process):
         while True:
             if self.stop_flag.value:
                 break
-            self.update()
+            self.update_text()
             sleep(self.nice_delay)
             with self.time_started.get_lock():
                 start = self.time_started.value
@@ -80,7 +85,7 @@ class WriterProcessBase(Process):
     def stopped(self):
         return self.stop_flag.value
 
-    def update(self):
+    def update_text(self):
         """ Write the current text, and check for any new text changes.
             This also updates the elapsed time.
         """
@@ -353,7 +358,7 @@ class AnimatedProgress(StaticProgress):
         else:
             default_fmt = self.default_format
 
-        # Initialize the basic ProgressProcess.
+        # Initialize the basic StaticProgress.
         super().__init__(
             text=text,
             fmt=fmt or default_fmt,
@@ -431,3 +436,77 @@ class AnimatedProgress(StaticProgress):
                     ctl.text(self.join_str)
                 ctl.write(file=self.file)
         return ctl
+
+
+class ProgressBar(StaticProgress):
+    """ A subprocess that writes a progress bar, using a user callback to
+        handle updates to the state of the progress.
+    """
+    join_str = ' '
+    default_delay = 0.1
+    default_format = ('{text}', '{bars}')
+    default_format_time = ('{text}', '{elapsed:>2.0f}s', '{bars}')
+
+    def __init__(
+            self, text=None, bars=None,
+            fmt=None, show_time=False, char_delay=None, file=None):
+        self.bar_text = text or 'Progress'
+        self.bars = bars or Bars.default
+
+        if not self.bars:
+            raise ValueError('Must have at least one frame. Got: {!r}'.format(
+                self.bars
+            ))
+
+        # Length of bars, used for setting the current frame.
+        self.bar_len = len(self.bars)
+        self._percent = Value(c_double, 0)
+
+        # Format for the progress frame, optional time, and text.
+        if show_time:
+            default_fmt = self.default_format_time
+        else:
+            default_fmt = self.default_format
+
+        # Initialize the basic ProgressProcess.
+        super().__init__(
+            text=self.bar_text,
+            fmt=fmt or default_fmt,
+            file=file,
+            char_delay=char_delay,
+            delay=self.default_delay,
+        )
+
+    def __str__(self):
+        """ String representation of this ProgressBar in it's current state.
+        """
+        return self.join_str.join(self.fmt).format(
+            bars=self.bars.as_percent(self.percent),
+            elapsed=self.elapsed,
+            text=self.bar_text,
+        )
+
+    @property
+    def message(self):
+        return self.bar_text
+
+    @message.setter
+    def message(self, text):
+        self.update(text=text)
+
+    @property
+    def percent(self):
+        return self._percent.value
+
+    @percent.setter
+    def percent(self, value):
+        self._percent.value = value
+
+    def update(self, percent=None, text=None):
+        """ Redraw the progress bar, based on a percentage. """
+        if percent is not None:
+            self.percent = percent
+        if text is not None:
+            # TODO: This doesn't work. The subprocess doesn't know about it!.
+            self.bar_text = text
+        self.text = str(self)

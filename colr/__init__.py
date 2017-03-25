@@ -66,13 +66,16 @@ from .controls import (  # noqa
 
 from .progress import (
     AnimatedProgress,
+    ProgressBar,
     StaticProgress,
     WriterProcess,
 )
 
 from .progress_frames import (
-    FrameSet,
+    Bars,
+    BarSet,
     Frames,
+    FrameSet,
 )
 
 try:
@@ -132,11 +135,14 @@ __all__ = [
     'EraseMethod',
     # progress functions/classes made available.
     'AnimatedProgress',
+    'ProgressBar',
     'StaticProgress',
     'WriterProcess',
     # progress frame classes made available.
-    'FrameSet',
+    'Bars',
+    'BarSet',
     'Frames',
+    'FrameSet',
     # trans functions made available.
     'ColorCode',
     'fix_hex',

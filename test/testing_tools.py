@@ -340,6 +340,13 @@ class ColrTestCase(unittest.TestCase):
                 _equality_msg('!=', a, b, msg=stdmsg)
             )
 
+    def call_msg(self, s, *args, **kwargs):
+        """ Convenience method, a wrapper for `call_msg`. """
+        kwargs.setdefault('_level', 4)
+        with suppress(KeyError):
+            kwargs.setdefault('_call_func', kwargs.pop('func'))
+        return call_msg(s, *args, **kwargs)
+
 
 class TestFile(StringIO):
     """ A file object that deletes it's content every time you call

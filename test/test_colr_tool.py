@@ -33,8 +33,6 @@ from .testing_tools import ColrTestCase
 
 r = random.SystemRandom()
 
-print('Testing Colr Tool v. {}'.format(__version__))
-
 # Save names in list format, for random.choice().
 name_data_names = list(name_data)
 
@@ -302,5 +300,6 @@ class ColrToolTests(ColrTestCase):
 
 
 if __name__ == '__main__':
+    print('Testing Colr Tool v. {}'.format(__version__))
     # unittest.main() calls sys.exit(status_code).
     unittest.main(argv=sys.argv, verbosity=2)

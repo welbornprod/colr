@@ -39,8 +39,6 @@ from colr.trans import (
 
 from .testing_tools import ColrTestCase
 
-print('Testing Colr v. {}'.format(__version__))
-
 # Save names in list format, for random.choice().
 name_data_names = list(name_data)
 
@@ -783,5 +781,6 @@ class FailingTests(ColrTestCase):
 
 
 if __name__ == '__main__':
+    print('Testing Colr v. {}'.format(__version__))
     # unittest.main() calls sys.exit(status_code).
     unittest.main(argv=sys.argv, verbosity=2)  # type: ignore
