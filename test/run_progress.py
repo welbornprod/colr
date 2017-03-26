@@ -45,7 +45,7 @@ except ImportError as ex:
     sys.exit(1)
 
 NAME = 'Progress Test Run'
-VERSION = '0.0.1'
+VERSION = '0.2.0'
 VERSIONSTR = '{} v. {}'.format(NAME, VERSION)
 SCRIPT = os.path.split(os.path.abspath(sys.argv[0]))[1]
 SCRIPTDIR = os.path.abspath(sys.path[0])
@@ -56,14 +56,15 @@ USAGESTR = """{versionstr}
 
     Usage:
         {script} -e | -h | -v
-        {script} [-d secs] [-D secs] [-a] [-f name...] [-b] [-B] [-c] [-s]
+        {script} [-d secs] [-D secs] [-a] [-b name...] [-f name...]
+                 [-p] [-B] [-c] [-s]
 
     Options:
+        -b name,--bars name       : Run a specific BarSet test.
         -f name,--frames name     : Run a specific animated FrameSet test.
                                     More than one flag can be given.
         -a,--animatedprogress     : Run animated progress tests.
         -B,--processbase          : Run processbase tests.
-        -b,--progressbar          : Run progress bar tests.
         -c,--process              : Run progress process tests.
         -D secs,--chardelay secs  : Time in seconds for character delay.
                                     Default: None
@@ -71,6 +72,7 @@ USAGESTR = """{versionstr}
                                     Default: 0.05
         -e,--erase                : Erase display/scrollback.
         -h,--help                 : Show this help message.
+        -p,--progressbar          : Run progress bar tests.
         -s,--staticprogress       : Run static progress tests.
         -v,--version              : Show version.
 
@@ -88,6 +90,7 @@ def main(argd):
     delay = parse_float_arg(argd['--delay'], default=None)
     char_delay = parse_float_arg(argd['--chardelay'], default=None)
     test_flags = (
+        '--bars',
         '--frames',
         '--animatedprogress',
         '--process',
@@ -99,6 +102,12 @@ def main(argd):
 
     errs = 0
     try:
+        if argd['--bars']:
+            errs += run_test_func(
+                run_bar_names,
+                argd['--bars'],
+                delay=delay,
+            )
         if argd['--frames']:
             errs += run_test_func(
                 run_frame_names,
@@ -188,6 +197,37 @@ def run_animatedprogress(delay=None, char_delay=None):
         run_frame_type(framesobj, framesobj.name)
     print('\nFinished with animated progress functions.\n')
     return 0
+
+
+def run_bar_name(name, delay=None, char_delay=None):
+    """ Run a single animated progress BarSet by name. """
+    try:
+        bars = Bars.get_by_name(name)
+    except ValueError as ex:
+        print_err(ex)
+        return 1
+    minruntime = 2
+    delay = delay or (minruntime / 20)
+    p = ProgressBar(
+        'Testing progress bar: {}'.format(bars.name),
+        bars=bars,
+        show_time=True,
+    )
+    with p:
+        for x in range(0, 101, 5):
+            p.update(x)
+            sleep(delay)
+    p.stop()
+
+    return 0
+
+
+def run_bar_names(names, delay=None, char_delay=None):
+    """ Run a list of progress animation BarSets by name. """
+    return sum(
+        run_bar_name(n, delay=delay, char_delay=char_delay)
+        for n in names
+    )
 
 
 def run_frame_name(name, delay=None, char_delay=None):
@@ -294,7 +334,7 @@ def run_progressbar(delay=None, char_delay=None):
         C(maxtypes, 'blue', style='bright'),
         C().join(C('random bar types', 'cyan'), ':')
     ))
-    delay = delay or 0.5
+    delay = delay or 0.25
 
     def run_bar_type(bars, barsname):
         s = 'Testing frame type: {}'.format(barsname)
@@ -302,18 +342,27 @@ def run_progressbar(delay=None, char_delay=None):
             s,
             bars=bars,
             show_time=True,
-            char_delay=char_delay,
         )
         with p:
-            for x in range(0, 50, 10):
+            for x in range(0, 50, 5):
                 p.update(x)
                 sleep(delay)
             p.message = 'Almost through with: {}'.format(barsname)
-            for x in range(50, 100, 10):
+            for x in range(50, 100, 5):
                 p.update(x)
                 sleep(delay)
             p.update(100)
             sleep(delay)
+        p = ProgressBar(
+            s,
+            bars=bars,
+            show_time=False,
+        )
+        with p:
+            for x in range(0, 160, 10):
+                p.message = 'Testing percent {}: {}'.format(x, barsname)
+                p.update(x)
+                sleep(delay * 0.9)
 
     bartypes = set()
     barnames = Bars.names()

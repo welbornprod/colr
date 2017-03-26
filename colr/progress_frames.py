@@ -4,9 +4,14 @@
 
     -Christopher Welborn 3-12-17
 """
+from collections import namedtuple
 from functools import total_ordering
 
 from .colr import Colr as C
+
+
+# Argument set for `range` in `BarSet._generate_move`.
+RangeMoveArgs = namedtuple('RangeMoveArgs', ('forward', 'backward'))
 
 
 def cls_get_by_name(cls, name):
@@ -206,15 +211,18 @@ class FrameSetBase(object):
             **clsargs,
         )
 
-    def _as_gradient(self, init_args, name=None, style=None):
+    def _as_gradient(self, init_args, name=None, style=None, rgb_mode=False):
         """ Wrap each frame of a FrameSet or FrameSet subclass in a Colr object,
             using `Colr.gradient`.
             Arguments:
-                init_args  : A list of properties to get from the instance and
-                             use for initializing the new instance.
-                name       : Starting color name. One of `Colr.gradient_names`.
-                style      : Style arg for Colr.
+                init_args : A list of properties to get from the instance and
+                            use for initializing the new instance.
+                name      : Starting color name. One of `Colr.gradient_names`.
+                style     : Style arg for Colr.
+                rgb_mode  : Whether to use RGB codes, instead of extended
+                            256 color approximate matches.
         """
+        # TODO: Better, smoother gradients.
         offset = C.gradient_names.get(name, None)
         if offset is None:
             offset = C.gradient_names['blue']
@@ -224,14 +232,18 @@ class FrameSetBase(object):
                 C(char, style=style).rainbow(
                     offset=offset + i,
                     spread=1,
+                    rgb_mode=rgb_mode,
                 )
             )
-        clsargs = {'name': 'custom_{}_as_gradient'.format(self.name)}
+        namefmt = 'custom_{}_as_gradient'
+        if rgb_mode:
+            namefmt = ''.join((namefmt, '_rgb'))
+        clsargs = {'name': namefmt.format(self.name)}
         for initarg in init_args:
             clsargs[initarg] = getattr(self, initarg, None)
         return self.__class__(colrs, **clsargs)
 
-    def _as_rainbow(self, init_args, offset=35, style=None):
+    def _as_rainbow(self, init_args, offset=35, style=None, rgb_mode=False):
         """ Wrap each frame of a FrameSet or FrameSet subclass in a Colr
             object, using `Colr.rainbow`.
             Arguments:
@@ -239,6 +251,8 @@ class FrameSetBase(object):
                              use for initializing the new instance.
                 offset     : Starting offset for the rainbow.
                 style      : Style arg for Colr.
+                rgb_mode   : Whether to use RGB codes, instead of extended
+                             256 color approximate matches.
         """
         colrs = []
         for i, char in enumerate(self):
@@ -247,6 +261,7 @@ class FrameSetBase(object):
                     offset=offset + i,
                     freq=0.25,
                     spread=1,
+                    rgb_mode=rgb_mode,
                 )
             )
         clsargs = {'name': 'custom_{}_as_rainbow'.format(self.name)}
@@ -300,16 +315,26 @@ class FrameSet(FrameSetBase):
         """
         return self._as_colr(('delay', ), **kwargs)
 
-    def as_gradient(self, name=None, style=None):
+    def as_gradient(self, name=None, style=None, rgb_mode=False):
         """ Wrap each frame in a Colr object, using `Colr.gradient`.
             Arguments:
                 name  : Starting color name. One of `Colr.gradient_names`.
         """
-        return self._as_gradient(('delay', ), name=name, style=style)
+        return self._as_gradient(
+            ('delay', ),
+            name=name,
+            style=style,
+            rgb_mode=rgb_mode,
+        )
 
-    def as_rainbow(self, offset=35, style=None):
+    def as_rainbow(self, offset=35, style=None, rgb_mode=False):
         """ Wrap each frame in a Colr object, using `Colr.rainbow`. """
-        return self._as_rainbow(('delay', ), offset=offset, style=style)
+        return self._as_rainbow(
+            ('delay', ),
+            offset=offset,
+            style=style,
+            rgb_mode=rgb_mode,
+        )
 
 
 class BarSet(FrameSet):
@@ -319,6 +344,10 @@ class BarSet(FrameSet):
     """
     # The beginning and end of a progress bar, never animated/changed.
     default_wrapper = ('[', ']')
+    # Default width for generated progress bars.
+    default_width = 25
+    # Default fill character for "empty" space when generating progress bars.
+    default_fill_char = ' '
 
     def __init__(self, iterable, name=None, wrapper=None):
         super().__init__(iterable, name=name)
@@ -340,12 +369,17 @@ class BarSet(FrameSet):
         """
         return self._as_colr(('wrapper', ), **kwargs)
 
-    def as_gradient(self, name=None, style=None):
+    def as_gradient(self, name=None, style=None, rgb_mode=False):
         """ Wrap each frame in a Colr object, using `Colr.gradient`.
             Arguments:
                 name  : Starting color name. One of `Colr.gradient_names`.
         """
-        return self._as_gradient(('wrapper', ), name=name, style=style)
+        return self._as_gradient(
+            ('wrapper', ),
+            name=name,
+            style=style,
+            rgb_mode=rgb_mode,
+        )
 
     def as_percent(self, percent):
         """ Return a string representing a percentage of this progress bar.
@@ -356,7 +390,8 @@ class BarSet(FrameSet):
             return ''.join(self.wrapper)
 
         length = len(self)
-        index = int((length / 100) * percent)
+        # Using mod 100, to provide some kind of "auto reset".
+        index = int((length / 100) * (percent % 100))
         try:
             barstr = str(self[index])
         except IndexError:
@@ -364,22 +399,75 @@ class BarSet(FrameSet):
 
         return str(barstr).join(self.wrapper)
 
-    def as_rainbow(self, offset=35, style=None):
+    def as_rainbow(self, offset=35, style=None, rgb_mode=False):
         """ Wrap each frame in a Colr object, using `Colr.rainbow`. """
-        return self._as_rainbow(('wrapper', ), offset=offset, style=style)
+        return self._as_rainbow(
+            ('wrapper', ),
+            offset=offset,
+            style=style,
+            rgb_mode=rgb_mode,
+        )
 
     @classmethod
-    def from_str(cls, s, name=None, empty_char=' '):
-        """ Create progress bar frames from a single string. """
+    def from_char(
+            cls, char, name=None, width=None, fill_char=None,
+            bounce=False, reverse=False, back_char=None, wrapper=None):
+        """ Create progress bar frames from a "moving" character.
+            The frames simulate movement of the character, from left to
+            right through empty space (`fill_char`).
+
+            Arguments:
+                char           : Character to move across the bar.
+                name           : Name for the new BarSet.
+                width          : Width of the progress bar.
+                                 Default: 25
+                fill_char      : Character to fill empty space.
+                                 Default: ' ' (space)
+                bounce         : Whether the frames should simulate a bounce
+                                 from one side to another.
+                                 Default: False
+                reverse        : Whether the character should start on the
+                                 right.
+                                 Default: False
+                back_char  : Character to use when "bouncing" backward.
+                                 Default: `char`
+        """
+        return cls(
+            cls._generate_move(
+                char,
+                width=width or cls.default_width,
+                fill_char=str(fill_char or cls.default_fill_char),
+                bounce=bounce,
+                reverse=reverse,
+                back_char=back_char,
+            ),
+            name=name,
+            wrapper=wrapper or cls.default_wrapper,
+        )
+
+    @classmethod
+    def from_str(cls, s, name=None, fill_char=None):
+        """ Create progress bar frames from a single string.
+            The frames simulate growth, from an empty string to the final
+            string (`s`).
+
+            Arguments:
+                s          : Final string for a complete progress bar.
+                name       : Name for the new BarSet.
+                fill_char  : Character to fill empty space.
+                             Default: ' ' (space)
+
+        """
+        fill_char = fill_char or cls.default_fill_char
         maxlen = len(s)
         frames = []
         for pos in range(1, maxlen):
             framestr = s[:pos]
-            # Not using ljust, because empty_char may be a str, not a char.
+            # Not using ljust, because fill_char may be a str, not a char.
             frames.append(
                 ''.join((
                     framestr,
-                    empty_char * (maxlen - len(framestr))
+                    fill_char * (maxlen - len(framestr))
                 ))
             )
         frames.append(s)
@@ -387,6 +475,54 @@ class BarSet(FrameSet):
             frames,
             name=name,
         )
+
+    @classmethod
+    def _generate_move(
+            cls, char, width=None, fill_char=None,
+            bounce=False, reverse=True, back_char=None):
+        """ Yields strings that simulate movement of a character from left
+            to right. For use with `BarSet.from_char`.
+
+            Arguments:
+                char          : Character to move across the progress bar.
+                width         : Width for the progress bar.
+                                Default: cls.default_width
+                fill_char     : String for empty space.
+                                Default: cls.default_fill_char
+                bounce        : Whether to move the character in both
+                                directions.
+                reverse       : Whether to start on the right side.
+                back_char  : Character to use for the bounce's backward
+                                movement.
+                                Default: `char`
+        """
+        width = width or cls.default_width
+        char = str(char)
+        filler = str(fill_char or cls.default_fill_char) * (width - len(char))
+
+        rangeargs = RangeMoveArgs(
+            (0, width, 1),
+            (width, 0, -1),
+        )
+        if reverse:
+            # Reverse the arguments for range to start from the right.
+            # Not using swap, because the stopping point is different.
+            rangeargs = RangeMoveArgs(
+                (width, -1, -1),
+                (0, width - 1, 1),
+            )
+
+        yield from (
+            ''.join((filler[:i], char, filler[i:]))
+            for i in range(*rangeargs.forward)
+        )
+
+        if bounce:
+            bouncechar = char if back_char is None else back_char
+            yield from (
+                ''.join((filler[:i], str(bouncechar), filler[i:]))
+                for i in range(*rangeargs.backward)
+            )
 
 
 class Bars(object):
@@ -417,7 +553,15 @@ class Bars(object):
         """
         return cls_register(cls, barset, BarSet, ('wrapper', ), name=name)
 
-    blocks = BarSet.from_str('█' * 25, name='blocks')
+    arrows = BarSet.from_char(
+        '⮊',
+        bounce=True,
+        back_char='⮈',
+        name='arrows',
+    )
+    bounce = BarSet.from_char('●', bounce=True, name='bounce')
+    bounce_big = BarSet.from_char('⬤ ', bounce=True, name='bounce_big')
+    blocks = BarSet.from_str('█' * BarSet.default_width, name='blocks')
 
 
 class Frames(object):
@@ -583,10 +727,17 @@ def _build_color_variants(cls):
                 framesobj.as_gradient(name=gradname),
                 name=framename
             )
+            framename = '{}_gradient_{}_rgb'.format(framesobj.name, gradname)
+            cls.register(
+                framesobj.as_gradient(name=gradname, rgb_mode=True),
+                name=framename
+            )
 
     for framesobj in frametypes:
         framename = '{}_rainbow'.format(framesobj.name)
         cls.register(framesobj.as_rainbow(), name=framename)
+        framename = '{}_rainbow_rgb'.format(framesobj.name)
+        cls.register(framesobj.as_rainbow(rgb_mode=True), name=framename)
     return None
 
 

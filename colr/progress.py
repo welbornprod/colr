@@ -38,6 +38,16 @@ class WriterProcessBase(Process):
     """ A low level subprocess that only does basic print loops.
         Shared state is managed through multiprocessing.Values/Pipes.
         This is used by WriterProcess to print and handle text updates.
+
+        This class may be a little confusing to use directly, because of the
+        shared state/communication needed to make it work. It has to accept
+        values from the main process, and report back values from the
+        subprocess, so all of the state should be created from the main
+        process and handed off to this subprocess. The properties are just
+        wrappers for `multiprocessing.Value`s, that make it easier to set
+        the values with normal Python primitives.
+
+        Just use a WriterProcess, instead of this WriterProcessBase.
     """
     nice_delay = 0.001
 
@@ -438,19 +448,31 @@ class AnimatedProgress(StaticProgress):
         return ctl
 
 
-class ProgressBar(StaticProgress):
-    """ A subprocess that writes a progress bar, using a user callback to
-        handle updates to the state of the progress.
+class ProgressBarBase(StaticProgress):
+    """ A subprocess that writes a progress bar, and handles message/percent
+        updates coming from the parent process.
+        StaticProgress can handle updating the overall text
+        (message, bar, time), but the message part itself may need to be
+        updated.
+        Simply setting `mybar.message = 'foo'` will
+        not work, because the `message` property was simply copied over to
+        the subprocess, and cannot be updated from the parent process.
+        This ProgressBarBase is initialized with a Queue passed in from the
+        main process to handle message updates.
+
+        This probably doesn't need to be subclassed. You are probably looking
+        for the ProgressBar class.
     """
     join_str = ' '
-    default_delay = 0.1
-    default_format = ('{text}', '{bars}')
-    default_format_time = ('{text}', '{elapsed:>2.0f}s', '{bars}')
+    # ProgressBars need a smaller delay, to catch updates in time.
+    default_delay = 0.025
+    default_format = ('{text:<40}', '{bars}')
+    default_format_time = ('{text:<40}', '{elapsed:>2.0f}s', '{bars}')
 
     def __init__(
-            self, text=None, bars=None,
-            fmt=None, show_time=False, char_delay=None, file=None):
-        self.bar_text = text or 'Progress'
+            self, msg_queue, text=None, bars=None,
+            fmt=None, show_time=False, file=None):
+        self._msg = text or 'Progress'
         self.bars = bars or Bars.default
 
         if not self.bars:
@@ -468,12 +490,17 @@ class ProgressBar(StaticProgress):
         else:
             default_fmt = self.default_format
 
-        # Initialize the basic ProgressProcess.
+        # A queue for sending/receiving message values.
+        # This is created in the main process and received in the subprocess.
+        # If initialized here, the queue would not be accessible in the
+        # parent process.
+        self.message_queue = msg_queue
+        # Initialize the basic StaticProgress.
         super().__init__(
-            text=self.bar_text,
+            text=self._msg,
             fmt=fmt or default_fmt,
             file=file,
-            char_delay=char_delay,
+            char_delay=None,  # Not supported, not enough time to finish.
             delay=self.default_delay,
         )
 
@@ -483,16 +510,18 @@ class ProgressBar(StaticProgress):
         return self.join_str.join(self.fmt).format(
             bars=self.bars.as_percent(self.percent),
             elapsed=self.elapsed,
-            text=self.bar_text,
+            text=self.msg,
         )
 
     @property
-    def message(self):
-        return self.bar_text
+    def msg(self):
+        try:
+            newmessage = self.message_queue.get_nowait()
+            self._msg = newmessage
+        except Empty:
+            pass
 
-    @message.setter
-    def message(self, text):
-        self.update(text=text)
+        return self._msg
 
     @property
     def percent(self):
@@ -502,11 +531,44 @@ class ProgressBar(StaticProgress):
     def percent(self, value):
         self._percent.value = value
 
+    def update(self):
+        """ Redraw the progress bar, based on self._msg and self._percent. """
+        self.text = str(self)
+
+
+class ProgressBar(ProgressBarBase):
+    """ A subprocess that writes a progress bar, and updates it's state
+        through the `update()` method.
+    """
+
+    def __init__(
+            self, text=None, bars=None,
+            fmt=None, show_time=False, file=None):
+        # This Queue will connect this ProgressBar to it's ProgressBarBase
+        # for the message part updates.
+        self.message_queue = Queue(maxsize=1)
+        super().__init__(
+            self.message_queue,
+            text=text,
+            bars=bars,
+            fmt=fmt,
+            show_time=show_time,
+            file=file,
+        )
+
+    @property
+    def message(self):
+        return self._message
+
+    @message.setter
+    def message(self, value):
+        self._message = value
+        self.message_queue.put(value)
+
     def update(self, percent=None, text=None):
-        """ Redraw the progress bar, based on a percentage. """
+        """ Update the progress bar percentage and message. """
         if percent is not None:
             self.percent = percent
         if text is not None:
-            # TODO: This doesn't work. The subprocess doesn't know about it!.
-            self.bar_text = text
-        self.text = str(self)
+            self.message = text
+        super().update()
