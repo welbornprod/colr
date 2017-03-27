@@ -612,9 +612,10 @@ class Control(object):
             Default: sys.stdout
         """
         s = str(self)
+        filebuf = getattr(file, 'buffer', file)
         if s:
             if delay is None:
-                file.write(s)
+                filebuf.write(s.encode())
             else:
                 # Refactor the delay time for Control/Colr instances.
                 # Escape codes and whitespace should not count for the delay.
@@ -622,12 +623,12 @@ class Control(object):
                 whitespacecnt = sum(s.count(char) for char in ' \n\t')
                 newdelay = strippedtime / (len(s) - whitespacecnt)
                 for c in str(self):
-                    file.write(c)
+                    filebuf.write(c.encode())
                     file.flush()
                     if c not in ' \n\t':
                         sleep(newdelay)
         if end:
-            file.write(end)
+            filebuf.write(end.encode())
         file.flush()
         self.data = ''
         return self

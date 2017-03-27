@@ -1493,7 +1493,7 @@ class Colr(object):
             end = closing_code
             # ']' will be dropped if it's the last character in the text,
             # and the closing code is appended. Adding ; stops this.
-            if text.endswith((']', ')')):
+            if text.endswith((']')):
                 end = ';{}'.format(closing_code)
         else:
             end = ''

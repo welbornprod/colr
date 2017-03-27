@@ -182,6 +182,14 @@ class WriterProcess(WriterProcessBase):
     def text(self, value):
         self._text = value
         self.text_queue.put(value)
+        if (not getattr(self, 'started', 0)):
+            # Either the WriterProcessBase has not been initialized,
+            # or this WriterProcess has not started yet.
+            # It's probably just setting the initial text.
+            # Either way, it's possible that the main thread will end before
+            # the Queue finished what it's doing (especially during testing).
+            # This will allow this Queue to finish it's operation.
+            sleep(0.1)
 
 
 class StaticProgress(WriterProcess):

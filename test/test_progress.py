@@ -9,6 +9,7 @@
 
 import sys
 import unittest
+from time import sleep
 
 from colr import (
     __version__,

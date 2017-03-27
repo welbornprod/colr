@@ -630,8 +630,9 @@ class Bars(object):
     bounce = BarSet.from_char('●', bounce=True, name='bounce')
     bounce_big = BarSet.from_char('⬤ ', bounce=True, name='bounce_big')
     # This bar actually has 101 frames, but as_percent(1) will show 1 percent.
+    # and as_percent(100) will show 100 percent.
     numbers = BarSet(
-        ('%{:>3}'.format(x) for x in range(0, 101)),
+        ('%{:>3}'.format(x) for x in range(0, 102)),
         name='numbers',
     )
 
