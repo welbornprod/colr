@@ -38,18 +38,14 @@ def cls_get_by_name(cls, name):
         return val
 
 
-def cls_names(cls, wanted_cls):
+def cls_names(cls, wanted_cls, registered=True):
     """ Return a list of attributes for all `wanted_cls` attributes in this
         class, where `wanted_cls` is the desired attribute type.
     """
-    names = []
-    for attr in dir(cls):
-        if attr.startswith('_'):
-            continue
-        if not isinstance(getattr(cls, attr, None), wanted_cls):
-            continue
-        names.append(attr)
-    return names
+    return [
+        fset.name
+        for fset in cls_sets(cls, wanted_cls, registered=registered)
+    ]
 
 
 def cls_register(cls, frameset, new_class, init_args, name=None):
@@ -77,8 +73,27 @@ def cls_register(cls, frameset, new_class, init_args, name=None):
         kwargs[initarg] = getattr(frameset, initarg, None)
 
     newframeset = new_class(frameset, **kwargs)
+    # Mark this FrameSet/BarSet as a registered item (not basic/original).
+    newframeset._registered = True
     setattr(cls, name, newframeset)
     return newframeset
+
+
+def cls_sets(cls, wanted_cls, registered=True):
+    """ Return a list of all `wanted_cls` attributes in this
+        class, where `wanted_cls` is the desired attribute type.
+    """
+    sets = []
+    for attr in dir(cls):
+        if attr.startswith('_'):
+            continue
+        val = getattr(cls, attr, None)
+        if not isinstance(val, wanted_cls):
+            continue
+        if (not registered) and getattr(val, '_registered', False):
+            continue
+        sets.append(val)
+    return sets
 
 
 @total_ordering
@@ -206,10 +221,11 @@ class FrameSetBase(object):
         clsargs = {'name': 'custom_{}_as_colr'.format(self.name)}
         for initarg in init_args:
             clsargs[initarg] = getattr(self, initarg, None)
-        return self.__class__(
+        newfset = self.__class__(
             (C(s, **kwargs) for s in self),
             **clsargs,
         )
+        return newfset
 
     def _as_gradient(self, init_args, name=None, style=None, rgb_mode=False):
         """ Wrap each frame of a FrameSet or FrameSet subclass in a Colr object,
@@ -336,6 +352,33 @@ class FrameSet(FrameSetBase):
             rgb_mode=rgb_mode,
         )
 
+    @classmethod
+    def from_barset(
+            cls, barset, name=None, delay=None,
+            use_wrapper=True, wrapper=None):
+        """ Copy a BarSet's frames to create a new FrameSet.
+
+            Arguments:
+                barset      : An existing BarSet object to copy frames from.
+                name        : A name for the new FrameSet.
+                delay       : Delay for the animation.
+                use_wrapper : Whether to use the old barset's wrapper in the
+                              frames.
+                wrapper     : A new wrapper pair to use for each frame.
+                              This overrides the `use_wrapper` option.
+        """
+        if wrapper:
+            data = tuple(barset.wrap_str(s, wrapper=wrapper) for s in barset)
+        elif use_wrapper:
+            data = tuple(barset.wrap_str(s) for s in barset)
+        else:
+            data = barset.data
+        return cls(
+            data,
+            name=name,
+            delay=delay
+        )
+
 
 class BarSet(FrameSet):
     """ A single progress bar frame list, with helper methods for
@@ -352,6 +395,8 @@ class BarSet(FrameSet):
     def __init__(self, iterable, name=None, wrapper=None):
         super().__init__(iterable, name=name)
         self.wrapper = wrapper or self.default_wrapper
+        if len(self.wrapper) == 1:
+            self.wrapper = (self.wrapper[0], '')
 
     def __repr__(self):
         """ Eval-friendly representation of this FrameSet. """
@@ -387,17 +432,17 @@ class BarSet(FrameSet):
             >>> '[12345     ]'
         """
         if not self:
-            return ''.join(self.wrapper)
+            return self.wrap_str()
 
         length = len(self)
         # Using mod 100, to provide some kind of "auto reset".
-        index = int((length / 100) * (percent % 100))
+        index = int((length / 100) * (int(percent) % 100))
         try:
             barstr = str(self[index])
         except IndexError:
             barstr = self[-1]
 
-        return str(barstr).join(self.wrapper)
+        return self.wrap_str(barstr)
 
     def as_rainbow(self, offset=35, style=None, rgb_mode=False):
         """ Wrap each frame in a Colr object, using `Colr.rainbow`. """
@@ -524,6 +569,23 @@ class BarSet(FrameSet):
                 for i in range(*rangeargs.backward)
             )
 
+    def with_wrapper(self, wrapper=None, name=None):
+        """ Copy this BarSet, and return a new BarSet with the specified
+            name and wrapper.
+            If no name is given, `{self.name}_custom_wrapper` is used.
+            If no wrapper is given, the new BarSet will have no wrapper.
+        """
+        name = name or '{}_custom_wrapper'.format(self.name)
+        return self.__class__(self.data, name=name, wrapper=wrapper)
+
+    def wrap_str(self, s=None, wrapper=None):
+        """ Wrap a string in self.wrapper, with some extra handling for
+            empty/None strings.
+            If `wrapper` is set, use it instead.
+        """
+        wrapper = wrapper or (self.wrapper or ('', ''))
+        return str('' if s is None else s).join(wrapper)
+
 
 class Bars(object):
     """ A collection of bars that can be used with ProgressBar. """
@@ -534,10 +596,10 @@ class Bars(object):
         return cls_get_by_name(cls, name)
 
     @classmethod
-    def names(cls):
+    def names(cls, registered=True):
         """ Return a list of names for all BarSet attributes in this class.
         """
-        return cls_names(cls, BarSet)
+        return cls_names(cls, BarSet, registered=registered)
 
     @classmethod
     def register(cls, barset, name=None):
@@ -553,15 +615,25 @@ class Bars(object):
         """
         return cls_register(cls, barset, BarSet, ('wrapper', ), name=name)
 
+    @classmethod
+    def sets(cls, registered=True):
+        """ Return a list of all BarSet attributes in this class. """
+        return cls_sets(cls, BarSet, registered=registered)
+
     arrows = BarSet.from_char(
         '⮊',
         bounce=True,
         back_char='⮈',
         name='arrows',
     )
+    blocks = BarSet.from_str('█' * BarSet.default_width, name='blocks')
     bounce = BarSet.from_char('●', bounce=True, name='bounce')
     bounce_big = BarSet.from_char('⬤ ', bounce=True, name='bounce_big')
-    blocks = BarSet.from_str('█' * BarSet.default_width, name='blocks')
+    # This bar actually has 101 frames, but as_percent(1) will show 1 percent.
+    numbers = BarSet(
+        ('%{:>3}'.format(x) for x in range(0, 101)),
+        name='numbers',
+    )
 
 
 class Frames(object):
@@ -575,10 +647,10 @@ class Frames(object):
         return cls_get_by_name(cls, name)
 
     @classmethod
-    def names(cls):
+    def names(cls, registered=True):
         """ Return a list of names for all FrameSet attributes in this class.
         """
-        return cls_names(cls, FrameSet)
+        return cls_names(cls, FrameSet, registered=registered)
 
     @classmethod
     def register(cls, frameset, name=None):
@@ -593,6 +665,11 @@ class Frames(object):
                             when given.
         """
         return cls_register(cls, frameset, FrameSet, ('delay', ), name=name)
+
+    @classmethod
+    def sets(cls, registered=True):
+        """ Return a list of all FrameSet attributes in this class. """
+        return cls_sets(cls, FrameSet, registered=registered)
 
     # Basic non-color framelists.
     arc = FrameSet('◜◠◝◞◡◟' * 3, name='arc', delay=0.25)
@@ -609,6 +686,11 @@ class Frames(object):
         ),
         name='arrows',
         delay=0.25,
+    )
+    arrows_bar = FrameSet.from_barset(
+        Bars.arrows,
+        name='arrows_bar',
+        delay=0.1,
     )
     bounce = FrameSet('⠁⠂⠄⠂' * 6, name='bounce', delay=0.25)
     # bouncing_ball works in a 'TERM=linux' terminal (basic, with bad fonts)
@@ -699,7 +781,7 @@ def _build_color_variants(cls):
         all frame object names.
     """
     # Get the basic frame types first.
-    frametypes = [getattr(cls, name) for name in cls.names()]
+    frametypes = cls.sets(registered=False)
 
     _colornames = [
         # 'black', disabled for now, it won't show on my terminal.
@@ -717,6 +799,10 @@ def _build_color_variants(cls):
             framename = '{}_{}'.format(framesobj.name, colorname)
             cls.register(framesobj.as_colr(fore=colorname), name=framename)
 
+
+def _build_gradient_variants(cls):
+    # Get the basic frame types first.
+    frametypes = cls.sets(registered=False)
     for gradname in C.gradient_names:
         if gradname in ('white', ):
             # This gradient name does not work as advertised.
@@ -727,11 +813,19 @@ def _build_color_variants(cls):
                 framesobj.as_gradient(name=gradname),
                 name=framename
             )
-            framename = '{}_gradient_{}_rgb'.format(framesobj.name, gradname)
+            framename = '{}_gradient_{}_rgb'.format(
+                framesobj.name,
+                gradname,
+            )
             cls.register(
                 framesobj.as_gradient(name=gradname, rgb_mode=True),
                 name=framename
             )
+
+
+def _build_rainbow_variants(cls):
+    # Get the basic frame types first.
+    frametypes = cls.sets(registered=False)
 
     for framesobj in frametypes:
         framename = '{}_rainbow'.format(framesobj.name)
@@ -741,6 +835,7 @@ def _build_color_variants(cls):
     return None
 
 
+# Not building gradient/rainbow variants right now. It takes too long.
 _build_color_variants(Frames)
 _build_color_variants(Bars)
 
