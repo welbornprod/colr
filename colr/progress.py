@@ -18,6 +18,7 @@ from multiprocessing import (
 )
 
 from multiprocessing.queues import Empty
+from os import fdopen
 
 from time import (
     sleep,
@@ -32,6 +33,27 @@ from .progress_frames import (  # noqa
     Frames,
     FrameSet,
 )
+
+
+def try_unbuffered_file(file, _alreadyopen={}):
+    """ Try re-opening a file in an unbuffered mode and return it.
+        If that fails, just return the buffered file.
+        This function remembers the file descriptors it opens, so it
+        never opens the same one twice.
+
+        This is meant for files like sys.stdout or sys.stderr.
+    """
+    try:
+        fileno = file.fileno()
+    except AttributeError:
+        return file
+    filedesc = _alreadyopen.get(fileno, None)
+    if filedesc is not None:
+        return filedesc
+
+    filedesc = fdopen(fileno, 'wb', 0)
+    _alreadyopen[fileno] = filedesc
+    return filedesc
 
 
 class WriterProcessBase(Process):
@@ -49,12 +71,12 @@ class WriterProcessBase(Process):
 
         Just use a WriterProcess, instead of this WriterProcessBase.
     """
-    nice_delay = 0.001
+    nice_delay = 0.005
 
     def __init__(
             self, queue, lock, stopped, time_started,
             time_elapsed, file=None):
-        self.file = file or sys.stdout
+        self.file = try_unbuffered_file(file or sys.stdout)
         self.lock = lock
         self.text_queue = queue
         self._text = None
@@ -78,7 +100,6 @@ class WriterProcessBase(Process):
             if self.stop_flag.value:
                 break
             self.update_text()
-            sleep(self.nice_delay)
             with self.time_started.get_lock():
                 start = self.time_started.value
                 with self.time_elapsed.get_lock():
@@ -90,6 +111,12 @@ class WriterProcessBase(Process):
 
     def stop(self):
         self.stop_flag.value = True
+        with self.lock:
+            (
+                Control().text(C(' ', style='reset_all'))
+                .pos_restore().move_column(1).erase_line()
+                .write(self.file)
+            )
 
     @property
     def stopped(self):
@@ -112,8 +139,9 @@ class WriterProcessBase(Process):
         """
         if self._text is not None:
             with self.lock:
-                self.file.write(str(self._text))
+                self.file.write(str(self._text).encode())
                 self.file.flush()
+        sleep(self.nice_delay)
 
 
 class WriterProcess(WriterProcessBase):
@@ -244,7 +272,7 @@ class StaticProgress(WriterProcess):
         """ Overrides WriterProcess.run, to handle KeyboardInterrupts better.
             This should not be called by any user. `multiprocessing` calls
             this in a subprocess.
-            Use `self.start` to start a Progress.
+            Use `self.start` to start this instance.
         """
         try:
             Control().cursor_hide().write(file=self.file)
@@ -253,18 +281,6 @@ class StaticProgress(WriterProcess):
             self.stop()
         finally:
             Control().cursor_show().write(file=self.file)
-
-    def stop(self):
-        """ Stop this progress if it has been started. Otherwise, do nothing.
-        """
-        if not self.stopped:
-            with self.lock:
-                (
-                    Control().text(C(' ', style='reset_all'))
-                    .pos_restore().move_column(1).erase_line()
-                    .write(self.file)
-                )
-        super().stop()
 
     def write(self):
         """ Writes a single frame of the progress spinner to the terminal.
@@ -412,6 +428,13 @@ class AnimatedProgress(StaticProgress):
         if delay < 0:
             delay = 0
         return delay
+
+    def stop(self):
+        """ Stop this progress, and block until it is finished. """
+        super().stop()
+        while not self.stopped:
+            # stop() should block, so printing afterwards isn't interrupted.
+            sleep(0.001)
 
     def write(self):
         """ Writes a single frame of the progress spinner to the terminal.
@@ -564,6 +587,13 @@ class ProgressBar(ProgressBarBase):
     def message(self, value):
         self._message = value
         self.message_queue.put(value)
+
+    def stop(self):
+        """ Stop this progress, and block until it is finished. """
+        super().stop()
+        while not self.stopped:
+            # stop() should block, so printing afterwards isn't interrupted.
+            sleep(0.001)
 
     def update(self, percent=None, text=None):
         """ Update the progress bar percentage and message. """
