@@ -435,8 +435,7 @@ class BarSet(FrameSet):
             return self.wrap_str()
 
         length = len(self)
-        # Using mod 100, to provide some kind of "auto reset".
-        # 0 == 0, 100 == 100, 150 == 50, 200 == 100
+        # Using mod 100, to provide some kind of "auto reset". 0 is 0 though.
         percentmod = (int(percent) % 100) or min(percent, 100)
         index = int((length / 100) * percentmod)
         try:

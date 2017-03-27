@@ -67,7 +67,7 @@ CodeFormatRgbFunc = Callable[[int, int, int], str]
 # Acceptable fore/back args.
 ColorArg = Union[str, int, Tuple[int, int, int]]
 
-__version__ = '0.7.8'
+__version__ = '0.8.0'
 
 __all__ = [
     '_disabled',
