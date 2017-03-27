@@ -181,18 +181,3 @@ always make your own [colorized variants](#framesetas_colr).
 * `<name>_lightred`
 * `<name>_lightwhite`
 * `<name>_lightyellow`
-
-##### Gradient
-
-* `<name>_gradient_blue`
-* `<name>_gradient_cyan`
-* `<name>_gradient_green`
-* `<name>_gradient_lightred`
-* `<name>_gradient_magenta`
-* `<name>_gradient_orange`
-* `<name>_gradient_red`
-* `<name>_gradient_yellow`
-
-##### Rainbow
-
-* `<name>_rainbow`
