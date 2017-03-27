@@ -308,7 +308,7 @@ class FramesTests(ColrTestCase):
 
     def test_get_by_name(self):
         """ Frames.get_by_name() should return known FrameSets. """
-        for name in ('dots', 'dots_blue', 'dots_gradient_blue'):
+        for name in ('dots', 'dots_blue', 'dots_chase_lightred'):
             try:
                 dots = Frames.get_by_name(name)
             except ValueError:

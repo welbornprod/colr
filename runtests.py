@@ -73,8 +73,8 @@ def main(argd):
         cmd.append('-q')
     cmd.extend(green_args)
     print_header(cmd)
-    completedproc = subprocess.run(cmd)
-    return completedproc.returncode
+
+    return subprocess.run(cmd).returncode
 
 
 def get_green_exe():

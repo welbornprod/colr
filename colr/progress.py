@@ -9,7 +9,7 @@ from ctypes import (
     c_bool,
     c_double,
 )
-
+from io import UnsupportedOperation
 from multiprocessing import (
     Lock,
     Process,
@@ -37,7 +37,7 @@ from .progress_frames import (  # noqa
 
 def try_unbuffered_file(file, _alreadyopen={}):
     """ Try re-opening a file in an unbuffered mode and return it.
-        If that fails, just return the buffered file.
+        If that fails, just return the original file.
         This function remembers the file descriptors it opens, so it
         never opens the same one twice.
 
@@ -45,7 +45,10 @@ def try_unbuffered_file(file, _alreadyopen={}):
     """
     try:
         fileno = file.fileno()
-    except AttributeError:
+    except (AttributeError, UnsupportedOperation):
+        # Unable to use fileno to re-open unbuffered. Oh well.
+        # The output may be line buffered, which isn't that great for
+        # repeatedly drawing and erasing text, or hiding/showing the cursor.
         return file
     filedesc = _alreadyopen.get(fileno, None)
     if filedesc is not None:
@@ -53,6 +56,8 @@ def try_unbuffered_file(file, _alreadyopen={}):
 
     filedesc = fdopen(fileno, 'wb', 0)
     _alreadyopen[fileno] = filedesc
+    # TODO: sys.stdout/stderr don't need to be closed.
+    #       But would it be worth it to try and close these opened files?
     return filedesc
 
 
