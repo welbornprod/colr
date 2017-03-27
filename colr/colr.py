@@ -67,7 +67,7 @@ CodeFormatRgbFunc = Callable[[int, int, int], str]
 # Acceptable fore/back args.
 ColorArg = Union[str, int, Tuple[int, int, int]]
 
-__version__ = '0.7.7'
+__version__ = '0.7.8'
 
 __all__ = [
     '_disabled',
@@ -1491,6 +1491,10 @@ class Colr(object):
             # Add closing code if not already added, there is text, and
             # some kind of color/style was used.
             end = closing_code
+            # ']' will be dropped if it's the last character in the text,
+            # and the closing code is appended. Adding ; stops this.
+            if text.endswith((']', ')')):
+                end = ';{}'.format(closing_code)
         else:
             end = ''
         return ''.join((
