@@ -8,6 +8,7 @@
 
 import os
 import random
+import re
 import sys
 from ctypes import c_bool, c_double
 from multiprocessing import Lock, Queue, Value
@@ -45,7 +46,7 @@ except ImportError as ex:
     sys.exit(1)
 
 NAME = 'Progress Test Run'
-VERSION = '0.2.0'
+VERSION = '0.3.0'
 VERSIONSTR = '{} v. {}'.format(NAME, VERSION)
 SCRIPT = os.path.split(os.path.abspath(sys.argv[0]))[1]
 SCRIPTDIR = os.path.abspath(sys.path[0])
@@ -55,24 +56,32 @@ USAGESTR = """{versionstr}
     Run tests/examples from colr.progress.
 
     Usage:
-        {script} -e | -h | -v
-        {script} [-d secs] [-D secs] [-a] [-b name...] [-f name...]
-                 [-p] [-B] [-c] [-s]
+        {script} -B | -e | -F | -h | -v
+        {script} [-d secs] [-D secs] [-E] [-a] [-b name...] [-f name...]
+                 [-p] [-P] [-c] [-s]
+        {script} [-d secs] [-D secs] [-E] -a [-r pattern]
+        {script} [-d secs] [-D secs] [-E] -p [-r pattern]
+
 
     Options:
+        -B,--barnames             : List progress bar names.
         -b name,--bars name       : Run a specific BarSet test.
+        -F,--framenames           : List animated frame names.
         -f name,--frames name     : Run a specific animated FrameSet test.
                                     More than one flag can be given.
         -a,--animatedprogress     : Run animated progress tests.
-        -B,--processbase          : Run processbase tests.
         -c,--process              : Run progress process tests.
         -D secs,--chardelay secs  : Time in seconds for character delay.
                                     Default: None
         -d secs,--delay secs      : Time in seconds for delay.
                                     Default: 0.05
+        -E,--stderr               : Use stderr instead of stdout.
         -e,--erase                : Erase display/scrollback.
         -h,--help                 : Show this help message.
+        -P,--processbase          : Run processbase tests.
         -p,--progressbar          : Run progress bar tests.
+        -r pat,--regex pat        : Choose only FrameSets/BarSets matching
+                                    this pattern.
         -s,--staticprogress       : Run static progress tests.
         -v,--version              : Show version.
 
@@ -86,6 +95,10 @@ def main(argd):
     if argd['--erase']:
         erase_display(EraseMethod.ALL_MOVE_ERASE)
         return 0
+    elif argd['--barnames']:
+        return list_set_names(Bars)
+    elif argd['--framenames']:
+        return list_set_names(Frames)
 
     delay = parse_float_arg(argd['--delay'], default=None)
     char_delay = parse_float_arg(argd['--chardelay'], default=None)
@@ -107,6 +120,7 @@ def main(argd):
                 run_bar_names,
                 argd['--bars'],
                 delay=delay,
+                file=sys.stderr if argd['--stderr'] else sys.stdout,
             )
         if argd['--frames']:
             errs += run_test_func(
@@ -114,28 +128,42 @@ def main(argd):
                 argd['--frames'],
                 delay=delay,
                 char_delay=char_delay,
+                file=sys.stderr if argd['--stderr'] else sys.stdout,
             )
         if do_all or argd['--animatedprogress']:
             errs += run_test_func(
                 run_animatedprogress,
                 delay=delay,
                 char_delay=char_delay,
+                file=sys.stderr if argd['--stderr'] else sys.stdout,
+                pattern=try_re_pat(argd['--regex'], default=None),
             )
         if do_all or argd['--progressbar']:
             errs += run_test_func(
                 run_progressbar,
                 delay=delay,
                 char_delay=char_delay,
+                file=sys.stderr if argd['--stderr'] else sys.stdout,
+                pattern=try_re_pat(argd['--regex'], default=None),
             )
         if do_all or argd['--process']:
-            errs += run_test_func(run_process, delay=delay)
+            errs += run_test_func(
+                run_process,
+                delay=delay,
+                file=sys.stderr if argd['--stderr'] else sys.stdout,
+            )
         if do_all or argd['--processbase']:
-            errs += run_test_func(run_processbase, delay=delay)
+            errs += run_test_func(
+                run_processbase,
+                delay=delay,
+                file=sys.stderr if argd['--stderr'] else sys.stdout,
+            )
         if do_all or argd['--staticprogress']:
             errs += run_test_func(
                 run_staticprogress,
                 delay=delay,
                 char_delay=char_delay,
+                file=sys.stderr if argd['--stderr'] else sys.stdout,
             )
     finally:
         if sys.stdout.isatty() and (not any(sys.exc_info())):
@@ -143,6 +171,40 @@ def main(argd):
             if input(msg).lower().strip().startswith('y'):
                 erase_display(EraseMethod.ALL_MOVE_ERASE)
     return errs
+
+
+def get_framesets(cls, maximum=10, pattern=None):
+    """ Gather FrameSet objects from either Frames or Bars.
+        If `pattern` is set to a compiled regex pattern,
+        return all FrameSets matching the pattern.
+        Otherwise, return up to `maximum` random FrameSets.
+    """
+    frametypes = set()
+    framenames = cls.names()
+    if pattern is None:
+        while len(frametypes) < maximum:
+            frametypes.add(cls.get_by_name(random.choice(framenames)))
+    else:
+        frametypes.update(
+            cls.get_by_name(s)
+            for s in framenames
+            if pattern.search(s) is not None
+        )
+    return frametypes
+
+
+def list_set_names(cls):
+    """ List all names from a Frames/Bars class, where `cls` is the target
+        class to get names from.
+    """
+    clsname = cls.__name__
+    names = cls.names()
+    if not names:
+        print_err('\nNo names found for: {}'.format(clsname))
+        return 1
+    print('Names for {} ({}):'.format(clsname, len(names)))
+    print('    {}'.format('\n    '.join(names)))
+    return 0
 
 
 def parse_float_arg(s, default=None):
@@ -159,62 +221,81 @@ def parse_float_arg(s, default=None):
     return val
 
 
-def run_animatedprogress(delay=None, char_delay=None):
+def run_animatedprogress(
+        delay=None, char_delay=None, file=sys.stdout, pattern=None):
     """ This is a rough test of the AnimatedProgress class. """
     print(C('Testing AnimatedProgress class...', 'cyan'))
     maxtypes = 10
+    frametype = 'random frame types'
+    if pattern is not None:
+        frametype = 'frames matching `{}`'.format(pattern.pattern)
     print(C(' ').join(
         C('Testing', 'cyan'),
-        C(maxtypes, 'blue', style='bright'),
-        C().join(C('random frame types', 'cyan'), ':')
+        C(maxtypes if pattern is None else 'all', 'blue', style='bright'),
+        C().join(C(frametype, 'cyan'), ':')
     ))
     # print('    {}\n'.format('\n    '.join(Frames.names)))
+    frameindex = 0
 
     def run_frame_type(frames, framename):
-        s = 'Testing frame type: {}'.format(framename)
+        nonlocal frameindex
+        frameindex += 1
+
         p = AnimatedProgress(
-            s,
+            '({}/{}) Testing frame type: {}'.format(
+                frameindex,
+                frameslen,
+                framename,
+            ),
             frames=frames,
             delay=delay,
             char_delay=char_delay,
             fmt=None,
             show_time=True,
+            file=file,
         )
         p.start()
         sleepsecs = (p.delay * len(frames)) * 2
         # Should be enough time to see the animation play through once.
-        sleep(sleepsecs)
-        p.text = 'Almost through with: {}'.format(framename)
-        sleep(sleepsecs)
+        sleep(min((sleepsecs, 2)))
+        p.text = '({}/{}) Almost through with: {}'.format(
+            frameindex,
+            frameslen,
+            framename,
+        )
+        sleep(min((sleepsecs, 2)))
         p.stop()
 
-    frametypes = set()
-    framenames = Frames.names()
-    while len(frametypes) < maxtypes:
-        frametypes.add(Frames.get_by_name(random.choice(framenames)))
+    frametypes = get_framesets(Frames, maximum=maxtypes, pattern=pattern)
 
+    frameslen = len(frametypes)
     for framesobj in sorted(frametypes):
         run_frame_type(framesobj, framesobj.name)
     print('\nFinished with animated progress functions.\n')
     return 0
 
 
-def run_bar_name(name, delay=None, char_delay=None):
+def run_bar_name(
+        name, delay=None, char_delay=None, file=sys.stdout, min_run_time=5):
     """ Run a single animated progress BarSet by name. """
     try:
         bars = Bars.get_by_name(name)
     except ValueError as ex:
         print_err(ex)
         return 1
-    minruntime = 2
-    delay = delay or (minruntime / 20)
+    delay = delay or (min_run_time / 20)
     p = ProgressBar(
         'Testing progress bar: {}'.format(bars.name),
         bars=bars,
         show_time=True,
+        file=file,
     )
     with p:
-        for x in range(0, 101, 5):
+        for x in range(0, 55, 5):
+            p.update(x)
+            sleep(delay)
+        p.message = 'Almost through with: {}'.format(bars.name)
+        for x in range(50, 105, 5):
             p.update(x)
             sleep(delay)
     p.stop()
@@ -222,15 +303,21 @@ def run_bar_name(name, delay=None, char_delay=None):
     return 0
 
 
-def run_bar_names(names, delay=None, char_delay=None):
+def run_bar_names(names, delay=None, char_delay=None, file=sys.stdout):
     """ Run a list of progress animation BarSets by name. """
     return sum(
-        run_bar_name(n, delay=delay, char_delay=char_delay)
+        run_bar_name(
+            n,
+            delay=delay,
+            char_delay=char_delay,
+            min_run_time=5,
+            file=file,
+        )
         for n in names
     )
 
 
-def run_frame_name(name, delay=None, char_delay=None):
+def run_frame_name(name, delay=None, char_delay=None, file=sys.stdout):
     """ Run a single animated progress FrameSet by name. """
     try:
         frames = Frames.get_by_name(name)
@@ -243,6 +330,7 @@ def run_frame_name(name, delay=None, char_delay=None):
         delay=delay,
         char_delay=char_delay,
         show_time=True,
+        file=file,
     )
     p.start()
     framelen = len(frames)
@@ -254,21 +342,21 @@ def run_frame_name(name, delay=None, char_delay=None):
     return 0
 
 
-def run_frame_names(names, delay=None, char_delay=None):
+def run_frame_names(names, delay=None, char_delay=None, file=sys.stdout):
     """ Run a list of progress animation FrameSets by name. """
     return sum(
-        run_frame_name(n, delay=delay, char_delay=char_delay)
+        run_frame_name(n, delay=delay, char_delay=char_delay, file=file)
         for n in names
     )
 
 
-def run_process(delay=None):
+def run_process(delay=None, file=sys.stdout):
     """ This is a rough test of the WriterProcess class. """
     print(C('Testing WriterProcess class...', 'cyan'))
 
     p = WriterProcess(
         '.',
-        file=sys.stdout,
+        file=file,
     )
     p.start()
     sleep(1)
@@ -288,7 +376,7 @@ def run_process(delay=None):
     return 0
 
 
-def run_processbase(delay=None):
+def run_processbase(delay=None, file=sys.stdout):
     """ This is a rough test of the WriterProcessBase class. """
     print(C('Testing WriterProcessBase class...', 'cyan'))
     write_lock = Lock()
@@ -306,7 +394,7 @@ def run_processbase(delay=None):
         stopped,
         time_started,
         time_elapsed,
-        file=sys.stdout,
+        file=file,
     )
     change_text('.')
     p.start()
@@ -325,56 +413,81 @@ def run_processbase(delay=None):
     return 0
 
 
-def run_progressbar(delay=None, char_delay=None):
+def run_progressbar(
+        delay=None, char_delay=None, file=sys.stdout, pattern=None):
     """ This is a rough test of the ProgressBar class. """
     print(C('Testing ProgressBar class...', 'cyan'))
     maxtypes = 10
+    bartype = 'random bar types'
+    if pattern is not None:
+        bartype = 'frames matching `{}`'.format(pattern.pattern)
     print(C(' ').join(
         C('Testing', 'cyan'),
-        C(maxtypes, 'blue', style='bright'),
-        C().join(C('random bar types', 'cyan'), ':')
+        C(maxtypes if pattern is None else 'all', 'blue', style='bright'),
+        C().join(C(bartype, 'cyan'), ':')
     ))
     delay = delay or 0.25
+    frameindex = 0
 
     def run_bar_type(bars, barsname):
-        s = 'Testing frame type: {}'.format(barsname)
+        nonlocal frameindex
+        frameindex += 1
+
         p = ProgressBar(
-            s,
+            '({}/{}) Testing frame type: {}'.format(
+                frameindex,
+                barslen,
+                barsname,
+            ),
             bars=bars,
             show_time=True,
+            file=file,
         )
         with p:
             for x in range(0, 50, 5):
                 p.update(x)
                 sleep(delay)
-            p.message = 'Almost through with: {}'.format(barsname)
+            p.message = '({}/{}) Almost through with: {}'.format(
+                frameindex,
+                barslen,
+                barsname,
+            )
             for x in range(50, 100, 5):
                 p.update(x)
                 sleep(delay)
             p.update(100)
             sleep(delay)
         p = ProgressBar(
-            s,
+            '({}/{}) Testing percent {}: {}'.format(
+                frameindex,
+                barslen,
+                0,
+                barsname,
+            ),
             bars=bars,
             show_time=False,
+            file=file,
         )
         with p:
             for x in range(0, 160, 10):
-                p.message = 'Testing percent {}: {}'.format(x, barsname)
+                p.message = '({}/{}) Testing percent {}: {}'.format(
+                    frameindex,
+                    barslen,
+                    x,
+                    barsname,
+                )
                 p.update(x)
                 sleep(delay * 0.9)
 
-    bartypes = set()
-    barnames = Bars.names()
-    while len(bartypes) < maxtypes:
-        bartypes.add(Bars.get_by_name(random.choice(barnames)))
+    bartypes = get_framesets(Bars, maximum=maxtypes, pattern=pattern)
 
+    barslen = len(bartypes)
     for barsobj in sorted(bartypes):
         run_bar_type(barsobj, barsobj.name)
     print('\nFinished with progress bar functions.\n')
 
 
-def run_staticprogress(delay=None, char_delay=None):
+def run_staticprogress(delay=None, char_delay=None, file=sys.stdout):
     """ This is a rough test of the StaticProgress class. """
     print(C('Testing StaticProgress class...', 'cyan'))
 
@@ -391,6 +504,7 @@ def run_staticprogress(delay=None, char_delay=None):
         char_delay=char_delay,
         fmt=None,
         show_time=True,
+        file=file,
     )
     p.start()
     for i, msg in enumerate(msgs):
@@ -420,6 +534,19 @@ def print_err(*args, **kwargs):
     if kwargs.get('file', None) is None:
         kwargs['file'] = sys.stderr
     print(*args, **kwargs)
+
+
+def try_re_pat(s, default=None):
+    """ Try compiling a regex pattern. Raise InvalidArg on errors.
+        If a falsey value is given then `default` is returned.
+    """
+    if not s:
+        return default
+    try:
+        pat = re.compile(s)
+    except re.error as ex:
+        raise InvalidArg('invalid pattern: {}\n  {}'.format(s, ex))
+    return pat
 
 
 class InvalidArg(ValueError):
