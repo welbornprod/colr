@@ -436,7 +436,9 @@ class BarSet(FrameSet):
 
         length = len(self)
         # Using mod 100, to provide some kind of "auto reset".
-        index = int((length / 100) * (int(percent) % 100))
+        # 0 == 0, 100 == 100, 150 == 50, 200 == 100
+        percentmod = (int(percent) % 100) or min(percent, 100)
+        index = int((length / 100) * percentmod)
         try:
             barstr = str(self[index])
         except IndexError:
@@ -632,7 +634,7 @@ class Bars(object):
     # This bar actually has 101 frames, but as_percent(1) will show 1 percent.
     # and as_percent(100) will show 100 percent.
     numbers = BarSet(
-        ('%{:>3}'.format(x) for x in range(0, 102)),
+        ('%{:>3}'.format(x) for x in range(0, 101)),
         name='numbers',
     )
 
