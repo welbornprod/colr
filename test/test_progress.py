@@ -75,7 +75,7 @@ class AnimatedProgressTests(ColrTestCase):
 
     def test_timeout(self):
         """ AnimatedProgress should throw ProgressTimedOut when timed out. """
-        timeout = 1
+        timeout = 0.25
         sleepsecs = timeout * 2
         p = AnimatedProgress('test', timeout=timeout, file=TestFile())
         p.start()
@@ -561,7 +561,7 @@ class ProgressBarTests(ColrTestCase):
 
     def test_timeout(self):
         """ ProgressBar should throw ProgressTimedOut when timed out. """
-        timeout = 1
+        timeout = 0.25
         sleepsecs = timeout * 2
         p = ProgressBar('test', timeout=timeout, file=TestFile())
         p.start()
@@ -595,7 +595,7 @@ class StaticProgressTests(ColrTestCase):
 
     def test_timeout(self):
         """ StaticProgress should throw ProgressTimedOut when timed out. """
-        timeout = 1
+        timeout = 0.25
         sleepsecs = timeout * 2
         p = StaticProgress('test', timeout=timeout, file=TestFile())
         p.start()
@@ -624,7 +624,7 @@ class WriterProcessTests(ColrTestCase):
 
     def test_timeout(self):
         """ WriterProcess should throw ProgressTimedOut when timed out. """
-        timeout = 1
+        timeout = 0.25
         sleepsecs = timeout * 2
         p = WriterProcess('test', timeout=timeout, file=TestFile())
         p.start()
