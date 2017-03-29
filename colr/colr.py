@@ -45,7 +45,7 @@ from typing import (  # noqa
     List,
     Optional,
     Sequence,
-    Set,
+    Set,  # Set is used as a 'type: Set' comment in `get_known_codes()`.
     Tuple,
     Union,
     cast,
@@ -66,6 +66,8 @@ CodeFormatFunc = Callable[[CodeFormatArg], str]
 CodeFormatRgbFunc = Callable[[int, int, int], str]
 # Acceptable fore/back args.
 ColorArg = Union[str, int, Tuple[int, int, int]]
+# Acceptable format_* function args.
+FormatArg = Union[int, Tuple[int, int, int]]
 
 __version__ = '0.8.0'
 
@@ -269,7 +271,7 @@ def enabled() -> bool:
 
 
 def _format_code(
-        number: Union[int, Sequence[int]],
+        number: FormatArg,
         backcolor: Optional[bool]=False,
         light: Optional[bool]=False,
         extended: Optional[bool]=False) -> str:
@@ -356,7 +358,7 @@ def _format_code(
 
 
 def format_back(
-        number: Union[int, Sequence[int]],
+        number: FormatArg,
         light: Optional[bool]=False,
         extended: Optional[bool]=False) -> str:
     """ Return an escape code for a back color, by number.
@@ -373,7 +375,7 @@ def format_back(
 
 
 def format_fore(
-        number: Union[int, Sequence[int]],
+        number: FormatArg,
         light: Optional[bool]=False,
         extended: Optional[bool]=False) -> str:
     """ Return an escape code for a fore color, by number.
