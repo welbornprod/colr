@@ -406,20 +406,24 @@ def run_processbase(delay=None, file=sys.stdout):
     """ This is a rough test of the WriterProcessBase class. """
     print(C('Testing WriterProcessBase class...', 'cyan'))
     write_lock = Lock()
-    queue = Queue()
+    text_queue = Queue(maxsize=1)
+    err_queue = Queue(maxsize=1)
     stopped = Value(c_bool, True)
     time_started = Value(c_double, 0)
     time_elapsed = Value(c_double, 0)
+    timeout = Value(c_double, 0)
 
     def change_text(s):
-        queue.put_nowait(s)
+        text_queue.put_nowait(s)
 
     p = WriterProcessBase(
-        queue,
+        text_queue,
+        err_queue,
         write_lock,
         stopped,
         time_started,
         time_elapsed,
+        timeout,
         file=file,
     )
     change_text('.')
