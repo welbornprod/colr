@@ -4,6 +4,7 @@
     -Christopher Welborn 3-12-17
 """
 
+import traceback
 import sys
 from ctypes import (
     c_bool,
@@ -63,7 +64,7 @@ def try_unbuffered_file(file, _alreadyopen={}):
 
 class WriterProcessBase(Process):
     """ A low level subprocess that only does basic print loops.
-        Shared state is managed through multiprocessing.Values/Pipes.
+        Shared state is managed through multiprocessing.Values/Queues.
         This is used by WriterProcess to print and handle text updates.
 
         This class may be a little confusing to use directly, because of the
@@ -72,31 +73,46 @@ class WriterProcessBase(Process):
         subprocess, so all of the state should be created from the main
         process and handed off to this subprocess. The properties are just
         wrappers for `multiprocessing.Value`s, that make it easier to set
-        the values with normal Python primitives.
+        the values with normal Python primitives. Text updates are handled
+        with a Queue, which this subprocess reads from and the main process
+        writes to. WriterProcess will send a text value through the Queue
+        when it's `text` property is changed.
+
+        Exceptions are sent through a Queue to be checked at anytime by
+        the parent process.
 
         Just use a WriterProcess, instead of this WriterProcessBase.
+        Or better yet, use a StaticProgress, AnimatedProgress, or
+        ProgressBar.
     """
     nice_delay = 0.005
 
     def __init__(
-            self, queue, lock, stopped, time_started,
-            time_elapsed, file=None):
+            self, text_queue, exc_queue, lock, stopped, time_started,
+            time_elapsed, timeout, name=None, file=None):
         self.file = try_unbuffered_file(file or sys.stdout)
+        self.text_queue = text_queue
+        self.exc_queue = exc_queue
         self.lock = lock
-        self.text_queue = queue
-        self._text = None
         self.stop_flag = stopped
         self.time_started = time_started
         self.time_elapsed = time_elapsed
+        self.timeout = timeout
+        self.name = name or self.__class__.__qualname__
+        self._text = None
         self.update_text()
-        super().__init__(name=self.__class__.__qualname__)
+        super().__init__(name=self.name)
 
     @property
     def elapsed(self):
         with self.time_elapsed.get_lock():
             return self.time_elapsed.value
 
-    def run(self):
+    def _loop(self):
+        """ This is the loop that runs in the subproces. It is called from
+            `run` and is responsible for all printing, text updates, and time
+            management.
+        """
         self.stop_flag.value = False
         self.time_started.value = time()
         self.time_elapsed.value = 0
@@ -109,12 +125,34 @@ class WriterProcessBase(Process):
                 start = self.time_started.value
                 with self.time_elapsed.get_lock():
                     self.time_elapsed.value = time() - start
+                    if (
+                            self.timeout.value and
+                            (self.time_elapsed.value > self.timeout.value)):
+                        self.stop()
+                        raise ProgressTimedOut(
+                            self.name,
+                            self.time_elapsed.value,
+                        )
+
+    def run(self):
+        """ Runs the printer loop in a subprocess. This is called by
+            multiprocessing.
+        """
+        try:
+            self._loop()
+        except Exception:
+            # Send the exception through the exc_queue, so the parent
+            # process can check it.
+            typ, val, tb = sys.exc_info()
+            tb_lines = traceback.format_exception(typ, val, tb)
+            self.exc_queue.put((val, tb_lines))
 
     @property
     def started(self):
         return self.time_started.value
 
     def stop(self):
+        """ Stop this WriterProcessBase, and reset the cursor. """
         self.stop_flag.value = True
         with self.lock:
             (
@@ -153,26 +191,64 @@ class WriterProcess(WriterProcessBase):
     """ A subprocess that handles printing and updating the text for a
         WriterProcessBase.
         The text is updated by setting `self.text`.
+        Subprocess exceptions are checked with `self.exception`,
+        if an exception occurred while running it will be automatically
+        raised when `self.stop` is called. If you need to know before `stop`
+        whether an exception was raised, just check `self.exception` for
+        a non-`None` value.
+
     """
     nice_delay = 0.001
     lock = Lock()
 
-    def __init__(self, text=None, file=None):
+    def __init__(self, text=None, timeout=None, name=None, file=None):
         self.text_queue = Queue(maxsize=1)
+        self.exc_queue = Queue(maxsize=1)
         stop_flag = Value(c_bool, True)
         time_started = Value(c_double, 0)
         time_elapsed = Value(c_double, 0)
+        timeout = Value(c_double, timeout or 0)
         # This will set self._text, and send it through the pipe initially.
         self._text = None
         self.text = text or ''
+        # Any exceptions raised in the subprocess are sent through `exc_queue`
+        # and can be retrieved using the `self.exception` property.
+        # These values will be set if an exception is raised.
+        self._exception = None
+        self.tb_lines = None
+
         super().__init__(
             self.text_queue,
+            self.exc_queue,
             self.lock,
             stop_flag,
             time_started,
             time_elapsed,
+            timeout,
+            name=name or self.__class__.__qualname__,
             file=file,
         )
+
+    @property
+    def exception(self):
+        """ Try retrieving the last subprocess exception.
+            If set, the exception is returned. Otherwise None is returned.
+        """
+        if self._exception is not None:
+            return self._exception
+        try:
+            exc, tblines = self.exc_queue.get_nowait()
+        except Empty:
+            self._exception, self.tb_lines = None, None
+        else:
+            # Raise any exception that the subprocess encountered and sent.
+            self._exception, self.tb_lines = exc, tblines
+        return self._exception
+
+    @exception.setter
+    def exception(self, exc):
+        """ Manually set the exception property. """
+        self._exception = exc
 
     @property
     def text(self):
@@ -204,7 +280,8 @@ class StaticProgress(WriterProcess):
 
     def __init__(
             self, text=None, delay=None, fmt=None,
-            show_time=False, char_delay=None, file=None):
+            show_time=False, char_delay=None, timeout=None,
+            name=None, file=None):
         # Delay in seconds between frame renders.
         self.delay = (delay or self.default_delay) - self.nice_delay
         # Format for the progress frame, optional time, and text.
@@ -225,6 +302,8 @@ class StaticProgress(WriterProcess):
         # Initialize the basic ProgressProcess.
         super().__init__(
             text=text,
+            timeout=timeout,
+            name=name or self.__class__.__qualname__,
             file=file,
         )
 
@@ -294,6 +373,17 @@ class StaticProgress(WriterProcess):
             self.stop()
         finally:
             Control().cursor_show().write(file=self.file)
+
+    def stop(self):
+        """ Stop this animated progress, and block until it is finished. """
+        super().stop()
+        while not self.stopped:
+            # stop() should block, so printing afterwards isn't interrupted.
+            sleep(0.001)
+        # Retrieve the latest exception, if any.
+        exc = self.exception
+        if exc is not None:
+            raise exc
 
     def write(self):
         """ Writes a single frame of the progress spinner to the terminal.
@@ -379,7 +469,8 @@ class AnimatedProgress(StaticProgress):
 
     def __init__(
             self, text=None, frames=None, delay=None,
-            fmt=None, show_time=False, char_delay=None, file=None):
+            fmt=None, show_time=False, char_delay=None,
+            timeout=None, name=None, file=None):
         self.frames = frames or Frames.default
 
         if not self.frames:
@@ -398,12 +489,18 @@ class AnimatedProgress(StaticProgress):
             default_fmt = self.default_format
 
         # Initialize the basic StaticProgress.
+        defaultname = self.__class__.__qualname__
+        if self.frames.name:
+            defaultname = '{}: {}'.format(defaultname, self.frames.name)
+
         super().__init__(
             text=text,
             fmt=fmt or default_fmt,
             file=file,
             char_delay=char_delay,
             delay=self._get_delay(delay, frames),
+            name=name or defaultname,
+            timeout=timeout,
         )
 
     def __str__(self):
@@ -441,13 +538,6 @@ class AnimatedProgress(StaticProgress):
         if delay < 0:
             delay = 0
         return delay
-
-    def stop(self):
-        """ Stop this progress, and block until it is finished. """
-        super().stop()
-        while not self.stopped:
-            # stop() should block, so printing afterwards isn't interrupted.
-            sleep(0.001)
 
     def write(self):
         """ Writes a single frame of the progress spinner to the terminal.
@@ -502,12 +592,13 @@ class ProgressBarBase(StaticProgress):
     join_str = ' '
     # ProgressBars need a smaller delay, to catch updates in time.
     default_delay = 0.025
-    default_format = ('{text:<40}', '{bars}')
-    default_format_time = ('{text:<40}', '{elapsed:>2.0f}s', '{bars}')
+    default_format = ('{bars}', '{text:<40}')
+    default_format_time = ('{bars}', '{elapsed:>2.0f}s', '{text:<40}')
 
     def __init__(
             self, msg_queue, text=None, bars=None,
-            fmt=None, show_time=False, file=None):
+            fmt=None, show_time=False, timeout=None,
+            name=None, file=None):
         self._msg = text or 'Progress'
         self.bars = bars or Bars.default
 
@@ -532,12 +623,17 @@ class ProgressBarBase(StaticProgress):
         # parent process.
         self.message_queue = msg_queue
         # Initialize the basic StaticProgress.
+        defaultname = self.__class__.__qualname__
+        if self.bars.name:
+            defaultname = '{}: {}'.format(defaultname, self.bars.name)
         super().__init__(
             text=self._msg,
             fmt=fmt or default_fmt,
-            file=file,
             char_delay=None,  # Not supported, not enough time to finish.
             delay=self.default_delay,
+            timeout=timeout,
+            name=name or defaultname,
+            file=file,
         )
 
     def __str__(self):
@@ -569,7 +665,8 @@ class ProgressBarBase(StaticProgress):
 
     def update(self):
         """ Redraw the progress bar, based on self._msg and self._percent. """
-        self.text = str(self)
+        if not self.stopped:
+            self.text = str(self)
 
 
 class ProgressBar(ProgressBarBase):
@@ -579,7 +676,7 @@ class ProgressBar(ProgressBarBase):
 
     def __init__(
             self, text=None, bars=None,
-            fmt=None, show_time=False, file=None):
+            fmt=None, show_time=False, timeout=None, name=None, file=None):
         # This Queue will connect this ProgressBar to it's ProgressBarBase
         # for the message part updates.
         self.message_queue = Queue(maxsize=1)
@@ -589,6 +686,8 @@ class ProgressBar(ProgressBarBase):
             bars=bars,
             fmt=fmt,
             show_time=show_time,
+            timeout=timeout,
+            name=name,
             file=file,
         )
 
@@ -598,15 +697,9 @@ class ProgressBar(ProgressBarBase):
 
     @message.setter
     def message(self, value):
-        self._message = value
-        self.message_queue.put(value)
-
-    def stop(self):
-        """ Stop this progress, and block until it is finished. """
-        super().stop()
-        while not self.stopped:
-            # stop() should block, so printing afterwards isn't interrupted.
-            sleep(0.001)
+        if not self.stopped:
+            self._message = value
+            self.message_queue.put(value)
 
     def update(self, percent=None, text=None):
         """ Update the progress bar percentage and message. """
@@ -615,3 +708,20 @@ class ProgressBar(ProgressBarBase):
         if text is not None:
             self.message = text
         super().update()
+
+
+class ProgressTimedOut(Exception):
+    """ Raised when a WriterProcessBase times out (because `timeout` was set).
+    """
+    def __init__(self, msg, elapsed):
+        self.msg = msg or ''
+        self.elapsed = elapsed
+
+    def __str__(self):
+        return (
+            'Progress timed out after {elapsed:1.1f} {plural}{msg}'.format(
+                elapsed=self.elapsed,
+                plural='sec.' if self.elapsed == 1 else 'secs.',
+                msg=': {}'.format(self.msg) if self.msg else ''
+            )
+        )

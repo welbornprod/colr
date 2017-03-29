@@ -9,6 +9,9 @@
 
 import sys
 import unittest
+from ctypes import c_bool, c_double
+from multiprocessing import Lock, Queue, Value
+from multiprocessing.queues import Empty
 from time import sleep
 
 from colr import (
@@ -21,6 +24,8 @@ from colr.progress import (
     BarSet,
     Frames,
     FrameSet,
+    ProgressBar,
+    ProgressTimedOut,
     StaticProgress,
     WriterProcess,
     WriterProcessBase,
@@ -67,6 +72,28 @@ class AnimatedProgressTests(ColrTestCase):
             delta=0.1,
             msg='FrameSet delay was not overridden.',
         )
+
+    def test_timeout(self):
+        """ AnimatedProgress should throw ProgressTimedOut when timed out. """
+        timeout = 1
+        sleepsecs = timeout * 2
+        p = AnimatedProgress('test', timeout=timeout, file=TestFile())
+        p.start()
+        while sleepsecs > 0:
+            sleep(timeout)
+            sleepsecs -= timeout
+            if p.exception and not isinstance(p.exception, ProgressTimedOut):
+                self.fail(
+                    'Error was raised, but not ProgressTimedOut:\n{}'.format(
+                        p.tb_lines
+                    )
+                )
+        try:
+            p.stop()
+        except ProgressTimedOut:
+            pass
+        else:
+            self.fail('Failed to raise ProgressTimedOut.')
 
 
 class BarsTests(ColrTestCase):
@@ -519,6 +546,42 @@ class FrameSetTests(ColrTestCase):
             )
 
 
+class ProgressBarTests(ColrTestCase):
+    """ Tests for the ProgressBar object. """
+    def test_init(self):
+        """ ProgressBar should initialize. """
+        p = ProgressBar('test', file=TestFile())
+        self.assertCallIsInstance(
+            p,
+            ProgressBar,
+            func=ProgressBar,
+            args=('test', ),
+            msg='Failed to initialize ProgressBar from good arguments.',
+        )
+
+    def test_timeout(self):
+        """ ProgressBar should throw ProgressTimedOut when timed out. """
+        timeout = 1
+        sleepsecs = timeout * 2
+        p = ProgressBar('test', timeout=timeout, file=TestFile())
+        p.start()
+        while sleepsecs > 0:
+            sleep(timeout)
+            sleepsecs -= timeout
+            if p.exception and not isinstance(p.exception, ProgressTimedOut):
+                self.fail(
+                    'Error was raised, but not ProgressTimedOut:\n{}'.format(
+                        p.tb_lines
+                    )
+                )
+        try:
+            p.stop()
+        except ProgressTimedOut:
+            pass
+        else:
+            self.fail('Failed to raise ProgressTimedOut.')
+
+
 class StaticProgressTests(ColrTestCase):
     """ Tests for the StaticProgress object. """
     def test_init(self):
@@ -529,6 +592,22 @@ class StaticProgressTests(ColrTestCase):
             StaticProgress,
             msg='Failed to initialize StaticProgress',
         )
+
+    def test_timeout(self):
+        """ StaticProgress should throw ProgressTimedOut when timed out. """
+        timeout = 1
+        sleepsecs = timeout * 2
+        p = StaticProgress('test', timeout=timeout, file=TestFile())
+        p.start()
+        while sleepsecs > 0:
+            sleep(timeout)
+            sleepsecs -= timeout
+        try:
+            p.stop()
+        except ProgressTimedOut:
+            pass
+        else:
+            self.fail('Failed to raise ProgressTimedOut.')
 
 
 class WriterProcessTests(ColrTestCase):
@@ -543,19 +622,42 @@ class WriterProcessTests(ColrTestCase):
             msg='Failed to initialize WriterProcess.',
         )
 
+    def test_timeout(self):
+        """ WriterProcess should throw ProgressTimedOut when timed out. """
+        timeout = 1
+        sleepsecs = timeout * 2
+        p = WriterProcess('test', timeout=timeout, file=TestFile())
+        p.start()
+        sleep(0.1)
+        while sleepsecs > 0:
+            sleep(timeout)
+            sleepsecs -= timeout
+        p.stop()
+        try:
+            exc, tb_lines = p.exc_queue.get()
+        except Empty:
+            self.fail('Failed to raise ProgressTimedOut.')
+        else:
+            if not isinstance(exc, ProgressTimedOut):
+                self.fail(
+                    'Error raised, but not ProgressTimedOut:\n{}'.format(
+                        ''.join(tb_lines)
+                    )
+                )
+
 
 class WriterProcessBaseTests(ColrTestCase):
     """ Tests for the WriterProcessBase. """
     def test_init(self):
-        from multiprocessing import Lock, Queue, Value
-        from ctypes import c_bool, c_double
-
+        """ Should init from good args. """
         p = WriterProcessBase(
+            Queue(maxsize=1),
             Queue(maxsize=1),
             Lock(),
             Value(c_bool, True),
             Value(c_double, 0),
             Value(c_double, 0),
+            timeout=None,
             file=TestFile(),
         )
         # Redundant test, checking green's weird FileNotFoundError.
@@ -564,6 +666,39 @@ class WriterProcessBaseTests(ColrTestCase):
             WriterProcessBase,
             msg='Failed to initialize WriterProcessBase.',
         )
+
+    def test_timeout(self):
+        """ Should throw a ProgressTimedOut exception when timed out. """
+        timeout = Value(c_double, 1)
+        sleepsecs = timeout.value * 2
+        errqueue = Queue(maxsize=1)
+        p = WriterProcessBase(
+            Queue(maxsize=1),
+            errqueue,
+            Lock(),
+            Value(c_bool, True),
+            Value(c_double, 0),
+            Value(c_double, 0),
+            timeout=timeout,
+            file=TestFile(),
+        )
+        p.start()
+        sleep(0.1)
+        while sleepsecs > 0:
+            sleep(timeout.value)
+            sleepsecs -= timeout.value
+        p.stop()
+        try:
+            exc, tb_lines = errqueue.get()
+        except Empty:
+            self.fail('Failed to raise ProgressTimedOut.')
+        else:
+            if not isinstance(exc, ProgressTimedOut):
+                self.fail(
+                    'Error raised, but not ProgressTimedOut:\n{}'.format(
+                        ''.join(tb_lines)
+                    )
+                )
 
 
 if __name__ == '__main__':

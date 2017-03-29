@@ -6,7 +6,10 @@
 import inspect
 import unittest
 from contextlib import suppress
-from io import StringIO
+from io import (
+    BytesIO,
+    StringIO,
+)
 from unittest.case import _AssertRaisesContext
 from typing import Any, Callable, Mapping, Optional, no_type_check
 
@@ -348,13 +351,40 @@ class ColrTestCase(unittest.TestCase):
         return call_msg(s, *args, **kwargs)
 
 
+class TestFileBytes(BytesIO):
+    """ A file object that deletes it's content every time you call
+        str(TestFileBytes).
+    """
+    def __bytes__(self):
+        self.seek(0)
+        s = self.read()
+        self.truncate(0)
+        self.seek(0)
+        return s
+
+    def __str__(self):
+        return repr(bytes(self))
+
+
 class TestFile(StringIO):
     """ A file object that deletes it's content every time you call
         str(TestFile).
     """
+    def __init__(self):
+        self.buffer = TestFileBytes()
+
     def __str__(self):
         self.seek(0)
         s = self.read()
         self.truncate(0)
         self.seek(0)
         return s
+
+    def write(self, s):
+        try:
+            super().write(s)
+        except ValueError as ex:
+            # I/O operation on uninitialized object?
+            if 'uninitialized' not in str(ex).lower():
+                raise
+        self.buffer.write(s.encode() if hasattr(s, 'encode') else s)

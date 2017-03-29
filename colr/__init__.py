@@ -67,6 +67,7 @@ from .controls import (  # noqa
 from .progress import (
     AnimatedProgress,
     ProgressBar,
+    ProgressTimedOut,
     StaticProgress,
     WriterProcess,
 )
@@ -136,6 +137,7 @@ __all__ = [
     # progress functions/classes made available.
     'AnimatedProgress',
     'ProgressBar',
+    'ProgressTimedOut',
     'StaticProgress',
     'WriterProcess',
     # progress frame classes made available.

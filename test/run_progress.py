@@ -36,6 +36,7 @@ try:
         Bars,
         Frames,
         ProgressBar,
+        ProgressTimedOut,
         StaticProgress,
         WriterProcess,
         WriterProcessBase,
@@ -57,8 +58,9 @@ USAGESTR = """{versionstr}
 
     Usage:
         {script} -B | -e | -F | -h | -v
-        {script} [-d secs] [-D secs] [-E] [-a] [-b name...] [-f name...]
-                 [-p] [-P] [-c] [-s]
+        {script} [-d secs] [-D secs] [-E] [-p] [-P] [-c] [-s]
+        {script} [-d secs] [-D secs] [-E] [-t secs] -b name...
+        {script} [-d secs] [-D secs] [-E] [-t secs] -f name...
         {script} [-d secs] [-D secs] [-E] -a [-r pattern]
         {script} [-d secs] [-D secs] [-E] -p [-r pattern]
 
@@ -83,6 +85,8 @@ USAGESTR = """{versionstr}
         -r pat,--regex pat        : Choose only FrameSets/BarSets matching
                                     this pattern.
         -s,--staticprogress       : Run static progress tests.
+        -t secs,--timeout secs    : Seconds for animated/progress-bar
+                                    timeout.
         -v,--version              : Show version.
 
     The default action is to run all the tests.
@@ -102,6 +106,7 @@ def main(argd):
 
     delay = parse_float_arg(argd['--delay'], default=None)
     char_delay = parse_float_arg(argd['--chardelay'], default=None)
+    timeout = parse_float_arg(argd['--timeout'], default=None)
     test_flags = (
         '--bars',
         '--frames',
@@ -120,6 +125,7 @@ def main(argd):
                 run_bar_names,
                 argd['--bars'],
                 delay=delay,
+                timeout=timeout,
                 file=sys.stderr if argd['--stderr'] else sys.stdout,
             )
         if argd['--frames']:
@@ -128,6 +134,7 @@ def main(argd):
                 argd['--frames'],
                 delay=delay,
                 char_delay=char_delay,
+                timeout=timeout,
                 file=sys.stderr if argd['--stderr'] else sys.stdout,
             )
         if do_all or argd['--animatedprogress']:
@@ -276,7 +283,8 @@ def run_animatedprogress(
 
 
 def run_bar_name(
-        name, delay=None, char_delay=None, file=sys.stdout, min_run_time=5):
+        name, delay=None, char_delay=None, file=sys.stdout,
+        min_run_time=5, timeout=None):
     """ Run a single animated progress BarSet by name. """
     try:
         bars = Bars.get_by_name(name)
@@ -288,22 +296,27 @@ def run_bar_name(
         'Testing progress bar: {}'.format(bars.name),
         bars=bars,
         show_time=True,
+        timeout=timeout,
         file=file,
     )
-    with p:
-        for x in range(0, 55, 5):
-            p.update(x)
-            sleep(delay)
-        p.message = 'Almost through with: {}'.format(bars.name)
-        for x in range(50, 105, 5):
-            p.update(x)
-            sleep(delay)
-    p.stop()
-
+    try:
+        with p:
+            for x in range(0, 55, 5):
+                p.update(x)
+                sleep(delay)
+            p.message = 'Almost through with: {}'.format(bars.name)
+            for x in range(50, 105, 5):
+                p.update(x)
+                sleep(delay)
+        p.stop()
+    except ProgressTimedOut as ex:
+        print_err('\n{}'.format(ex))
+        return 1
     return 0
 
 
-def run_bar_names(names, delay=None, char_delay=None, file=sys.stdout):
+def run_bar_names(
+        names, delay=None, char_delay=None, timeout=None, file=sys.stdout):
     """ Run a list of progress animation BarSets by name. """
     return sum(
         run_bar_name(
@@ -311,13 +324,15 @@ def run_bar_names(names, delay=None, char_delay=None, file=sys.stdout):
             delay=delay,
             char_delay=char_delay,
             min_run_time=5,
+            timeout=timeout,
             file=file,
         )
         for n in names
     )
 
 
-def run_frame_name(name, delay=None, char_delay=None, file=sys.stdout):
+def run_frame_name(
+        name, delay=None, char_delay=None, timeout=None, file=sys.stdout):
     """ Run a single animated progress FrameSet by name. """
     try:
         frames = Frames.get_by_name(name)
@@ -330,22 +345,33 @@ def run_frame_name(name, delay=None, char_delay=None, file=sys.stdout):
         delay=delay,
         char_delay=char_delay,
         show_time=True,
+        timeout=timeout,
         file=file,
     )
-    p.start()
-    framelen = len(frames)
-    minruntime = 2
-    runtime = max((p.delay * framelen) * 2, minruntime)
-    sleep(runtime)
-    p.stop()
-
+    try:
+        p.start()
+        framelen = len(frames)
+        minruntime = 2
+        runtime = max((p.delay * framelen) * 2, minruntime)
+        sleep(runtime)
+        p.stop()
+    except ProgressTimedOut as ex:
+        print_err('\n{}'.format(ex))
+        return 1
     return 0
 
 
-def run_frame_names(names, delay=None, char_delay=None, file=sys.stdout):
+def run_frame_names(
+        names, delay=None, char_delay=None, timeout=None, file=sys.stdout):
     """ Run a list of progress animation FrameSets by name. """
     return sum(
-        run_frame_name(n, delay=delay, char_delay=char_delay, file=file)
+        run_frame_name(
+            n,
+            delay=delay,
+            char_delay=char_delay,
+            timeout=timeout,
+            file=file,
+        )
         for n in names
     )
 
