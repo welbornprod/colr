@@ -1,6 +1,34 @@
 #!/usr/bin/env python3
 """ Colr - Progress
     Functions and classes to deal with progress bars or spinners.
+
+    User friendly classes:
+    ----------------------
+        StaticProgress   - plain text updates with optional elapsed time.
+        AnimatedProgress - animated frames, text updates, and optional time.
+        ProgressBar      - percentage-based progress updates, text updates,
+                           and optional time.
+
+    Base classes:
+    -------------
+        WriterProcessBase - dumb subprocess that prints in a loop,
+                            and receives text updates.
+                            manages elapsed time and shares it with the
+                            parent process.
+        WriterProcess     - sets up communication between the parent/child
+                            process for text and time updates.
+        ProgressBarBase   - sets up communication between the parent/child
+                            process for percentage and message updates.
+
+    Relationships:
+    --------------
+        WriterProcessBase
+            WriterProcess
+                StaticProgress
+                    AnimatedProgress
+                    ProgressBarBase
+                        ProgressBar
+
     -Christopher Welborn 3-12-17
 """
 
