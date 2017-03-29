@@ -386,6 +386,33 @@ class ColrTests(ColrTestCase):
             msg='Colr(\'{}\').format(Colr()) breaks formatting!',
         )
 
+    def test_gradient(self):
+        """ Colr.gradient should recognize names and rainbow offsets. """
+        valid_names = list(Colr.gradient_names)
+        valid_names.extend(range(1, 254))
+        valid_names.extend((False, True, None, '', 0, 1.2))
+        for valid_name in valid_names:
+            try:
+                Colr('test').gradient(name=valid_name)
+            except ValueError:
+                self.fail(self.call_msg(
+                    'Colr.gradient failed on a known name.',
+                    valid_name,
+                    func=Colr().gradient,
+                ))
+        invalid_names = ('block', 'bash', 'berry')
+        for invalid_name in invalid_names:
+            try:
+                Colr('test').gradient(name=invalid_name)
+            except ValueError:
+                pass
+            else:
+                self.fail(self.call_msg(
+                    'Failed to raise on invalid name.',
+                    invalid_name,
+                    func=Colr().gradient,
+                ))
+
     def test_hash(self):
         """ hash(Colr()) should return a unique hash for self.data. """
         a, b = hash(Colr('test', 'red')), hash(Colr('test', 'red'))

@@ -1650,7 +1650,7 @@ class Colr(object):
                 )
             try:
                 # Get rainbow offset from known name.
-                self.gradient_names[name]
+                offset = self.gradient_names[name]
             except KeyError:
                 raise ValueError('Unknown gradient name: {}'.format(name))
 
