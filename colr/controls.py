@@ -635,7 +635,7 @@ class Control(object):
 
 
 # Alias for move_pos, because they both deal with cursor positions.
-Control.pos_set = Control.move_pos
+Control.pos_set = Control.move_pos  # type: ignore
 
 
 if __name__ == '__main__':

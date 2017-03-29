@@ -21,11 +21,11 @@ Resources:
 """
 import re
 from types import GeneratorType
-from typing import cast, Any, Optional, Sequence, Union
+from typing import cast, Any, Optional, Tuple, Union
 
 # Custom types.
 Numeric = Union[int, str]
-RGB = Sequence[int]
+RGB = Tuple[int, int, int]
 
 # Original lookup table provided by Micah Elliott (colortrans.py).
 # Modified to dict by Christopher Welborn.
@@ -319,7 +319,7 @@ def fix_hex(hexval: str) -> str:
     return hexval
 
 
-def hex2rgb(hexval: str, allow_short: bool=False) -> Sequence[int]:
+def hex2rgb(hexval: str, allow_short: bool=False) -> RGB:
     """ Return a tuple of (R, G, B) from a hex color. """
     if not hexval:
         raise ValueError(
@@ -352,7 +352,9 @@ def hex2rgb(hexval: str, allow_short: bool=False) -> Sequence[int]:
     except ValueError:
         # Bad hex string.
         raise ValueError('Invalid hex value: {}'.format(hexval))
-    return val
+    # Only needed to satisft typing. `return val` would work fine.
+    r, g, b = val
+    return r, g, b
 
 
 def hex2term(hexval: str, allow_short: bool=False) -> str:
@@ -447,7 +449,7 @@ def term2hex(code: Numeric, default: Optional[str]=None) -> str:
     return val
 
 
-def term2rgb(code: Numeric) -> Sequence[int]:
+def term2rgb(code: Numeric) -> RGB:
     """ Convert a terminal code to an rgb value. """
     return hex2rgb(term2hex(code))
 
@@ -467,7 +469,7 @@ class ColorCode(object):
             self,
             code: Optional[Any]=None,
             rgb_mode: Optional[bool]=False) -> None:
-        self.rgb = tuple()  # type: Sequence[int]
+        self.rgb = (0, 0, 0)  # type: RGB
         self.hexval = None  # type: str
         self.code = None  # type: str
         self.rgb_mode = rgb_mode  # type: bool
@@ -478,7 +480,7 @@ class ColorCode(object):
         if isinstance(code, (list, tuple, GeneratorType)):
             try:
                 # cast is only needed to satisfy mypy. 'code' would work fine.
-                r, g, b = cast(Sequence[int], code)
+                r, g, b = cast(RGB, code)
             except ValueError:
                 raise TypeError(typeerrmsg)
             self._init_rgb(r, g, b)

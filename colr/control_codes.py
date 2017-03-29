@@ -253,7 +253,7 @@ class MoveCodes(object):
 
 
 # Alias for move.carriage_return, since 'return' is a keyword.
-MoveCodes.ret = MoveCodes.carriage_return
+MoveCodes.ret = MoveCodes.carriage_return  # type: ignore
 
 
 class PositionCodes(object):
@@ -282,7 +282,7 @@ class PositionCodes(object):
 
 
 # Alias for move.pos, since both deal with moving/positions.
-PositionCodes.set = MoveCodes.pos
+PositionCodes.set = MoveCodes.pos  # type: ignore
 
 
 class ScrollCodes(object):

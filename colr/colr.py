@@ -263,6 +263,11 @@ def enable() -> None:
     _disabled = False
 
 
+def enabled() -> bool:
+    """ Public access to _disabled. """
+    return not _disabled
+
+
 def _format_code(
         number: Union[int, Sequence[int]],
         backcolor: Optional[bool]=False,

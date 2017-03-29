@@ -842,5 +842,5 @@ _build_color_variants(Frames)
 _build_color_variants(Bars)
 
 # Default frames to use when none are specified.
-Frames.default = Frames.dots_blue
-Bars.default = Bars.blocks_blue
+Frames.default = Frames.dots_blue  # type: ignore
+Bars.default = Bars.blocks_blue  # type: ignore
