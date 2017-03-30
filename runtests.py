@@ -62,7 +62,6 @@ USAGESTR = """{versionstr}
         -v,--version  : Show version.
 """.format(script=SCRIPT, versionstr=VERSIONSTR)
 
-
 def main(argd):
     """ Main entry point, expects doctopt arg dict as argd. """
     # Use the test directory when no args are given.
@@ -100,11 +99,12 @@ def parse_test_names(names):
     """ Prepend 'test.' to test names without it.
         Return a list of test names.
     """
+    has_test_dir = os.path.isdir('test')
     parsed = []
     for name in names:
         if name == 'test':
             parsed.append(name)
-        elif not name.startswith('test.'):
+        elif has_test_dir and (not name.startswith('test.')):
             parsed.append('test.{}'.format(name))
         else:
             # TODO: Better test discovery, auto naming for things like
@@ -151,6 +151,12 @@ def print_header(cmd):
             fmt_cmd_args(cmd),
         )
     ))
+    print(
+        C(': ').join(
+            C('Running from', 'cyan'),
+            C(os.getcwd(), 'blue', style='bright'),
+        ),
+    )
 
 
 class InvalidArg(ValueError):

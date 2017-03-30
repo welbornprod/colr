@@ -329,6 +329,26 @@ class ColrTestCase(unittest.TestCase):
             return None
         raise self.failureException(_equality_msg('!=', a, b, msg=msg))
 
+    def assertGreater(self, a, b, msg=None):
+        if a > b:
+            return None
+        raise self.failureException(_equality_msg('<=', a, b, msg=msg))
+
+    def assertGreaterEqual(self, a, b, msg=None):
+        if a >= b:
+            return None
+        raise self.failureException(_equality_msg('<', a, b, msg=msg))
+
+    def assertLess(self, a, b, msg=None):
+        if a < b:
+            return None
+        raise self.failureException(_equality_msg('>=', a, b, msg=msg))
+
+    def assertLessEqual(self, a, b, msg=None):
+        if a <= b:
+            return None
+        raise self.failureException(_equality_msg('>', a, b, msg=msg))
+
     def assertNotEqual(self, a, b, msg=None):
         if a != b:
             return None
