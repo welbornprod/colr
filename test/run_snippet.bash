@@ -89,6 +89,7 @@ import traceback
 # Do as I say, not as I do. I'm only doing this so I don't have to update
 # this shell script every time I add a new class/function.
 # This will import everything from \`colr.__init__\`'s module-level scope.
+import colr
 from colr import *
 C = Colr
 

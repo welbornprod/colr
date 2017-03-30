@@ -11,11 +11,13 @@
     -Christopher Welborn 3-6-17
 """
 
-import re
 import sys
 from contextlib import suppress
 from time import sleep
 
+from .base import (
+    ChainedBase,
+)
 from .control_codes import (
     EraseMethod,
     cursor,
@@ -24,24 +26,6 @@ from .control_codes import (
     move,
     position,
     scroll,
-)
-
-_codepats = (
-    # Colors.
-    r'(([\d;]+)?m)',
-    # Cursor show/hide.
-    r'(\?25l)',
-    r'(\?25h)',
-    # Move position.
-    r'(([\d]+[;])?([\d]+[Hf]))',
-    # Save/restore position.
-    r'([su])',
-    # Others (move, erase).
-    r'([\d]+[ABCDEFGHJKST])',
-)
-# Used to strip escape codes from a string.
-controlcodepat = re.compile(
-    '\033\[({})'.format('|'.join(_codepats))
 )
 
 
@@ -320,7 +304,7 @@ def scroll_up(lines=1, file=sys.stdout):
     scroll.up(lines).write(file=file)
 
 
-class Control(object):
+class Control(ChainedBase):
     """ Like Colr, but for control codes. It allows method chaining to build
         up control sequences.
     """
@@ -328,111 +312,6 @@ class Control(object):
     def __init__(self, data=None):
         """ Initialize a new Control str. """
         self.data = str(data or '')
-
-    def __add__(self, other):
-        """ Allow the old string concat methods through addition. """
-        if hasattr(other, 'data') and isinstance(other.data, str):
-            return self.__class__(''.join((self.data, other.data)))
-        elif isinstance(other, str):
-            return self.__class__(''.join((self.data, other)))
-        raise TypeError(
-            'Colr cannot be added to non Colr, Control, or str: {}'.format(
-                getattr(other, '__name__', type(other).__name__)
-            )
-        )
-
-    def __bool__(self):
-        """ A Control is truthy if it has some .data. """
-        return bool(self.data)
-
-    def __bytes__(self):
-        """ A Control's bytes() value is just str(self.data).encode().
-            For other encodings, you can use self.data.encode('ascii') or
-            whatever encoding you want to use.
-        """
-        return str(self.data or '').encode()
-
-    def __eq__(self, other):
-        """ Controls are equal if their .data is the same. """
-        return isinstance(other, self.__class__) and other.data == self.data
-
-    def __format__(self, fmt):
-        """ Allow format specs to  apply to self.data """
-        # Fallback to plain str modifier.
-        return str(self).__format__(fmt)
-
-    def __getitem__(self, key):
-        """ Allow subscripting self.data.
-            Returns another Control instance.
-        """
-        return self.__class__(self.data[key])
-
-    def __hash__(self):
-        """ A Colr's hash value is based on self.data. """
-        return hash(str(self.data or ''))
-
-    def __len__(self):
-        """ Return len() for any built up string data. This will count color
-            codes, so it's not that useful.
-        """
-        return len(self.data)
-
-    def __lt__(self, other):
-        """ Colr is less another color if self.data < other.data.
-            Colr cannot be compared to any other type.
-        """
-        if not isinstance(other, self.__class__):
-            raise TypeError('Cannot compare. Expected: {}, got: {}.'.format(
-                self.__class__.__name__,
-                getattr(other, '__name__', type(other).__name__)))
-        return self.data < other.data
-
-    def __mul__(self, n):
-        """ Allow the same multiplication operator as str,
-            except return a Colr.
-        """
-        if not isinstance(n, int):
-            raise TypeError(
-                'Cannot multiply Control by non-int type: {}'.format(
-                    getattr(n, '__name__', type(n).__name__)
-                )
-            )
-
-        return self.__class__(self.data * n)
-
-    def __radd__(self, other):
-        """ Allow a Colr to be added to a str. """
-        if hasattr(other, 'data') and isinstance(other.data, str):
-            return self.__class__(''.join((other.data, self.data)))
-        elif isinstance(other, str):
-            return self.__class__(''.join((other, self.data)))
-
-        raise TypeError(
-            'Colr cannot be added to non Colr, Control, or str: {}'.format(
-                getattr(other, '__name__', type(other).__name__)
-            )
-        )
-
-    def __rmul__(self, n):
-        return self * n
-
-    def __repr__(self):
-        return repr(self.data)
-
-    def __str__(self):
-        return self.data
-
-    def chained(self, data):
-        """ Called by the various Control methods to build a single string
-
-            Arguments:
-                data  : str data to add to this Control.
-        """
-        self.data = ''.join((
-            self.data,
-            str(data),
-        ))
-        return self
 
     def cursor_hide(self):
         """ Hide the cursor. """
@@ -597,41 +476,9 @@ class Control(object):
         """
         return self.chained(scroll.up(lines))
 
-    def stripped(self):
-        """ Returns a str with all control codes stripped from this instance.
-        """
-        return controlcodepat.sub('', str(self))
-
     def text(self, text):
         """ Add some text to this Control sequence. """
         return self.chained(text)
-
-    def write(self, file=sys.stdout, end='', delay=None):
-        """ Write this control code str to a file, clear self.data, and
-            return self.
-            Default: sys.stdout
-        """
-        s = str(self)
-        filebuf = getattr(file, 'buffer', file)
-        if s:
-            if delay is None:
-                filebuf.write(s.encode())
-            else:
-                # Refactor the delay time for Control/Colr instances.
-                # Escape codes and whitespace should not count for the delay.
-                strippedtime = len(self.stripped()) * delay
-                whitespacecnt = sum(s.count(char) for char in ' \n\t')
-                newdelay = strippedtime / (len(s) - whitespacecnt)
-                for c in str(self):
-                    filebuf.write(c.encode())
-                    file.flush()
-                    if c not in ' \n\t':
-                        sleep(newdelay)
-        if end:
-            filebuf.write(end.encode())
-        file.flush()
-        self.data = ''
-        return self
 
 
 # Alias for move_pos, because they both deal with cursor positions.

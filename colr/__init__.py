@@ -25,9 +25,13 @@
     DEALINGS IN THE SOFTWARE.
 
 """
-
-from .colr import (  # noqa
+from .base import (
     __version__,
+    ChainedBase,
+    get_codes,
+    strip_codes,
+)
+from .colr import (  # noqa
     Colr,
     auto_disable,
     closing_code,
@@ -42,7 +46,6 @@ from .colr import (  # noqa
     extforeformat,
     format_back,
     format_fore,
-    get_codes,
     get_code_num,
     get_known_codes,
     get_known_name,
@@ -56,7 +59,6 @@ from .colr import (  # noqa
     name_data,
     rgbbackformat,
     rgbforeformat,
-    strip_codes,
 )
 
 from .controls import (  # noqa
@@ -101,7 +103,12 @@ from .trans import (
 )
 
 __all__ = [
+    # base classes/functions made available.
     '__version__',
+    'ChainedBase',
+    'get_codes',
+    'strip_codes',
+    # colr classes/functions made available.
     'auto_disable',
     'closing_code',
     'codeformat',
@@ -116,7 +123,6 @@ __all__ = [
     'extforeformat',
     'format_back',
     'format_fore',
-    'get_codes',
     'get_code_num',
     'get_known_codes',
     'get_known_name',
@@ -130,7 +136,6 @@ __all__ = [
     'parse_colr_arg',
     'rgbforeformat',
     'rgbbackformat',
-    'strip_codes',
     # controls functions/classes made available.
     'Control',
     'EraseMethod',

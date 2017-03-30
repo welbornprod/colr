@@ -212,11 +212,21 @@ Colr('test', 'blue') < Colr('testing', 'blue')
 
 ### Colr.\_\_getitem\_\_
 
-Escape codes are stripped when subscripting/indexing.
+Escape codes are stripped when subscripting/indexing, but `Colr` tries to
+be smart and grab any color codes *before* the index, and append a reset
+code if necessary *after*.
 
 ```python
-Colr('test', 'blue')[2] == Colr('s')
-Colr('test', 'blue')[1:3] == Colr('es')
+Colr('test', 'blue')[1:3] == Colr('es', 'blue')
+
+# A complicated example:
+c = Colr('test', 'red').blue('this').rgb(25, 25, 25, 'thing')
+# Index 5 points to 'h' in 'testthisthing', `c` without escape codes.
+c[5] == Colr(fore='red').blue('h')
+# Slices use the last escape code used before the starting index.
+c[:] == Colr('testthisthing', 'red')
+c[8:] == Colr(fore='red').blue().rgb(25, 25, 25, 'thing')
+
 ```
 
 ### Colr.\_\_hash\_\_

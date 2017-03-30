@@ -379,6 +379,13 @@ class ColrTests(ColrTestCase):
         """ Colr.__getitem__ should grab escape codes before and after. """
         # Simple string indexing, with color codes.
         exampleargs = self.example_args()
+        # Reset styles should be kept at the start of a Colr.
+        for stylename in codes['style']:
+            exampleargs['style_{}'.format(stylename)] = {
+                'fore': self.random_color(),
+                'back': self.random_color(),
+                'style': stylename,
+            }
         for argtype, kwargs in exampleargs.items():
             index = random.randint(0, len(argtype) - 1)
             clr = Colr(argtype, **kwargs)
@@ -388,6 +395,7 @@ class ColrTests(ColrTestCase):
                 Colr(argtype[index], **kwargs),
                 func=Colr.__getitem__,
                 args=(clr, index, ),
+                kwargs=kwargs,
                 msg='Failed to keep color codes for __getitem__.',
             )
 
@@ -402,9 +410,7 @@ class ColrTests(ColrTestCase):
             msg='Stripped Colr was missing characters: {!r}'.format(stripped),
         )
         clr_s = clr[5]
-        expected_clr = Colr().red().blue('h')
-        print('   CLR_S: {!r}'.format(clr_s))
-        print('EXPECTED: {!r}'.format(expected_clr))
+        expected_clr = Colr(fore='red').blue('h')
 
         self.assertCallEqual(
             clr_s,
@@ -412,6 +418,48 @@ class ColrTests(ColrTestCase):
             func=Colr.__getitem__,
             args=(clr, 5),
             msg='Failed to keep color codes for chained __getitem__.',
+        )
+
+    def test_getitem_slice(self):
+        """ Colr.__getitem__ should handle slices/ranges. """
+        clr = Colr('test', 'red').blue('this').rgb(0, 0, 0, 'thing')
+        stripped = clr.stripped()
+        self.assertGreater(
+            len(stripped),
+            6,
+            msg='Stripped Colr was missing characters: {!r}'.format(stripped),
+        )
+        clr_s = clr[:]
+        expected_clr = Colr(clr_s)
+
+        self.assertCallEqual(
+            clr_s,
+            expected_clr,
+            func=Colr.__getitem__,
+            args=(clr, slice(None, None)),
+            msg='Failed to keep color codes for __getitem__ range.',
+        )
+
+        clr_s = clr[4:8]
+        expected_clr = Colr().red().blue('this')
+
+        self.assertCallEqual(
+            clr_s,
+            expected_clr,
+            func=Colr.__getitem__,
+            args=(clr, slice(4, 8)),
+            msg='Failed to keep color codes for __getitem__ range.',
+        )
+
+        clr_s = clr[8:]
+        expected_clr = Colr(fore='red').blue().rgb(0, 0, 0, 'thing')
+
+        self.assertCallEqual(
+            clr_s,
+            expected_clr,
+            func=Colr.__getitem__,
+            args=(clr, slice(8)),
+            msg='Failed to keep color codes for __getitem__ range.',
         )
 
     def test_gradient(self):
