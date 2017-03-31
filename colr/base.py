@@ -7,6 +7,28 @@
     like Colr and Control.
 
     -Christopher Welborn 08-12-2015
+
+    The MIT License (MIT)
+
+    Copyright (c) 2015-2017 Christopher Welborn
+
+    Permission is hereby granted, free of charge, to any person obtaining a
+    copy of this software and associated documentation files (the "Software"),
+    to deal in the Software without restriction, including without limitation
+    the rights to use, copy, modify, merge, publish, distribute, sublicense,
+    and/or sell copies of the Software, and to permit persons to whom the
+    Software is furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in
+    all copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+    THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+    FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+    DEALINGS IN THE SOFTWARE.
 """
 import re
 import sys
@@ -50,6 +72,11 @@ def get_codes(s: Union[str, 'ChainedBase']) -> List[str]:
         Returns a list of all escape codes.
     """
     return codegrabpat.findall(str(s))
+
+
+def is_escape_code(s: Union[str, 'ChainedBase']) -> bool:
+    """ Returns True if `s` appears to be any kind of escape code. """
+    return codepat.match(str(s)) is not None
 
 
 def strip_codes(s: Union[str, 'ChainedBase']) -> str:
@@ -174,7 +201,6 @@ class ChainedBase(object):
                 parts.extend(
                     p
                     for p in codeparts
-                    if (not parts) or (not str(p) == closing_code)
                 )
                 codeparts = []
                 chars.append(char)
@@ -286,6 +312,49 @@ class ChainedBase(object):
             **colorkwargs
         )
 
+    def _str_strip(self, methodname, chars=None):
+        """ Run a `str.*strip` function on self.data, and return a ChainedBase
+            instance.
+            `chars` can be an iterable of characters, or an escape code to
+            strip.
+        """
+        if not chars:
+            chars = ' \t\n'
+        strip_code = is_escape_code(chars)
+        stripping_codes = (
+            strip_code or
+            any(is_escape_code(s) for s in chars)
+        )
+        parts = self.parts()
+
+        def strip_parts(method, indexes):
+            for i in indexes:
+                partstr = str(parts[i])
+                if is_escape_code(partstr):
+                    if not stripping_codes:
+                        continue
+                    if strip_code:
+                        if partstr == chars:
+                            parts[i] = ''
+                        else:
+                            # Trying to strip a code, and can't find it.
+                            break
+
+                stripped = method(partstr, chars)
+                if stripped == partstr:
+                    # Nothing was stripped.
+                    break
+                parts[i] = stripped
+
+        partslen = len(parts)
+        if methodname in ('lstrip', 'strip'):
+            strip_parts(str.lstrip, range(0, partslen))
+
+        if methodname in ('rstrip', 'strip'):
+            strip_parts(str.rstrip, range(partslen - 1, -1, -1))
+
+        return ''.join(str(x) for x in parts)
+
     def center(self, width, fillchar=' ', squeeze=False, **kwargs):
         """ s.center() doesn't work well on strings with color codes.
             This method will use .center() before colorizing the text.
@@ -318,11 +387,11 @@ class ChainedBase(object):
         ))
         return self
 
-    def iter_parts(self):
+    def iter_parts(self, text=None):
         """ Iterate over CodeParts and TextParts, in the order
             they are discovered from `self.data`.
         """
-        s = str(self)
+        s = str(self if text is None else text)
         length = len(s)
         scanner = codepat.scanner(s)
         m = scanner.search()
@@ -336,6 +405,9 @@ class ChainedBase(object):
             m = scanner.search()
             if (m is None) and (stop < length):
                 yield TextPart(s, start=stop)
+        if pos == 0:
+            # No codes to separate. All text.
+            yield TextPart(s, start=0, stop=length)
 
     def join(self, *args, **colorkwargs):
         """ Like str.join, except it returns a Colr.
@@ -375,13 +447,13 @@ class ChainedBase(object):
 
     def lstrip(self, chars=None):
         """ Like str.lstrip, except it returns the ChainedBase instance. """
-        return self.__class__(str(self).lstrip(chars))
+        return self.__class__(self._str_strip('lstrip', chars))
 
-    def parts(self):
+    def parts(self, text=None):
         """ Return a list of CodeParts and TextParts, in the order
             they are discovered from `self.data`.
         """
-        return list(self.iter_parts())
+        return list(self.iter_parts(text=text))
 
     def rjust(self, width, fillchar=' ', squeeze=False, **kwargs):
         """ s.rjust() doesn't work well on strings with color codes.
@@ -406,7 +478,7 @@ class ChainedBase(object):
 
     def rstrip(self, chars=None):
         """ Like str.rstrip, except it returns the ChainedBase instance. """
-        return self.__class__(str(self).rstrip(chars))
+        return self.__class__(self._str_strip('rstrip', chars))
 
     def str(self):
         """ Alias for self.__str__ """
@@ -414,7 +486,7 @@ class ChainedBase(object):
 
     def strip(self, chars=None):
         """ Like str.strip, except it returns the ChainedBase instance. """
-        return self.__class__(str(self).strip(chars))
+        return self.__class__(self._str_strip('strip', chars))
 
     def stripped(self):
         """ Return str(strip_codes(self.data)) """

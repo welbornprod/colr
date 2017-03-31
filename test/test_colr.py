@@ -410,7 +410,7 @@ class ColrTests(ColrTestCase):
             msg='Stripped Colr was missing characters: {!r}'.format(stripped),
         )
         clr_s = clr[5]
-        expected_clr = Colr(fore='red').blue('h')
+        expected_clr = Colr(closing_code, fore='red').blue('h')
 
         self.assertCallEqual(
             clr_s,
@@ -441,7 +441,7 @@ class ColrTests(ColrTestCase):
         )
 
         clr_s = clr[4:8]
-        expected_clr = Colr().red().blue('this')
+        expected_clr = Colr().red(closing_code).blue('this')
 
         self.assertCallEqual(
             clr_s,
@@ -452,7 +452,11 @@ class ColrTests(ColrTestCase):
         )
 
         clr_s = clr[8:]
-        expected_clr = Colr(fore='red').blue().rgb(0, 0, 0, 'thing')
+        expected_clr = (
+            Colr(closing_code, fore='red')
+            .blue(closing_code)
+            .rgb(0, 0, 0, 'thing')
+        )
 
         self.assertCallEqual(
             clr_s,
@@ -479,21 +483,21 @@ class ColrTests(ColrTestCase):
             # Integer index with clr[5].
             (
                 5,
-                Colr(fore='red').blue('h'),
+                Colr(closing_code, fore='red').blue('h'),
             ),
             # All (copy) with clr[:], except closing_codes aren't needed.
             (
                 slice(None, None),
-                (
-                    Colr('test', 'red').rstrip(closing_code)
-                    .blue('this').rstrip(closing_code)
-                    .rgb(25, 25, 25, 'thing')
-                ),
+                clr,
             ),
             # Starting index with clr[8:]
             (
                 slice(8, None),
-                Colr(fore='red').blue().rgb(25, 25, 25, 'thing'),
+                (
+                    Colr(closing_code, fore='red')
+                    .blue(closing_code)
+                    .rgb(25, 25, 25, 'thing')
+                ),
             ),
         )
 
@@ -680,6 +684,26 @@ class ColrTests(ColrTestCase):
                 kwargs={'chars': chars},
                 msg='Did not return a Colr instance.',
             )
+        testcolrs = []
+        for chars, s, expected in teststrings:
+            if chars == closing_code:
+                # Cannot strip closing code from a colorized closing_code.
+                continue
+            for argtype, kwargs in self.example_args().items():
+                testcolrs.append(
+                    (chars, Colr(s, **kwargs), Colr(expected, **kwargs))
+                )
+
+        for chars, clr, expected in testcolrs:
+            stripped = clr.lstrip(chars)
+            self.assertCallEqual(
+                stripped,
+                expected,
+                func=Colr.lstrip,
+                args=(clr, ),
+                kwargs={'chars': chars},
+                msg='Failed to strip characters from colorized Colr.',
+            )
 
     def test_name_data(self):
         """ Colr should use name_data.names when all other style names fail.
@@ -741,6 +765,26 @@ class ColrTests(ColrTestCase):
                 kwargs={'chars': chars},
                 msg='Did not return a Colr instance.',
             )
+        testcolrs = []
+        for chars, s, expected in teststrings:
+            if chars == closing_code:
+                # Cannot strip closing code from a colorized closing_code.
+                continue
+            for argtype, kwargs in self.example_args().items():
+                testcolrs.append(
+                    (chars, Colr(s, **kwargs), Colr(expected, **kwargs))
+                )
+
+        for chars, clr, expected in testcolrs:
+            stripped = clr.rstrip(chars)
+            self.assertCallEqual(
+                stripped,
+                expected,
+                func=Colr.rstrip,
+                args=(clr, ),
+                kwargs={'chars': chars},
+                msg='Failed to strip characters from colorized Colr.',
+            )
 
     def test_strip(self):
         """ Colr.strip should strip characters and return another Colr. """
@@ -773,6 +817,26 @@ class ColrTests(ColrTestCase):
                 args=(clr, ),
                 kwargs={'chars': chars},
                 msg='Did not return a Colr instance.',
+            )
+        testcolrs = []
+        for chars, s, expected in teststrings:
+            if chars == closing_code:
+                # Cannot strip closing code from a colorized closing_code.
+                continue
+            for argtype, kwargs in self.example_args().items():
+                testcolrs.append(
+                    (chars, Colr(s, **kwargs), Colr(expected, **kwargs))
+                )
+
+        for chars, clr, expected in testcolrs:
+            stripped = clr.strip(chars)
+            self.assertCallEqual(
+                stripped,
+                expected,
+                func=Colr.strip,
+                args=(clr, ),
+                kwargs={'chars': chars},
+                msg='Failed to strip characters from colorized Colr.',
             )
 
     def test_strip_codes(self):

@@ -3,6 +3,7 @@
 
 """ colr.py
     A terminal color library for python, inspired by 'clor' (javascript lib).
+
     -Christopher Welborn 08-12-2015
 
     The MIT License (MIT)
@@ -26,7 +27,6 @@
     LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
     DEALINGS IN THE SOFTWARE.
-
 """
 from contextlib import suppress  # type: ignore
 from functools import partial
@@ -1650,9 +1650,9 @@ class Colr(ChainedBase):
         return self.__class__(self.data.join(flat))
 
     def lstrip(self, chars=None):
-        """ Like str.lstrip, except it returns the ChainedBase instance. """
+        """ Like str.lstrip, except it returns the Colr instance. """
         return self.__class__(
-            str(self).lstrip(chars),
+            self._str_strip('lstrip', chars),
             no_closing=chars and (closing_code in chars),
         )
 
@@ -1739,16 +1739,16 @@ class Colr(ChainedBase):
         return self.chained(text=text, fore=(r, g, b), back=back, style=style)
 
     def rstrip(self, chars=None):
-        """ Like str.rstrip, except it returns the ChainedBase instance. """
+        """ Like str.rstrip, except it returns the Colr instance. """
         return self.__class__(
-            str(self).rstrip(chars),
+            self._str_strip('rstrip', chars),
             no_closing=chars and (closing_code in chars),
         )
 
     def strip(self, chars=None):
-        """ Like str.strip, except it returns the ChainedBase instance. """
+        """ Like str.strip, except it returns the Colr instance. """
         return self.__class__(
-            str(self).strip(chars),
+            self._str_strip('strip', chars),
             no_closing=chars and (closing_code in chars),
         )
 
