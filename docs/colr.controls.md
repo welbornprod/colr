@@ -6,6 +6,12 @@ You can use the file-writing [functions](#functions), or
 for `Colr`-like, chained behavior you can use the [`Control`](#colrcontrol)
 object.
 
+Section | Description
+--- | ---
+[Functions](#function) | Module-level functions that write directly to a file, or the terminal.
+[Print Functions](#print-functions) | Convenience functions for specialized prints.
+[Control](#colrcontrol) | The `colr.Control` object, and it's [methods](#methods).
+
 ## Functions
 
 Module-level functions will write the appropriate escape code to their `file`
