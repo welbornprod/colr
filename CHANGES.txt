@@ -1,3 +1,4 @@
+v0.8.1 03/30/17 -- Colr fixes, and enhancements (Colr.strip and friends).
 v0.8.0 03/28/17 -- Percentage-based progress bar, gradient fixes, more tests.
 v0.7.7 03/21/17 -- Cursor/screen controls, and basic progress spinner animations.
 v0.7.7a0 03/14/17 -- Initial progress/animations/controls. Still testing.
