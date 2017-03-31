@@ -104,6 +104,15 @@ Colr('Hello', 'blue').ljust(40)
 '{:<40}'.format(Colr('Hello', 'blue'))
 ```
 
+### Colr.lstrip
+
+Like `str.lstrip()`, except it returns a `Colr`.
+
+```python
+Colr('    Hello').lstrip() == Colr('Hello')
+Colr('    Hello', 'red',  style='bright').lstrip() == Colr('Hello', 'red', style='bright')
+```
+
 ### Colr.rainbow
 
 Beautiful rainbow gradients in the same style as [lolcat](https://github.com/busyloop/lolcat).
@@ -148,11 +157,29 @@ Colr('Hello', 'blue').rjust(40)
 '{:>40}'.format(Colr('Hello', 'blue'))
 ```
 
+### Colr.rstrip
+
+Like `str.rstrip()`, except it returns a `Colr`.
+
+```python
+Colr('Hello    ').rstrip() == Colr('Hello')
+Colr('Hello    ', 'red',  style='bright').rstrip() == Colr('Hello', 'red', style='bright')
+```
+
 ### Colr.str
 
 The same as calling `str()` on a `Colr` instance.
 ```python
 Colr('test', 'blue').str() == str(Colr('test', 'blue'))
+```
+
+### Colr.strip
+
+Like `str.strip()`, except it returns a `Colr`.
+
+```python
+Colr('    Hello    ').strip() == Colr('Hello')
+Colr('    Hello    ', 'red',  style='bright').strip() == Colr('Hello', 'red', style='bright')
 ```
 
 ### Colr.stripped
@@ -212,11 +239,21 @@ Colr('test', 'blue') < Colr('testing', 'blue')
 
 ### Colr.\_\_getitem\_\_
 
-Escape codes are stripped when subscripting/indexing.
+Escape codes are stripped when subscripting/indexing, but `Colr` tries to
+be smart and grab any color codes *before* the index, and append a reset
+code if necessary *after*.
 
 ```python
-Colr('test', 'blue')[2] == Colr('s')
-Colr('test', 'blue')[1:3] == Colr('es')
+Colr('test', 'blue')[1:3] == Colr('es', 'blue')
+
+# A complicated example:
+c = Colr('test', 'red').blue('this').rgb(25, 25, 25, 'thing')
+# Index 5 points to 'h' in 'testthisthing', `c` without escape codes.
+c[5] == Colr(fore='red').blue('h')
+# Slices use the last escape code used before the starting index.
+# All codes are kept, including reset/closing codes.
+c[:] == c
+c[8:] == Colr(fore='red').blue().rgb(25, 25, 25, 'thing')
 ```
 
 ### Colr.\_\_hash\_\_

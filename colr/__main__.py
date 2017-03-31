@@ -16,8 +16,11 @@ import traceback
 from contextlib import suppress
 from random import randint
 
-from .colr import (
+from .base import (
     __version__,
+    strip_codes,
+)
+from .colr import (
     auto_disable,
     codeformat,
     codes,
@@ -30,7 +33,6 @@ from .colr import (
     InvalidArg,
     InvalidColr,
     parse_colr_arg,
-    strip_codes,
 )
 
 from .trans import ColorCode

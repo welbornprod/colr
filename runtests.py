@@ -10,6 +10,7 @@
 import os
 import subprocess
 import sys
+import traceback
 
 from green import __version__ as green_version
 from colr import (
@@ -19,6 +20,26 @@ from colr import (
     Colr as C,
 )
 
+
+try:
+    from test import test_colr_tool  # noqa
+    from test import test_colr  # noqa
+    from test import test_controls  # noqa
+    from test import test_progress  # noqa
+except Exception as ex:
+    print(
+        C('\n').join(
+            C('Failed to import test modules. Something is wrong:', 'red'),
+            '{}: {}'.format(
+                C(type(ex).__name__, 'red', style='bright'),
+                C(ex, 'magenta'),
+            )
+        ),
+        file=sys.stderr,
+    )
+
+    traceback.print_exc()
+    sys.exit(1)
 colr_auto_disable()
 
 NAME = 'Colr Test Runner'
@@ -41,7 +62,6 @@ USAGESTR = """{versionstr}
         -v,--version  : Show version.
 """.format(script=SCRIPT, versionstr=VERSIONSTR)
 
-
 def main(argd):
     """ Main entry point, expects doctopt arg dict as argd. """
     # Use the test directory when no args are given.
@@ -52,8 +72,8 @@ def main(argd):
         cmd.append('-q')
     cmd.extend(green_args)
     print_header(cmd)
-    completedproc = subprocess.run(cmd)
-    return completedproc.returncode
+
+    return subprocess.run(cmd).returncode
 
 
 def get_green_exe():
@@ -79,11 +99,12 @@ def parse_test_names(names):
     """ Prepend 'test.' to test names without it.
         Return a list of test names.
     """
+    has_test_dir = os.path.isdir('test')
     parsed = []
     for name in names:
         if name == 'test':
             parsed.append(name)
-        elif not name.startswith('test.'):
+        elif has_test_dir and (not name.startswith('test.')):
             parsed.append('test.{}'.format(name))
         else:
             # TODO: Better test discovery, auto naming for things like
@@ -130,6 +151,12 @@ def print_header(cmd):
             fmt_cmd_args(cmd),
         )
     ))
+    print(
+        C(': ').join(
+            C('Running from', 'cyan'),
+            C(os.getcwd(), 'blue', style='bright'),
+        ),
+    )
 
 
 class InvalidArg(ValueError):

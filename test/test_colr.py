@@ -14,20 +14,12 @@ import unittest
 from colr import (
     __version__,
     closing_code,
+    codes,
     color,
     Colr,
-    ColorCode,
-    fix_hex,
-    hex2rgb,
-    hex2term,
-    hex2termhex,
+    get_codes,
     InvalidColr,
     name_data,
-    rgb2hex,
-    rgb2term,
-    rgb2termhex,
-    term2hex,
-    term2rgb,
     strip_codes,
 )
 from colr.controls import Control
@@ -35,44 +27,88 @@ from colr.trans import (
     is_code,
     is_ext_code,
     is_rgb_code,
+    rgb2hex,
 )
 
 from .testing_tools import ColrTestCase
-
-print('Testing Colr v. {}'.format(__version__))
 
 # Save names in list format, for random.choice().
 name_data_names = list(name_data)
 
 
 class ColrTests(ColrTestCase):
+    """ Tests for the colr.Colr object. """
 
-    def setUp(self):
-        # hex2termhex known values. (input, output)
-        self.termhex_close = (
-            ('faefba', 'ffffaf'),
-            ('babada', 'afafd7'),
-            ('dadada', 'd7d7d7')
-        )
-
-        # known conversions
-        self.conversions = (
-            {'code': '229', 'hexval': 'ffffaf', 'rgb': (255, 255, 175)},
-            {'code': '146', 'hexval': 'afafd7', 'rgb': (175, 175, 215)},
-            {'code': '188', 'hexval': 'd7d7d7', 'rgb': (215, 215, 215)},
-        )
-
-        # known conversion conflicts
-        self.conv_conflicts = (
-            (
-                {'code': '15', 'hexval': 'ffffff', 'rgb': (255, 255, 255)},
-                {'code': '231', 'hexval': 'ffffff', 'rgb': (255, 255, 255)}
-            ),
-        )
+    def example_args(self):
+        """ Return a dict of {example-arg-type: example-args} to be used
+            for testing Colr.
+        """
+        return {
+            'fore': {
+                'fore': self.random_color(),
+            },
+            'fore-back': {
+                'fore': self.random_color(),
+                'back': self.random_color(),
+            },
+            'fore-back-style': {
+                'fore': self.random_color(),
+                'back': self.random_color(),
+                'style': self.random_style(),
+            },
+            'hex-fore': {
+                'fore': self.random_hex(),
+            },
+            'hex-fore-back': {
+                'fore': self.random_hex(),
+                'back': self.random_hex(),
+            },
+            'hex-fore-back-style': {
+                'fore': self.random_hex(),
+                'back': self.random_hex(),
+                'style': self.random_style(),
+            },
+            'rgb-fore': {
+                'fore': self.random_rgb(),
+            },
+            'rgb-fore-back': {
+                'fore': self.random_rgb(),
+                'back': self.random_rgb(),
+            },
+            'rgb-fore-back-style': {
+                'fore': self.random_rgb(),
+                'back': self.random_rgb(),
+                'style': self.random_style(),
+            },
+        }
 
     def has_closing_code(self, clr):
         """ Return True if a Colr() ends with a closing code. """
-        return str(clr).endswith(closing_code)
+        try:
+            lastcode = get_codes(clr)[-1]
+        except IndexError:
+            # No codes at all.
+            return False
+        return lastcode == closing_code
+
+    def random_color(self):
+        """ Return a random, but valid, fore/back argument from `codes`. """
+        return random.choice(list(codes['fore']))
+
+    def random_hex(self):
+        """ Return a random, but valid, hex argument. """
+        return rgb2hex(*self.random_rgb())
+
+    def random_rgb(self):
+        """ Return a random, but valid, RGB tuple arg. """
+        return tuple(
+            random.randint(0, 255)
+            for _ in range(3)
+        )
+
+    def random_style(self):
+        """ Return a random, valid, style argument from `codes`. """
+        return random.choice(list(codes['style']))
 
     def test_add(self):
         """ Colrs should be added to each other, Controls, or strs. """
@@ -196,30 +232,6 @@ class ColrTests(ColrTestCase):
         with self.assertRaises(InvalidColr):
             Colr(s, (257, 0, 0))
 
-    def test_colorcode(self):
-        """ ColorCode should properly translate codes. """
-
-        for v in self.conversions:
-            for code in v.values():
-                argset = (code,)
-                self.assertCallEqual(
-                    v,
-                    ColorCode(*argset).to_dict(),
-                    func=ColorCode,
-                    args=argset,
-                    msg='Failed to translate.',
-                )
-
-        for hexval, termhex in self.termhex_close:
-            argset = (hexval,)
-            self.assertCallEqual(
-                termhex,
-                ColorCode(*argset).hexval,
-                func=ColorCode,
-                args=argset,
-                msg='Failed to find known close match.'
-            )
-
     def test_closingcode(self):
         """ The reset/closing code should be appended when necessary. """
         # No code should be appended.
@@ -266,31 +278,6 @@ class ColrTests(ColrTestCase):
                 func=Colr,
                 args=argset,
                 msg='Failed to add closing code for falsey value.',
-            )
-
-    def test_fix_hex(self):
-        """ fix_hex should translate short-form hex strings. """
-        for argset in (('#f',), ('#ffffffXX',), ('',)):
-            with self.assertCallRaises(
-                    ValueError,
-                    func=fix_hex,
-                    args=argset,
-                    msg='Failed to raise.'):
-                fix_hex(*argset)
-
-        for argset, expected in (
-            (('#fff',), 'ffffff'),
-            (('fff',), 'ffffff'),
-            (('000',), '000000'),
-            (('##000',), '000000'),
-            (('aaaaaa',), 'aaaaaa')
-        ):
-            self.assertCallEqual(
-                expected,
-                fix_hex(*argset),
-                func=fix_hex,
-                args=argset,
-                msg='Failed to fix hex string.',
             )
 
     def test_format(self):
@@ -387,6 +374,176 @@ class ColrTests(ColrTestCase):
             expected,
             msg='Colr(\'{}\').format(Colr()) breaks formatting!',
         )
+
+    def test_getitem(self):
+        """ Colr.__getitem__ should grab escape codes before and after. """
+        # Simple string indexing, with color codes.
+        exampleargs = self.example_args()
+        # Reset styles should be kept at the start of a Colr.
+        for stylename in codes['style']:
+            exampleargs['style_{}'.format(stylename)] = {
+                'fore': self.random_color(),
+                'back': self.random_color(),
+                'style': stylename,
+            }
+        for argtype, kwargs in exampleargs.items():
+            index = random.randint(0, len(argtype) - 1)
+            clr = Colr(argtype, **kwargs)
+            clr_s = clr[index]
+            self.assertCallEqual(
+                clr_s,
+                Colr(argtype[index], **kwargs),
+                func=Colr.__getitem__,
+                args=(clr, index, ),
+                kwargs=kwargs,
+                msg='Failed to keep color codes for __getitem__.',
+            )
+
+    def test_getitem_after_chained(self):
+        """ Colr.__getitem__ on a chained Colr should keep escape codes. """
+        # Indexing after chaining.
+        clr = Colr('test', 'red').blue('this').rgb(25, 25, 25, 'thing')
+        stripped = clr.stripped()
+        self.assertGreater(
+            len(stripped),
+            6,
+            msg='Stripped Colr was missing characters: {!r}'.format(stripped),
+        )
+        clr_s = clr[5]
+        expected_clr = Colr(closing_code, fore='red').blue('h')
+
+        self.assertCallEqual(
+            clr_s,
+            expected_clr,
+            func=Colr.__getitem__,
+            args=(clr, 5),
+            msg='Failed to keep color codes for chained __getitem__.',
+        )
+
+    def test_getitem_slice(self):
+        """ Colr.__getitem__ should handle slices/ranges. """
+        clr = Colr('test', 'red').blue('this').rgb(0, 0, 0, 'thing')
+        stripped = clr.stripped()
+        self.assertGreater(
+            len(stripped),
+            6,
+            msg='Stripped Colr was missing characters: {!r}'.format(stripped),
+        )
+        clr_s = clr[:]
+        expected_clr = Colr(clr_s)
+
+        self.assertCallEqual(
+            clr_s,
+            expected_clr,
+            func=Colr.__getitem__,
+            args=(clr, slice(None, None)),
+            msg='Failed to keep color codes for __getitem__ range.',
+        )
+
+        clr_s = clr[4:8]
+        expected_clr = Colr().red(closing_code).blue('this')
+
+        self.assertCallEqual(
+            clr_s,
+            expected_clr,
+            func=Colr.__getitem__,
+            args=(clr, slice(4, 8)),
+            msg='Failed to keep color codes for __getitem__ range.',
+        )
+
+        clr_s = clr[8:]
+        expected_clr = (
+            Colr(closing_code, fore='red')
+            .blue(closing_code)
+            .rgb(0, 0, 0, 'thing')
+        )
+
+        self.assertCallEqual(
+            clr_s,
+            expected_clr,
+            func=Colr.__getitem__,
+            args=(clr, slice(8)),
+            msg='Failed to keep color codes for __getitem__ range.',
+        )
+
+        # These are actual examples from the docs.
+        clr = Colr('test', 'blue')
+        clr_s = clr[1:3]
+        self.assertCallEqual(
+            clr_s,
+            Colr('es', 'blue'),
+            func=Colr.__getitem__,
+            args=(clr, slice(1, 3)),
+            msg='failed to slice correctly.',
+        )
+
+        # Original Colr to slice up.
+        clr = Colr('test', 'red').blue('this').rgb(25, 25, 25, 'thing')
+        examples = (
+            # Integer index with clr[5].
+            (
+                5,
+                Colr(closing_code, fore='red').blue('h'),
+            ),
+            # All (copy) with clr[:], except closing_codes aren't needed.
+            (
+                slice(None, None),
+                clr,
+            ),
+            # Starting index with clr[8:]
+            (
+                slice(8, None),
+                (
+                    Colr(closing_code, fore='red')
+                    .blue(closing_code)
+                    .rgb(25, 25, 25, 'thing')
+                ),
+            ),
+        )
+
+        for sliceobj, expected in examples:
+            slicerepr = str(sliceobj)
+            if isinstance(sliceobj, slice):
+                slicerepr = '{}:{}:{}'.format(
+                    *sliceobj.indices(len(clr.stripped()))
+                )
+            self.assertCallEqual(
+                clr[sliceobj],
+                expected,
+                func=Colr.__getitem__,
+                args=(clr, sliceobj),
+                msg='Failed to slice correctly with Colr()[{}] ({!r})'.format(
+                    slicerepr,
+                    sliceobj,
+                ),
+            )
+
+    def test_gradient(self):
+        """ Colr.gradient should recognize names and rainbow offsets. """
+        valid_names = list(Colr.gradient_names)
+        valid_names.extend(range(1, 254))
+        valid_names.extend((False, True, None, '', 0, 1.2))
+        for valid_name in valid_names:
+            try:
+                Colr('test').gradient(name=valid_name)
+            except ValueError:
+                self.fail(self.call_msg(
+                    'Colr.gradient failed on a known name.',
+                    valid_name,
+                    func=Colr().gradient,
+                ))
+        invalid_names = ('block', 'bash', 'berry')
+        for invalid_name in invalid_names:
+            try:
+                Colr('test').gradient(name=invalid_name)
+            except ValueError:
+                pass
+            else:
+                self.fail(self.call_msg(
+                    'Failed to raise on invalid name.',
+                    invalid_name,
+                    func=Colr().gradient,
+                ))
 
     def test_hash(self):
         """ hash(Colr()) should return a unique hash for self.data. """
@@ -495,71 +652,58 @@ class ColrTests(ColrTestCase):
                 msg='Chained b_hex in rgb_mode did not match b_rgb.',
             )
 
-    def test_hex2rgb(self):
-        """ hex2rgb should translate well-formed codes, and raise on errors.
-        """
-        testargs = (('',), ('00 0000',))
-        for argset in testargs:
-            with self.assertCallRaises(
-                    ValueError,
-                    func=hex2rgb,
-                    args=argset,
-                    msg='Failed to raise.'):
-                hex2rgb(*argset)
-
-        argset = ('#f00',)
-        kwset = {'allow_short': False}
-        with self.assertCallRaises(
-                ValueError,
-                func=hex2rgb,
-                args=argset,
-                kwargs=kwset,
-                msg='Failed to raise without.'):
-            hex2rgb(*argset, **kwset)
-
-        argset = (' #FF0000',)
-        self.assertCallTupleEqual(
-            hex2rgb(*argset),
-            (255, 0, 0),
-            func=hex2rgb,
-            args=argset,
-            msg='Failed to convert padded hex string.',
+    def test_lstrip(self):
+        """ Colr.lstrip should strip characters and return another Colr. """
+        teststrings = (
+            (None, '   test', 'test'),
+            (' ', '    test', 'test'),
+            ('X', 'XXXXtest', 'test'),
+            ('Xx', 'XXxxXxxXxXtest', 'test'),
+            (
+                closing_code,
+                ''.join((closing_code, 'test')),
+                'test'
+            ),
         )
+        for chars, s, expected in teststrings:
+            clr = Colr(s)
+            stripped = clr.lstrip(chars)
+            self.assertCallEqual(
+                str(stripped),
+                expected,
+                func=Colr.lstrip,
+                args=(clr, ),
+                kwargs={'chars': chars},
+                msg='Failed to strip characters.',
+            )
+            self.assertCallIsInstance(
+                stripped,
+                Colr,
+                func=Colr.lstrip,
+                args=(clr, ),
+                kwargs={'chars': chars},
+                msg='Did not return a Colr instance.',
+            )
+        testcolrs = []
+        for chars, s, expected in teststrings:
+            if chars == closing_code:
+                # Cannot strip closing code from a colorized closing_code.
+                continue
+            for argtype, kwargs in self.example_args().items():
+                testcolrs.append(
+                    (chars, Colr(s, **kwargs), Colr(expected, **kwargs))
+                )
 
-        argset = ('#f00',)
-        kwset = {'allow_short': True}
-        self.assertCallTupleEqual(
-            hex2rgb(*argset, **kwset),
-            (255, 0, 0),
-            func=hex2rgb,
-            args=argset,
-            kwargs=kwset,
-            msg='Failed to convert short form hex string.',
-        )
-
-    def test_is_code(self):
-        """ colr.trans.is_code should recognize a color code. """
-        validcodes = ('\033[31m', '\033[41m')
-        invalidcode = '\033[38;5;27m'
-        for validcode in validcodes:
-            self.assertTrue(is_code(validcode))
-        self.assertFalse(is_code(invalidcode))
-
-    def test_is_ext_code(self):
-        """ colr.trans.is_ext_code should recognize a color code. """
-        validcodes = ('\033[38;5;42m', '\033[48;5;42m')
-        invalidcode = '\033[10m'
-        for validcode in validcodes:
-            self.assertTrue(is_ext_code(validcode))
-        self.assertFalse(is_ext_code(invalidcode))
-
-    def test_is_rgb_code(self):
-        """ colr.trans.is_rgb_code should recognize a color code. """
-        validcodes = ('\033[38;2;0;0;255m', '\033[48;2;0;0;255m')
-        invalidcode = '\033[10m'
-        for validcode in validcodes:
-            self.assertTrue(is_rgb_code(validcode))
-        self.assertFalse(is_rgb_code(invalidcode))
+        for chars, clr, expected in testcolrs:
+            stripped = clr.lstrip(chars)
+            self.assertCallEqual(
+                stripped,
+                expected,
+                func=Colr.lstrip,
+                args=(clr, ),
+                kwargs={'chars': chars},
+                msg='Failed to strip characters from colorized Colr.',
+            )
 
     def test_name_data(self):
         """ Colr should use name_data.names when all other style names fail.
@@ -588,6 +732,112 @@ class ColrTests(ColrTestCase):
             Colr,
             msg='Failed to create Colr from chained name_data method.'
         )
+
+    def test_rstrip(self):
+        """ Colr.rstrip should strip characters and return another Colr. """
+        teststrings = (
+            (None, 'test   ', 'test'),
+            (' ', 'test    ', 'test'),
+            ('X', 'testXXXX', 'test'),
+            ('Xx', 'testXXxxXxxXxX', 'test'),
+            (
+                closing_code,
+                ''.join(('test', closing_code)),
+                'test'
+            ),
+        )
+        for chars, s, expected in teststrings:
+            clr = Colr(s)
+            stripped = clr.rstrip(chars)
+            self.assertCallEqual(
+                str(stripped),
+                expected,
+                func=Colr.rstrip,
+                args=(clr, ),
+                kwargs={'chars': chars},
+                msg='Failed to strip characters.',
+            )
+            self.assertCallIsInstance(
+                stripped,
+                Colr,
+                func=Colr.rstrip,
+                args=(clr, ),
+                kwargs={'chars': chars},
+                msg='Did not return a Colr instance.',
+            )
+        testcolrs = []
+        for chars, s, expected in teststrings:
+            if chars == closing_code:
+                # Cannot strip closing code from a colorized closing_code.
+                continue
+            for argtype, kwargs in self.example_args().items():
+                testcolrs.append(
+                    (chars, Colr(s, **kwargs), Colr(expected, **kwargs))
+                )
+
+        for chars, clr, expected in testcolrs:
+            stripped = clr.rstrip(chars)
+            self.assertCallEqual(
+                stripped,
+                expected,
+                func=Colr.rstrip,
+                args=(clr, ),
+                kwargs={'chars': chars},
+                msg='Failed to strip characters from colorized Colr.',
+            )
+
+    def test_strip(self):
+        """ Colr.strip should strip characters and return another Colr. """
+        teststrings = (
+            (None, '    test   ', 'test'),
+            (' ', '    test    ', 'test'),
+            ('X', 'XXXXtestXXXX', 'test'),
+            ('Xx', 'XxxXXxXxXXxtestXXxxXxxXxX', 'test'),
+            (
+                closing_code,
+                ''.join((closing_code, 'test', closing_code)),
+                'test'
+            ),
+        )
+        for chars, s, expected in teststrings:
+            clr = Colr(s)
+            stripped = clr.strip(chars)
+            self.assertCallEqual(
+                str(stripped),
+                expected,
+                func=Colr.strip,
+                args=(clr, ),
+                kwargs={'chars': chars},
+                msg='Failed to strip characters.',
+            )
+            self.assertCallIsInstance(
+                stripped,
+                Colr,
+                func=Colr.strip,
+                args=(clr, ),
+                kwargs={'chars': chars},
+                msg='Did not return a Colr instance.',
+            )
+        testcolrs = []
+        for chars, s, expected in teststrings:
+            if chars == closing_code:
+                # Cannot strip closing code from a colorized closing_code.
+                continue
+            for argtype, kwargs in self.example_args().items():
+                testcolrs.append(
+                    (chars, Colr(s, **kwargs), Colr(expected, **kwargs))
+                )
+
+        for chars, clr, expected in testcolrs:
+            stripped = clr.strip(chars)
+            self.assertCallEqual(
+                stripped,
+                expected,
+                func=Colr.strip,
+                args=(clr, ),
+                kwargs={'chars': chars},
+                msg='Failed to strip characters from colorized Colr.',
+            )
 
     def test_strip_codes(self):
         """ strip_codes() should strip all color and reset codes. """
@@ -634,154 +884,8 @@ class ColrTests(ColrTestCase):
             msg='Stripped Colr has different content.',
         )
 
-    def test_trans(self):
-        """ Translation functions should translate codes properly. """
-        for v in self.conversions:
-            # hex2*
-            argset = (v['hexval'],)
-            self.assertCallTupleEqual(
-                v['rgb'],
-                hex2rgb(*argset),
-                func=hex2rgb,
-                args=argset,
-                msg='Failed to translate.',
-            )
-
-            argset = (v['hexval'],)
-            self.assertCallEqual(
-                v['code'],
-                hex2term(*argset),
-                func=hex2term,
-                args=argset,
-                msg='Failed to translate.',
-            )
-
-            argset = (v['hexval'],)
-            self.assertCallEqual(
-                v['hexval'],
-                hex2termhex(*argset),
-                func=hex2termhex,
-                args=argset,
-                msg='Failed to translate.',
-            )
-
-            # rgb2*
-            argset = v['rgb']
-            self.assertCallEqual(
-                v['hexval'],
-                rgb2hex(*argset),
-                func=rgb2hex,
-                args=argset,
-                msg='Failed to translate.',
-            )
-
-            argset = v['rgb']
-            self.assertCallEqual(
-                v['code'],
-                rgb2term(*argset),
-                func=rgb2term,
-                args=argset,
-                msg='Failed to translate.',
-            )
-
-            argset = v['rgb']
-            self.assertCallEqual(
-                v['hexval'],
-                rgb2termhex(*argset),
-                func=rgb2termhex,
-                args=argset,
-                msg='Failed to translate.',
-            )
-
-            # term2*
-            argset = (v['code'],)
-            self.assertCallEqual(
-                v['hexval'],
-                term2hex(*argset),
-                func=term2hex,
-                args=argset,
-                msg='Failed to translate.',
-            )
-
-            argset = (v['code'],)
-            self.assertCallTupleEqual(
-                v['rgb'],
-                term2rgb(*argset),
-                func=term2rgb,
-                args=argset,
-                msg='Failed to translate.',
-            )
-
-            for hexval, termhex in self.termhex_close:
-                argset = (hexval,)
-                self.assertCallEqual(
-                    termhex,
-                    hex2termhex(*argset),
-                    func=hex2termhex,
-                    args=argset,
-                    msg='Failed on close match.',
-                )
-
-
-# # These are failing tests, to check the format for ColrTestCase messages.
-class FailingTests(ColrTestCase):
-    def test_fail_eq(self):
-        """ Non-equal failures should print a pretty message. """
-        # self.assertEqual(1, 2, msg='Nope, not equal.')
-        # self.assertNotEqual(1, 1, msg='Oops, they are equal')
-        # self.assertCallEqual(
-        #     1,
-        #     2,
-        #     func=str,
-        #     args=[1],
-        #     otherargs=[2],
-        #     kwargs={'testing': True},
-        #     otherkwargs={'testing': True},
-        #     msg='Nope, not equal.',
-        # )
-        # self.assertCallNotEqual(
-        #     1,
-        #     1,
-        #     func=str,
-        #     args=[1],
-        #     kwargs={'testing': True},
-        #     otherargs=[1],
-        #     otherkwargs={'testing': True},
-        #     msg='Oops, they are equal.',
-        # )
-        # self.assertCallTupleEqual(
-        #     (1,),
-        #     (2,),
-        #     func=str,
-        #     args=[1],
-        #     kwargs={'testing': True},
-        #     otherargs=[2],
-        #     otherkwargs={'testing': True},
-        #     msg='Nope, not equal.',
-        # )
-        # self.assertCallTrue(
-        #     False,
-        #     func=str,
-        #     args=[1],
-        #     kwargs={'testing': True},
-        #     msg='Nope not true.',
-        # )
-        # self.assertCallFalse(
-        #     True,
-        #     func=str,
-        #     args=[1],
-        #     kwargs={'testing': True},
-        #     msg='Nope not false.',
-        # )
-        # with self.assertCallRaises(
-        #         ValueError,
-        #         func=None,#str,
-        #         args=[1],
-        #         kwargs={'testing': True},
-        #         msg='Nope, did not raise.'):
-        #     pass
-
 
 if __name__ == '__main__':
+    print('Testing Colr v. {}'.format(__version__))
     # unittest.main() calls sys.exit(status_code).
     unittest.main(argv=sys.argv, verbosity=2)  # type: ignore

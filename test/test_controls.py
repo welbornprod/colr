@@ -21,8 +21,6 @@ from colr.controls import (
 
 from .testing_tools import ColrTestCase
 
-print('Testing Colr.Control v. {}'.format(__version__))
-
 
 class ControlTests(ColrTestCase):
 
@@ -128,5 +126,6 @@ class ControlTests(ColrTestCase):
 
 
 if __name__ == '__main__':
+    print('Testing Colr.Control v. {}'.format(__version__))
     # unittest.main() calls sys.exit(status_code).
     unittest.main(argv=sys.argv, verbosity=2)  # type: ignore

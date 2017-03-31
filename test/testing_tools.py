@@ -6,7 +6,10 @@
 import inspect
 import unittest
 from contextlib import suppress
-from io import StringIO
+from io import (
+    BytesIO,
+    StringIO,
+)
 from unittest.case import _AssertRaisesContext
 from typing import Any, Callable, Mapping, Optional, no_type_check
 
@@ -38,7 +41,10 @@ def call_msg(s: str, *args: Any, **kwargs: Mapping[Any, Any]):
     """ Return a message suitable for the `msg` arg in asserts,
         including the calling function name.
     """
-    stdmsg, _, msg = s.partition(':')
+    if s.count(':') == 1:
+        stdmsg, _, msg = s.partition(':')
+    else:
+        stdmsg, msg = s, None
     return '{funcsig}: {stdmsg}{msgdiv}{msg}'.format(
         funcsig=format_call_str(*args, **kwargs),
         stdmsg=Colr(stdmsg, 'red', style='bright'),
@@ -326,6 +332,26 @@ class ColrTestCase(unittest.TestCase):
             return None
         raise self.failureException(_equality_msg('!=', a, b, msg=msg))
 
+    def assertGreater(self, a, b, msg=None):
+        if a > b:
+            return None
+        raise self.failureException(_equality_msg('<=', a, b, msg=msg))
+
+    def assertGreaterEqual(self, a, b, msg=None):
+        if a >= b:
+            return None
+        raise self.failureException(_equality_msg('<', a, b, msg=msg))
+
+    def assertLess(self, a, b, msg=None):
+        if a < b:
+            return None
+        raise self.failureException(_equality_msg('>=', a, b, msg=msg))
+
+    def assertLessEqual(self, a, b, msg=None):
+        if a <= b:
+            return None
+        raise self.failureException(_equality_msg('>', a, b, msg=msg))
+
     def assertNotEqual(self, a, b, msg=None):
         if a != b:
             return None
@@ -340,14 +366,48 @@ class ColrTestCase(unittest.TestCase):
                 _equality_msg('!=', a, b, msg=stdmsg)
             )
 
+    def call_msg(self, s, *args, **kwargs):
+        """ Convenience method, a wrapper for `call_msg`. """
+        kwargs.setdefault('_level', 4)
+        with suppress(KeyError):
+            kwargs.setdefault('_call_func', kwargs.pop('func'))
+        return call_msg(s, *args, **kwargs)
+
+
+class TestFileBytes(BytesIO):
+    """ A file object that deletes it's content every time you call
+        str(TestFileBytes).
+    """
+    def __bytes__(self):
+        self.seek(0)
+        s = self.read()
+        self.truncate(0)
+        self.seek(0)
+        return s
+
+    def __str__(self):
+        return repr(bytes(self))
+
 
 class TestFile(StringIO):
     """ A file object that deletes it's content every time you call
         str(TestFile).
     """
+    def __init__(self):
+        self.buffer = TestFileBytes()
+
     def __str__(self):
         self.seek(0)
         s = self.read()
         self.truncate(0)
         self.seek(0)
         return s
+
+    def write(self, s):
+        try:
+            super().write(s)
+        except ValueError as ex:
+            # I/O operation on uninitialized object?
+            if 'uninitialized' not in str(ex).lower():
+                raise
+        self.buffer.write(s.encode() if hasattr(s, 'encode') else s)
