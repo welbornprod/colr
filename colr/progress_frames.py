@@ -514,7 +514,7 @@ class BarSet(FrameSet):
         )
 
     @classmethod
-    def from_str(cls, s, name=None, fill_char=None):
+    def from_str(cls, s, name=None, fill_char=None, wrapper=None):
         """ Create progress bar frames from a single string.
             The frames simulate growth, from an empty string to the final
             string (`s`).
@@ -524,6 +524,8 @@ class BarSet(FrameSet):
                 name       : Name for the new BarSet.
                 fill_char  : Character to fill empty space.
                              Default: ' ' (space)
+                wrapper    : Wrapping characters for the new bar set.
+                             Default: cls.default_wrapper
 
         """
         fill_char = fill_char or cls.default_fill_char
@@ -542,6 +544,7 @@ class BarSet(FrameSet):
         return cls(
             frames,
             name=name,
+            wrapper=wrapper,
         )
 
     @classmethod
