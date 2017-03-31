@@ -373,6 +373,10 @@ class ChainedBase(object):
             **kwargs
         )
 
+    def lstrip(self, chars=None):
+        """ Like str.lstrip, except it returns the ChainedBase instance. """
+        return self.__class__(str(self).lstrip(chars))
+
     def parts(self):
         """ Return a list of CodeParts and TextParts, in the order
             they are discovered from `self.data`.
@@ -400,9 +404,17 @@ class ChainedBase(object):
             **kwargs,
         )
 
+    def rstrip(self, chars=None):
+        """ Like str.rstrip, except it returns the ChainedBase instance. """
+        return self.__class__(str(self).rstrip(chars))
+
     def str(self):
         """ Alias for self.__str__ """
         return str(self)
+
+    def strip(self, chars=None):
+        """ Like str.strip, except it returns the ChainedBase instance. """
+        return self.__class__(str(self).strip(chars))
 
     def stripped(self):
         """ Return str(strip_codes(self.data)) """

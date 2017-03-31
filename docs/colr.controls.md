@@ -226,7 +226,7 @@ EraseMethod | Description
 `EraseMethod.ALL_MOVE` or `2` | Clear entire line.
 
 #### Control.last_code
-`Control.last_code`
+`Control.last_code()`
 
 Returns the last escape code appended to this `Control`.
 If no escape codes are found, `''` (empty string) is returned.
@@ -280,12 +280,12 @@ of lines up.
 Appends the code to move the cursor up a number of lines.
 
 #### Control.pos_restore
-`Control.pos_restore`
+`Control.pos_restore()`
 
 Appends the code to restore the cursor position saved with `pos_save()`.
 
 #### Control.pos_save
-`Control.pos_save`
+`Control.pos_save()`
 
 Appends the code to save current cursor position. Can be restored with
 `pos_restore()`.
@@ -309,7 +309,7 @@ Repeat this entire Control code a number of times.
 Returns a new Control with this one's data repeated.
 
 ```python
-Control('test').move_up().repeat(2) == Control('test').move_up().text('test').move_up()
+Control('test').move_up().repeat_all(2) == Control('test').move_up().text('test').move_up()
 ```
 
 This only works for text and escape codes, not `Control.delay` or

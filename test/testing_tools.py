@@ -41,7 +41,10 @@ def call_msg(s: str, *args: Any, **kwargs: Mapping[Any, Any]):
     """ Return a message suitable for the `msg` arg in asserts,
         including the calling function name.
     """
-    stdmsg, _, msg = s.partition(':')
+    if s.count(':') == 1:
+        stdmsg, _, msg = s.partition(':')
+    else:
+        stdmsg, msg = s, None
     return '{funcsig}: {stdmsg}{msgdiv}{msg}'.format(
         funcsig=format_call_str(*args, **kwargs),
         stdmsg=Colr(stdmsg, 'red', style='bright'),

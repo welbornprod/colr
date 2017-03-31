@@ -681,14 +681,16 @@ class Colr(ChainedBase):
             text: Optional[str]=None,
             fore: Optional[ColorArg]=None,
             back: Optional[ColorArg]=None,
-            style: Optional[str]=None) -> None:
+            style: Optional[str]=None,
+            no_closing: Optional[bool]=False) -> None:
         """ Initialize a Colr object with text and color options. """
         # Can be initialized with colored text, not required though.
         self.data = self.color(
             text,
             fore=fore,
             back=back,
-            style=style
+            style=style,
+            no_closing=no_closing,
         )
 
     def __call__(self, text=None, fore=None, back=None, style=None):
@@ -1272,7 +1274,9 @@ class Colr(ChainedBase):
         ))
         return self
 
-    def color(self, text=None, fore=None, back=None, style=None):
+    def color(
+            self, text=None, fore=None, back=None, style=None,
+            no_closing=False):
         """ A method that colorizes strings, not Colr objects.
             Raises InvalidColr for invalid color names.
             The 'reset_all' code is appended if text is given.
@@ -1289,17 +1293,20 @@ class Colr(ChainedBase):
         # the last code was not a color code.
         embedded_codes = get_codes(text)
         has_end_code = embedded_codes and embedded_codes[-1] == closing_code
-        if (text and (not has_end_code) and (has_args or embedded_codes)):
-            # Add closing code if not already added, there is text, and
-            # some kind of color/style was used (whether from args, or
-            # color codes were included in the text already).
-            # If the last code embedded in the text was a closing code,
-            # then it is not added.
+        # Add closing code if not already added, there is text, and
+        # some kind of color/style was used (whether from args, or
+        # color codes were included in the text already).
+        # If the last code embedded in the text was a closing code,
+        # then it is not added.
+        # This can be overriden with `no_closing`.
+        needs_closing = (
+            text and
+            (not no_closing) and
+            (not has_end_code) and
+            (has_args or embedded_codes)
+        )
+        if needs_closing:
             end = closing_code
-            # ']' will be dropped if it's the last character in the text,
-            # and the closing code is appended. Adding ; stops this.
-            if text.endswith((']')):
-                end = ';{}'.format(closing_code)
         else:
             end = ''
         return ''.join((
@@ -1642,6 +1649,13 @@ class Colr(ChainedBase):
             )
         return self.__class__(self.data.join(flat))
 
+    def lstrip(self, chars=None):
+        """ Like str.lstrip, except it returns the ChainedBase instance. """
+        return self.__class__(
+            str(self).lstrip(chars),
+            no_closing=chars and (closing_code in chars),
+        )
+
     def print(self, *args, **kwargs):
         """ Chainable print method. Prints self.data and then clears it. """
         print(self, *args, **kwargs)
@@ -1723,6 +1737,20 @@ class Colr(ChainedBase):
 
         """
         return self.chained(text=text, fore=(r, g, b), back=back, style=style)
+
+    def rstrip(self, chars=None):
+        """ Like str.rstrip, except it returns the ChainedBase instance. """
+        return self.__class__(
+            str(self).rstrip(chars),
+            no_closing=chars and (closing_code in chars),
+        )
+
+    def strip(self, chars=None):
+        """ Like str.strip, except it returns the ChainedBase instance. """
+        return self.__class__(
+            str(self).strip(chars),
+            no_closing=chars and (closing_code in chars),
+        )
 
 
 class InvalidArg(ValueError):

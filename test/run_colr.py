@@ -25,6 +25,7 @@ if parentdir.endswith('colr'):
 try:
     from colr import (
         __version__,
+        codes,
         Colr,
         auto_disable,
         color,
@@ -132,7 +133,9 @@ def display_test_gradient_override(maxwidth=80):
     # Gradient back color.
     print(Colr().gradient(' ' * maxwidth, name='black', fore='reset'))
     # Explicit gradient fore color.
-    print(Colr().gradient('-' * maxwidth, name='white', spread=2, back='blue'))
+    print(
+        Colr().gradient('-' * maxwidth, name='white', spread=2, back='blue')
+    )
     # Implicit gradient fore color.
     print(Colr().gradient('_' * maxwidth, name='white'), end='\n\n')
 
@@ -355,6 +358,26 @@ def display_test_rgb(maxwidth=80):
         .white().b_135(' types')
         .white().b_rgb(25, 20, 155, ' together')
     )
+
+
+def display_test_square_brackets(maxwidth=80):
+    """ Test how colr acts when square brackets are mixed with color codes.
+    """
+    colornames = list(codes['fore'])
+    teststrings = (
+        (']', ),
+        (']' * 20, ),
+        ('[bracket test]', ),
+        ('[bracket test]', 'this'),
+        ('[bracket test]', 'this', '[thing]'),
+    )
+    for strings in teststrings:
+        print(
+            Colr(' ').join(
+                Colr(s, random.choice(colornames))
+                for s in strings
+            )
+        )
 
 
 def find_tests(pattern):

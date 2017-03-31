@@ -462,6 +462,58 @@ class ColrTests(ColrTestCase):
             msg='Failed to keep color codes for __getitem__ range.',
         )
 
+        # These are actual examples from the docs.
+        clr = Colr('test', 'blue')
+        clr_s = clr[1:3]
+        self.assertCallEqual(
+            clr_s,
+            Colr('es', 'blue'),
+            func=Colr.__getitem__,
+            args=(clr, slice(1, 3)),
+            msg='failed to slice correctly.',
+        )
+
+        # Original Colr to slice up.
+        clr = Colr('test', 'red').blue('this').rgb(25, 25, 25, 'thing')
+        examples = (
+            # Integer index with clr[5].
+            (
+                5,
+                Colr(fore='red').blue('h'),
+            ),
+            # All (copy) with clr[:], except closing_codes aren't needed.
+            (
+                slice(None, None),
+                (
+                    Colr('test', 'red').rstrip(closing_code)
+                    .blue('this').rstrip(closing_code)
+                    .rgb(25, 25, 25, 'thing')
+                ),
+            ),
+            # Starting index with clr[8:]
+            (
+                slice(8, None),
+                Colr(fore='red').blue().rgb(25, 25, 25, 'thing'),
+            ),
+        )
+
+        for sliceobj, expected in examples:
+            slicerepr = str(sliceobj)
+            if isinstance(sliceobj, slice):
+                slicerepr = '{}:{}:{}'.format(
+                    *sliceobj.indices(len(clr.stripped()))
+                )
+            self.assertCallEqual(
+                clr[sliceobj],
+                expected,
+                func=Colr.__getitem__,
+                args=(clr, sliceobj),
+                msg='Failed to slice correctly with Colr()[{}] ({!r})'.format(
+                    slicerepr,
+                    sliceobj,
+                ),
+            )
+
     def test_gradient(self):
         """ Colr.gradient should recognize names and rainbow offsets. """
         valid_names = list(Colr.gradient_names)
@@ -596,6 +648,39 @@ class ColrTests(ColrTestCase):
                 msg='Chained b_hex in rgb_mode did not match b_rgb.',
             )
 
+    def test_lstrip(self):
+        """ Colr.lstrip should strip characters and return another Colr. """
+        teststrings = (
+            (None, '   test', 'test'),
+            (' ', '    test', 'test'),
+            ('X', 'XXXXtest', 'test'),
+            ('Xx', 'XXxxXxxXxXtest', 'test'),
+            (
+                closing_code,
+                ''.join((closing_code, 'test')),
+                'test'
+            ),
+        )
+        for chars, s, expected in teststrings:
+            clr = Colr(s)
+            stripped = clr.lstrip(chars)
+            self.assertCallEqual(
+                str(stripped),
+                expected,
+                func=Colr.lstrip,
+                args=(clr, ),
+                kwargs={'chars': chars},
+                msg='Failed to strip characters.',
+            )
+            self.assertCallIsInstance(
+                stripped,
+                Colr,
+                func=Colr.lstrip,
+                args=(clr, ),
+                kwargs={'chars': chars},
+                msg='Did not return a Colr instance.',
+            )
+
     def test_name_data(self):
         """ Colr should use name_data.names when all other style names fail.
         """
@@ -623,6 +708,72 @@ class ColrTests(ColrTestCase):
             Colr,
             msg='Failed to create Colr from chained name_data method.'
         )
+
+    def test_rstrip(self):
+        """ Colr.rstrip should strip characters and return another Colr. """
+        teststrings = (
+            (None, 'test   ', 'test'),
+            (' ', 'test    ', 'test'),
+            ('X', 'testXXXX', 'test'),
+            ('Xx', 'testXXxxXxxXxX', 'test'),
+            (
+                closing_code,
+                ''.join(('test', closing_code)),
+                'test'
+            ),
+        )
+        for chars, s, expected in teststrings:
+            clr = Colr(s)
+            stripped = clr.rstrip(chars)
+            self.assertCallEqual(
+                str(stripped),
+                expected,
+                func=Colr.rstrip,
+                args=(clr, ),
+                kwargs={'chars': chars},
+                msg='Failed to strip characters.',
+            )
+            self.assertCallIsInstance(
+                stripped,
+                Colr,
+                func=Colr.rstrip,
+                args=(clr, ),
+                kwargs={'chars': chars},
+                msg='Did not return a Colr instance.',
+            )
+
+    def test_strip(self):
+        """ Colr.strip should strip characters and return another Colr. """
+        teststrings = (
+            (None, '    test   ', 'test'),
+            (' ', '    test    ', 'test'),
+            ('X', 'XXXXtestXXXX', 'test'),
+            ('Xx', 'XxxXXxXxXXxtestXXxxXxxXxX', 'test'),
+            (
+                closing_code,
+                ''.join((closing_code, 'test', closing_code)),
+                'test'
+            ),
+        )
+        for chars, s, expected in teststrings:
+            clr = Colr(s)
+            stripped = clr.strip(chars)
+            self.assertCallEqual(
+                str(stripped),
+                expected,
+                func=Colr.strip,
+                args=(clr, ),
+                kwargs={'chars': chars},
+                msg='Failed to strip characters.',
+            )
+            self.assertCallIsInstance(
+                stripped,
+                Colr,
+                func=Colr.strip,
+                args=(clr, ),
+                kwargs={'chars': chars},
+                msg='Did not return a Colr instance.',
+            )
 
     def test_strip_codes(self):
         """ strip_codes() should strip all color and reset codes. """
