@@ -10,6 +10,7 @@ Section | Description
 [BarSet](#colrbarset) | Usage and examples for the `BarSet` object, a list of animation frames for the `ProgressBar` object.
 [FrameSet](#colrframeset) | Usage and examples for the `FrameSet` object, a list of animation frames for the `AnimatedProgress` object.
 [Frames](#colrframes) | A collection of `FrameSets` included with `Colr` by default.
+[ProgressBar](#colrprogressbar) | Usage and examples for the `ProgressBar` object.
 [StaticProgress](#colrstaticprogress) | Usage and examples for the `StaticProgress` object.
 
 ## colr.StaticProgress
