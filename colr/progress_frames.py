@@ -429,10 +429,11 @@ class BarSet(FrameSet):
 
     def as_colr(self, **kwargs):
         """ Wrap each frame in a Colr object, using `kwargs` for Colr().
+
             Keyword Arguments:
-                fore  : Fore color for each frame.
-                back  : Back color for each frame.
-                style : Style for each frame.
+                fore    : Fore color for each frame.
+                back    : Back color for each frame.
+                style   : Style for each frame.
         """
         return self._as_colr(('wrapper', ), **kwargs)
 
@@ -824,7 +825,10 @@ def _build_color_variants(cls):
     for colorname in _colornames:
         for framesobj in frametypes:
             framename = '{}_{}'.format(framesobj.name, colorname)
-            cls.register(framesobj.as_colr(fore=colorname), name=framename)
+            cls.register(
+                framesobj.as_colr(fore=colorname),
+                name=framename,
+            )
 
 
 def _build_gradient_variants(cls):
