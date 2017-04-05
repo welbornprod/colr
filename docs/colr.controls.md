@@ -8,9 +8,18 @@ object.
 
 Section | Description
 --- | ---
+[Demo](#demo) | Asciinema playback demo (kinda messed up).
 [Functions](#function) | Module-level functions that write directly to a file, or the terminal.
 [Print Functions](#print-functions) | Convenience functions for specialized prints.
 [Control](#colrcontrol) | The `colr.Control` object, and it's [methods](#methods).
+
+## Demo
+
+[asciinema](https://asciinema.org) messes this up a little. It fails to delete
+lines that would normally be deleted. You can still get an idea of what this
+module can do though, so here you go:
+
+[![asciicast](https://asciinema.org/a/b11pvfha5ssnicjqa63aui0it.png)](https://asciinema.org/a/b11pvfha5ssnicjqa63aui0it)
 
 ## Functions
 

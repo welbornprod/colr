@@ -652,6 +652,7 @@ class Bars(object):
         bounce=True,
         back_char='⮈',
         name='arrows',
+        wrapper=('[', '] '),
     )
     blocks = BarSet.from_str('█' * BarSet.default_width, name='blocks')
     bounce = BarSet.from_char('●', bounce=True, name='bounce')

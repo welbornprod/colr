@@ -23,6 +23,8 @@ attribute.
 
 ### Example
 
+[![asciicast](https://asciinema.org/a/05btd2ncv99tl7z8i0aclw8yo.png)](https://asciinema.org/a/05btd2ncv99tl7z8i0aclw8yo)
+
 #### Basic Usage
 ```python
 from colr import StaticProgress
@@ -55,6 +57,8 @@ delay. There are some predefined [`FrameSet`](#colrframeset)s in the
 [`Frames`](#colrframes) class.
 
 ### Example
+
+[![asciicast](https://asciinema.org/a/d4d40krdo889epom8h7xdmd2h.png)](https://asciinema.org/a/d4d40krdo889epom8h7xdmd2h)
 
 #### Basic Usage
 ```python
@@ -98,6 +102,8 @@ There are some predefined [`BarSet`](#colrbarset) objects in the
 [`Bars`](#colrbars) class.
 
 ### Example
+
+[![asciicast](https://asciinema.org/a/0rasmlxavprwxfu84dnunwglv.png)](https://asciinema.org/a/0rasmlxavprwxfu84dnunwglv)
 
 #### Basic Usage
 ```python
