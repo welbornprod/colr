@@ -19,10 +19,16 @@ RUN_TESTS = False
 
 @unittest.skipUnless(RUN_TESTS, 'Not testing ColrTestCase messages.')
 class FailingTests(ColrTestCase):
-    def test_fail_eq(self):
-        """ Non-equal failures should print a pretty message. """
+    def test_eq(self):
+        """ Equal failures should print a pretty message. """
         self.assertEqual(1, 2, msg='Nope, not equal.')
+
+    def test_neq(self):
+        """ Non-equal failures should print a pretty message. """
         self.assertNotEqual(1, 1, msg='Oops, they are equal')
+
+    def test_call_eq(self):
+        """ Equal func return should print a pretty message. """
         self.assertCallEqual(
             1,
             2,
@@ -33,6 +39,9 @@ class FailingTests(ColrTestCase):
             otherkwargs={'testing': True},
             msg='Nope, not equal.',
         )
+
+    def test_call_neq(self):
+        """ Non-equal func return should print a pretty message. """
         self.assertCallNotEqual(
             1,
             1,
@@ -43,6 +52,9 @@ class FailingTests(ColrTestCase):
             otherkwargs={'testing': True},
             msg='Oops, they are equal.',
         )
+
+    def test_call_tuple_eq(self):
+        """ Equal tuple func return should print a pretty message. """
         self.assertCallTupleEqual(
             (1,),
             (2,),
@@ -53,6 +65,9 @@ class FailingTests(ColrTestCase):
             otherkwargs={'testing': True},
             msg='Nope, not equal.',
         )
+
+    def test_call_true(self):
+        """ True func return should print a pretty message. """
         self.assertCallTrue(
             False,
             func=str,
@@ -60,6 +75,9 @@ class FailingTests(ColrTestCase):
             kwargs={'testing': True},
             msg='Nope not true.',
         )
+
+    def test_call_false(self):
+        """ False func return should print a pretty message. """
         self.assertCallFalse(
             True,
             func=str,
@@ -67,6 +85,9 @@ class FailingTests(ColrTestCase):
             kwargs={'testing': True},
             msg='Nope not false.',
         )
+
+    def test_call_raises(self):
+        """ Func raises should print a pretty message. """
         with self.assertCallRaises(
                 ValueError,
                 func=None,
