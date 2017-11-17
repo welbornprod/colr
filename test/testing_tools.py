@@ -311,6 +311,10 @@ class ColrTestCase(unittest.TestCase):
         try:
             super().assertTupleEqual(a, b, msg=msg)
         except self.failureException as ex:
+            # TODO: The entire exception chain is printed with `green`.
+            #       The point of these calls is to REPLACE the old message,
+            #       not to clutter up the console with their
+            #       `failureException` and mine.
             stdmsg = ex.args[0] if ex.args else None
             callargs = args or []
             callkwargs = kwargs or {}
@@ -322,7 +326,7 @@ class ColrTestCase(unittest.TestCase):
                     _other_args=otherargs,
                     _other_kwargs=otherkwargs,
                     _call_func=func,
-                    _level=3,
+                    _level=self.calling_test_level,
                     _op='!=',
                 )
             )

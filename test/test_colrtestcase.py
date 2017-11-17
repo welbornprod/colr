@@ -2,11 +2,12 @@
 # -*- coding: utf-8 -*-
 
 """ test_colrtestcase.py
-    Unit tests for colrtestcase.py v. 0.0.1
+    Unit tests for colr's test.testing_tools.ColrTestCase
 
     -Christopher Welborn 03-29-2017
 """
 
+import os
 import sys
 import unittest
 
@@ -14,10 +15,25 @@ from .testing_tools import ColrTestCase
 
 
 # These are failing tests, to check the format for ColrTestCase messages.
-RUN_TESTS = False
+# They can be ran from the command line by prepending:
+#   COLR_TEST_MSGS=1
+# ..to the test command.
+# Example:
+#   COLR_TEST_MSGS=1 green -q -vv
+run_test_val = os.environ.get('COLR_TEST_MSGS', 0) or 0
+try:
+    RUN_TESTS = bool(int(run_test_val))
+except (TypeError, ValueError):
+    # Invalid environment var setting, 'y[..]' and 't[...]' are okay I guess.
+    RUN_TESTS = str(run_test_val).lower().startswith(('t', 'y'))
+
+skipmsg = ' '.join((
+    'Not testing ColrTestCase messages.',
+    'Set `COLR_TEST_MSGS=1` to test.',
+))
 
 
-@unittest.skipUnless(RUN_TESTS, 'Not testing ColrTestCase messages.')
+@unittest.skipUnless(RUN_TESTS, skipmsg)
 class FailingTests(ColrTestCase):
     def test_eq(self):
         """ Equal failures should print a pretty message. """
