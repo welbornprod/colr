@@ -156,7 +156,7 @@ class ChainedBase(object):
     def __getitem__(self, key):
         """ Allow subscripting self.data. This will ignore any escape codes,
             because otherwise it would be just about useless.
-            Returns another Colr instance.
+            Returns another ChainedBase instance.
         """
         length = len(self.stripped())
         if isinstance(key, slice):
@@ -188,7 +188,6 @@ class ChainedBase(object):
                     )
                 break
             if part.is_code():
-                # print('PART: {!r}, POS: {}'.format(part, pos))
                 codeparts.append(part)
                 continue
             chars = []
@@ -210,7 +209,7 @@ class ChainedBase(object):
         return self.__class__(''.join(str(x) for x in parts))
 
     def __hash__(self):
-        """ A Colr's hash value is based on self.data. """
+        """ A ChainedBase's hash value is based on self.data. """
         return hash(str(self.data or ''))
 
     def __len__(self):
@@ -270,7 +269,7 @@ class ChainedBase(object):
         """ Perform a str justify method on the text arg, or self.data, before
             applying color codes.
             Arguments:
-                methodname  : Name of str method to apply.
+                methodname  : Name of str justification method to apply.
                 methodargs  : Arguments for the str method.
 
             Keyword Arguments:
@@ -358,7 +357,7 @@ class ChainedBase(object):
     def center(self, width, fillchar=' ', squeeze=False, **kwargs):
         """ s.center() doesn't work well on strings with color codes.
             This method will use .center() before colorizing the text.
-            Returns a Colr() object.
+            Returns a ChainedBase() object.
             Arguments:
                 width    : The width for the resulting string (before colors)
                 fillchar : The character to pad with. Default: ' '
@@ -410,7 +409,7 @@ class ChainedBase(object):
             yield TextPart(s, start=0, stop=length)
 
     def join(self, *args, **colorkwargs):
-        """ Like str.join, except it returns a Colr.
+        """ Like str.join, except it returns a ChainedBase.
             Arguments:
                 args  : One or more ChainedBase or str objects.
                         If a list or tuple is given it will be flattened.
@@ -427,7 +426,7 @@ class ChainedBase(object):
     def ljust(self, width, fillchar=' ', squeeze=False, **kwargs):
         """ s.ljust() doesn't work well on strings with color codes.
             This method will use .ljust() before colorizing the text.
-            Returns a Colr() object.
+            Returns a ChainedBase() object.
             Arguments:
                 width    : The width for the resulting string (before colors)
                 fillchar : The character to pad with. Default: ' '
