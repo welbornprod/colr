@@ -652,6 +652,24 @@ class ColrTests(ColrTestCase):
                 msg='Chained b_hex in rgb_mode did not match b_rgb.',
             )
 
+    def test_iter(self):
+        """ Colr should be iterable. """
+        clr = Colr('This is a test.', 'red', 'blue', 'bright')
+        self.assertEqual(
+            ''.join(c for c in clr),
+            clr.data,
+            msg='Colr was not iterable in generator expression.'
+        )
+
+        chars = []
+        for c in clr:
+            chars.append(c)
+        self.assertEqual(
+            ''.join(chars),
+            clr.data,
+            msg='Colr was not iterable in for-loop.'
+        )
+
     def test_lstrip(self):
         """ Colr.lstrip should strip characters and return another Colr. """
         teststrings = (

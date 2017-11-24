@@ -41,7 +41,7 @@ from typing import (
     Union,
 )
 
-__version__ = '0.8.1'
+__version__ = '0.8.2'
 
 _codepats = (
     # Colors.
@@ -211,6 +211,10 @@ class ChainedBase(object):
     def __hash__(self):
         """ A ChainedBase's hash value is based on self.data. """
         return hash(str(self.data or ''))
+
+    def __iter__(self):
+        """ Iterating over a ChainedBase means iterating over self.data. """
+        return self.data.__iter__()
 
     def __len__(self):
         """ Return len() for any built up string data. This will count color
