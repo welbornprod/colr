@@ -263,6 +263,18 @@ Hashing a `Colr` just means hashing `Colr().data`, but this works:
 hash(Colr('test', 'blue')) == hash(Colr('test', 'blue'))
 ```
 
+### Colr.\_\_iter\_\_
+
+Iterating over a `Colr` just means iterating over `Colr().data`:
+```python
+# Generator, equivalent to: str(Colr('test', 'blue'))
+s = ''.join(c for c in Colr('test', 'blue'))
+
+# For-loop, equivalent to: for c in str(Colr('test', 'blue'))
+for c in Colr('test', 'blue'):
+    print(c, end='')
+```
+
 ### Colr.\_\_mul\_\_
 
 `Colr` instances can be multiplied by an `int` to build color strings.

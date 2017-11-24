@@ -7,3 +7,5 @@ data
 *.egg-info
 data_test
 progress.depends.txt
+*.egg
+build
