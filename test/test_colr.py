@@ -211,7 +211,61 @@ class ColrTests(ColrTestCase):
                 )
             )
 
-        # Should get the correct code type for the correct value.
+    def test_color_colr(self):
+        """ Colr.color should honor __colr__ methods. """
+        customtext = 'test'
+        custom = CustomUserClass(customtext)
+        try:
+            clr = Colr(custom)
+        except InvalidColr as ex:
+            self.fail(
+                'InvalidColr raised for valid custom class: {}'.format(
+                    ex
+                )
+            )
+        self.assertEqual(
+            clr,
+            Colr(customtext, **CustomUserClass.default_args),
+            msg='Colr.color failed for custom class with __colr__ method.',
+        )
+
+    def test_color_colr_override(self):
+        """ Colr.color should override __colr__ methods when asked. """
+        # Overriding the Colr call args disables __colr__ method.
+        customtext = 'test'
+        custom = CustomUserClass(customtext)
+        customargs = {'fore': 'red', 'back': 'white', 'style': 'underline'}
+        try:
+            clr = Colr(custom, **customargs)
+        except InvalidColr as ex:
+            self.fail(
+                'InvalidColr raised for valid custom class: {}'.format(
+                    ex
+                )
+            )
+        self.assertEqual(
+            clr,
+            Colr(customtext, **customargs),
+            msg='Colr.color failed to override custom class __colr__ method.',
+        )
+
+    def test_color_colr_typeerror(self):
+        """ Colr.color should raise TypeError when __colr__ returns non Colrs.
+        """
+        try:
+            Colr(CustomUserClass())
+        except TypeError as ex:
+            msg = 'Shouldn\'t raise TypeError for valid __colr__ method.'
+            self.fail(
+                '\n'.join((msg, str(ex)))
+            )
+
+        with self.assertRaises(TypeError):
+            Colr(CustomUserClassBad())
+
+    def test_color_correct_val(self):
+        """ Colr.color should get the correct code type for the correct value.
+        """
         self.assertTrue(
             is_code(str(Colr(' ', 'red')).split()[0])
         )
@@ -222,7 +276,10 @@ class ColrTests(ColrTestCase):
             is_rgb_code(str(Colr(' ', (0, 0, 255))).split()[0])
         )
 
-        # Should raise InvalidColr on invalid color name/value.
+    def test_color_invalid(self):
+        """ Colr.color should raise InvalidColr on invalid color name/value.
+        """
+        s = 'test'
         with self.assertRaises(InvalidColr):
             Colr(s, 'NOTACOLOR')
         with self.assertRaises(InvalidColr):
@@ -901,6 +958,31 @@ class ColrTests(ColrTestCase):
             func=c.stripped,
             msg='Stripped Colr has different content.',
         )
+
+
+class CustomUserClass(object):
+    """ Example of a user class with a __colr__ method. Telling Colr.color
+        how to colorize it when no other arguments are given.
+    """
+    default_args = {'fore': 'blue', 'style': 'bright'}
+
+    def __init__(self, val=None, **kwargs):
+        self.val = str(val) if val is not None else 'Example string.'
+        self.colr_args = kwargs or self.default_args
+
+    def __colr__(self):
+        return Colr(self.val, **self.colr_args)
+
+    def __str__(self):
+        return self.val
+
+
+class CustomUserClassBad(object):
+    """ An example of a user class with a __colr__ method that misbehaves. """
+    def __colr__(self):
+        # This will raise a TypeError when Colr(self) is called!
+        # This is used in the ColrTests.color_colr_typeerror test.
+        return 'This is not a Colr.'
 
 
 if __name__ == '__main__':

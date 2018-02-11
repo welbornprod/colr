@@ -91,6 +91,19 @@ def main(argd):
     return 0
 
 
+def display_test_custom_class(maxwidth=80):
+    """ Test display of custom classes with __colr__ methods. """
+    cl = CustomUserClass(msg='This is a test.', value=35)
+    print('   {} with arguments: {}'.format(
+        type(cl).__name__,
+        Colr(cl, fore='red', style='bright'),
+    ))
+    print('{} without arguments: {}'.format(
+        type(cl).__name__,
+        Colr(cl),
+    ))
+
+
 def display_test_gradient_mix(maxwidth=80):
     """ Test display of the gradient options. """
     # Gradient should operate on self.data when no text is provided.
@@ -453,6 +466,29 @@ def print_err(*args, **kwargs):
     if kwargs.get('file', None) is None:
         kwargs['file'] = sys.stderr
     print(*args, **kwargs)
+
+
+class CustomUserClass(object):
+    """ Example user class with a default __colr__ method. """
+    def __init__(self, msg='This is a default message.', value=5):
+        self.msg = str(msg)
+        self.value = value or 5
+
+    def __colr__(self):
+        """ Default colr method, when passed to Colr() with no args. """
+        return Colr(', ').join(
+            Colr(': ').join(
+                Colr('Value', 'cyan'),
+                Colr(self.value, 'blue', style='bright'),
+            ),
+            Colr(': ').join(
+                Colr('Message', 'cyan'),
+                Colr(self.msg, 'green', style='underline'),
+            ),
+        )
+
+    def __str__(self):
+        return 'Value: {s.value}, Message: {s.msg}'.format(s=self)
 
 
 class InvalidArg(ValueError):

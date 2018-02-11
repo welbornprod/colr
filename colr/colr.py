@@ -786,6 +786,31 @@ class Colr(ChainedBase):
 
         return None
 
+    @classmethod
+    def _call_dunder_colr(cls, obj):
+        """ Call __colr__ on an object, after some checks.
+            If color is disabled, the object itself is returned.
+            If __colr__ doesn't return a Colr instance, TypeError is raised.
+            On success, a Colr instance is returned from obj.__colr__().
+        """
+        if _disabled:
+            # No colorization when disabled. Just use str.
+            return obj
+        clr = obj.__colr__()
+        if not isinstance(clr, cls):
+            # __colr__ should always return a Colr.
+            # Future development may assume a Colr was returned.
+            raise TypeError(
+                ' '.join((
+                    '__colr__ methods should return a {} instance.',
+                    'Got: {}',
+                )).format(
+                    cls.__name__,
+                    type(clr).__name__,
+                )
+            )
+        return clr
+
     def _ext_attr_to_partial(self, name, kwarg_key):
         """ Convert a string like '233' or 'aliceblue' into partial for
             self.chained.
@@ -1281,14 +1306,20 @@ class Colr(ChainedBase):
             Raises InvalidColr for invalid color names.
             The 'reset_all' code is appended if text is given.
         """
-        text = str(text) if text is not None else ''
-        if _disabled:
-            return text
         has_args = (
             (fore is not None) or
             (back is not None) or
             (style is not None)
         )
+        if hasattr(text, '__colr__') and not has_args:
+            # Use custom __colr__ method in the absence of arguments.
+            return str(self._call_dunder_colr(text))
+
+        # Stringify everything before operating on it.
+        text = str(text) if text is not None else ''
+        if _disabled:
+            return text
+
         # Considered to have unclosed codes if embedded codes exist and
         # the last code was not a color code.
         embedded_codes = get_codes(text)
