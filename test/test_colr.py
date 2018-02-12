@@ -19,6 +19,7 @@ from colr import (
     Colr,
     get_codes,
     InvalidColr,
+    InvalidFormatColr,
     name_data,
     strip_codes,
 )
@@ -81,6 +82,54 @@ class ColrTests(ColrTestCase):
                 'style': self.random_style(),
             },
         }
+
+    def example_format_args(self):
+        """ Return a dict of {example-arg-type: example-args} to be used
+            for testing Colr.__format__ specs.
+        """
+        # Converts actual RGB tuples into RGB strings suitable for __format__.
+        random_args = self.example_args()
+        for k in ('rgb-fore', 'rgb-fore-back', 'rgb-fore-back-style'):
+            random_args[k]['fore'] = ';'.join(
+                str(x) for x in random_args[k]['fore']
+            )
+            if random_args[k].get('back', None) is None:
+                continue
+            random_args[k]['back'] = ';'.join(
+                str(x) for x in random_args[k]['back']
+            )
+        return random_args
+
+    def example_format_specs(self, key):
+        """ Return a list of random format specs to be used for testing
+            Colr.__format__ specs.
+
+            Returns a dict of:
+                { 'arg-type': 'key:[format_spec]'}
+        """
+        argset = {
+            k: self.format_spec_from_args(key, **v)
+            for k, v in self.example_format_args().items()
+        }
+        argset['no-colors'] = '{{{}}}'.format(key)
+        return argset
+
+    def format_spec_from_args(self, key, **kwargs):
+        """ Create a Colr.__format__ spec from normal Colr arguments. """
+        return '{{{}:[{}]}}'.format(
+            key,
+            ', '.join(
+                '{}={}'.format(
+                    k,
+                    (
+                        ';'.join(str(x) for x in v)
+                        if isinstance(v, tuple)
+                        else v
+                    )
+                )
+                for k, v in kwargs.items()
+            )
+        )
 
     def has_closing_code(self, clr):
         """ Return True if a Colr() ends with a closing code. """
@@ -431,6 +480,48 @@ class ColrTests(ColrTestCase):
             expected,
             msg='Colr(\'{}\').format(Colr()) breaks formatting!',
         )
+
+    def test_format_color(self):
+        """ Colr.__format__ should accept Colr argument specs. """
+        test_key = 'x'
+        for argtype, argspec in self.example_format_specs(test_key).items():
+            fmt_args = {
+                test_key: Colr('Testing'),
+            }
+            argspec.format(**fmt_args)
+
+    def test_format_raises(self):
+        """ Colr.__format__ should raise InvalidFormatColr on bad colors.
+        """
+        bad_args = (
+            # Invalid name.
+            {'fore': 'not_a_color'},
+            # Invalid RGB (should be 0;0;0)
+            {'fore': 'red', 'back': '0,0,0'},
+            {'fore': 'red', 'back': 'black', 'style': 'not_a_style'},
+        )
+        test_key = 'x'
+        for args in bad_args:
+            spec = self.format_spec_from_args(test_key, **args)
+            with self.assertRaises(InvalidFormatColr):
+                spec.format(**{test_key: Colr('Test')})
+
+    def test_format_spec(self):
+        """ Colr.__format__ specs should match normal Colr use. """
+        test_key = 'x'
+        test_str = 'Testing'
+        for argtype, args in self.example_args().items():
+            clr = str(Colr(test_str, **args))
+            clrfmt = self.format_spec_from_args(test_key, **args).format(
+                **{test_key: Colr(test_str)}
+            )
+            # A Colr.__format__ spec with the same args as Colr(**args)
+            # should return the same colorized string.
+            self.assertEqual(
+                clrfmt,
+                clr,
+                msg='Colr.__format__ differs from Colr() with same args.',
+            )
 
     def test_getitem(self):
         """ Colr.__getitem__ should grab escape codes before and after. """

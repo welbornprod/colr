@@ -97,6 +97,7 @@ __all__ = [
     'get_terminal_size',
     'InvalidArg',
     'InvalidColr',
+    'InvalidFormatColr',
     'InvalidEscapeCode',
     'InvalidRgbEscapeCode',
     'InvalidStyle',
@@ -738,6 +739,62 @@ class Colr(ChainedBase):
             'str'
         ))
         return attrs
+
+    def __format__(self, fmt):
+        """ Allow format specs to apply to self.data.
+            This adds a few color-specific features to the format_spec,
+            not found in the `ChainedBase` class.
+            Note, if any conversion is done on the object beforehand
+            (using !s, !a, !r, and friends) this method is never called.
+            It only deals with the `format_spec` described in
+            `help('FORMATTING')`.
+        """
+        if not fmt:
+            return str(self)
+        if not ('[' in fmt) and (']' in fmt):
+            # No color specs found in the format.
+            return super().__format__(fmt)
+
+        # Has color specifications. Parse them out.
+        normal, _, spec = fmt.partition('[')
+        spec = spec.rstrip(']').strip().lower()
+        specargs = {}
+        # Shorter aliases to use with the spec keys.
+        aliases = {
+            'f': 'fore',
+            'b': 'back',
+            's': 'style',
+        }
+        for kvpairstr in spec.split(','):
+            kvpairstr = kvpairstr.strip()
+            if not kvpairstr:
+                continue
+            try:
+                k, v = kvpairstr.split('=')
+            except ValueError:
+                # This happens when extra commas are present, probably
+                # from a bad RGB color spec.
+                raise InvalidFormatColr(spec, kvpairstr)
+            # Handle any aliases that were used.
+            k = aliases.get(k, k)
+            # Handle RGB values.
+            if v.count(';') in (2, 3):
+                try:
+                    rgb = tuple(int(x) for x in v.split(';'))
+                except ValueError:
+                    raise InvalidFormatColr(spec, v) from None
+                specargs[k] = rgb
+            else:
+                specargs[k] = v
+
+        try:
+            clr = Colr(str(self), **specargs)
+        except InvalidColr as ex:
+            raise InvalidFormatColr(spec, ex.value) from None
+        if normal:
+            # Apply non-color-specific format specs from ChainedBase.
+            return super(self.__class__, clr).__format__(normal)
+        return str(clr)
 
     def __getattr__(self, attr):
         """ If the attribute matches a fore, back, or style name,
@@ -1793,6 +1850,10 @@ class InvalidArg(ValueError):
         self.label = label or self.default_label
         self.value = value
 
+    def __colr__(self):
+        """ Allows Colr(InvalidArg()) with default styling. """
+        return self.as_colr()
+
     def __str__(self):
         return self.default_format.format(
             label=self.label,
@@ -1837,7 +1898,7 @@ class InvalidColr(InvalidArg):
 
         return Colr(self.default_format.format(
             label=Colr(':\n    ').join(
-                Colr('Expecting colr name/value', **label_args),
+                Colr('Expecting color name/value', **label_args),
                 ',\n    '.join(
                     '{lbl:<5} ({val})'.format(
                         lbl=Colr(l, **type_args),
@@ -1847,6 +1908,70 @@ class InvalidColr(InvalidArg):
                 )
             ),
             value=Colr(repr(self.value), **value_args)
+        ))
+
+
+class InvalidFormatColr(InvalidColr):
+    """ A ValueError for when user passes an invalid colr name, value, rgb
+        for a Colr.__format__ spec.
+    """
+    accepted_values = (
+        ('hex', '[#]rgb/[#]rrggbb'),
+        ('name', 'white/black/etc.'),
+        ('rgb', '0-255; 0-255; 0-255'),
+        ('value', '0-255'),
+    )
+    default_label = 'Bad format spec. color name/value:\n    {types}'.format(
+        types=',\n    '.join(
+            '{lbl:<5} ({val})'.format(lbl=l, val=v)
+            for l, v in accepted_values
+        )
+    )
+    default_format = '{label}\n    Got: {value}\n    In spec: {spec}'
+
+    def __init__(self, spec, value):
+        super().__init__(value)
+        self.spec = spec
+
+    def __str__(self):
+        return self.default_format.format(
+            label=self.label,
+            value=repr(self.value),
+            spec=repr(self.spec),
+        )
+
+    def as_colr(
+            self, label_args=None, type_args=None, type_val_args=None,
+            value_args=None, spec_args=None):
+        """ Like __str__, except it returns a colorized Colr instance. """
+        label_args = label_args or {'fore': 'red'}
+        type_args = type_args or {'fore': 'yellow'}
+        type_val_args = type_val_args or {'fore': 'grey'}
+        value_args = value_args or {'fore': 'blue', 'style': 'bright'}
+        spec_args = spec_args or {'fore': 'blue'}
+        spec_repr = repr(self.spec)
+        spec_quote = spec_repr[0]
+        val_repr = repr(self.value)
+        val_quote = val_repr[0]
+        return Colr(self.default_format.format(
+            label=Colr(':\n    ').join(
+                Colr('Bad format spec. color name/value', **label_args),
+                ',\n    '.join(
+                    '{lbl:<5} ({val})'.format(
+                        lbl=Colr(l, **type_args),
+                        val=Colr(v, **type_val_args),
+                    )
+                    for l, v in self.accepted_values
+                )
+            ),
+            spec=Colr('=').join(
+                Colr(v, **spec_args)
+                for v in spec_repr[1:-1].split('=')
+            ).join((spec_quote, spec_quote)),
+            value=Colr(
+                val_repr[1:-1],
+                **value_args
+            ).join((val_quote, val_quote)),
         ))
 
 

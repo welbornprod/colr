@@ -130,7 +130,14 @@ class ChainedBase(object):
         return isinstance(other, self.__class__) and other.data == self.data
 
     def __format__(self, fmt):
-        """ Allow format specs to  apply to self.data """
+        """ Allow format specs to apply to self.data.
+            Note, if any conversion is done on the object beforehand
+            (using !s, !a, !r, and friends) this method is never called.
+            It only deals with the `format_spec` described in
+            `help('FORMATTING')`.
+        """
+        if not fmt:
+            return str(self)
         methodmap = {
             '<': self.ljust,
             '>': self.rjust,
