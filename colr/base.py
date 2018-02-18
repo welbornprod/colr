@@ -32,11 +32,13 @@
 """
 import re
 import sys
+from collections.abc import Sequence
 from contextlib import suppress
 from functools import total_ordering
 from time import sleep
 from types import GeneratorType
 from typing import (
+    Dict,
     List,
     Union,
 )
@@ -74,6 +76,68 @@ def get_codes(s: Union[str, 'ChainedBase']) -> List[str]:
     return codegrabpat.findall(str(s))
 
 
+def get_code_indices(s: Union[str, 'ChainedBase']) -> Dict[int, str]:
+    """ Retrieve a dict of {index: escape_code} for a given string.
+        If no escape codes are found, an empty dict is returned.
+    """
+    indices = {}
+    i = 0
+    codes = get_codes(s)
+    for code in codes:
+        codeindex = s.index(code)
+        realindex = i + codeindex
+        indices[realindex] = code
+        codelen = len(code)
+        i = realindex + codelen
+        s = s[codeindex + codelen:]
+    return indices
+
+
+def get_indices(s: Union[str, 'ChainedBase']) -> Dict[int, str]:
+    """ Retrieve a dict of characters and escape codes with their real index
+        into the string as the key.
+    """
+    codes = get_code_indices(s)
+    if not codes:
+        # This function is not for non-escape-code stuff, but okay.
+        return {i: c for i, c in enumerate(s)}
+
+    indices = {}
+    for codeindex in sorted(codes):
+        code = codes[codeindex]
+        if codeindex == 0:
+            indices[codeindex] = code
+            continue
+        # Grab characters before codeindex.
+        start = max(indices or {0: ''}, key=int)
+        startcode = indices.get(start, '')
+        startlen = start + len(startcode)
+        indices.update({i: s[i] for i in range(startlen, codeindex)})
+        indices[codeindex] = code
+
+    if not indices:
+        return {i: c for i, c in enumerate(s)}
+    lastindex = max(indices, key=int)
+    lastitem = indices[lastindex]
+    start = lastindex + len(lastitem)
+    textlen = len(s)
+    if start < (textlen - 1):
+        # Grab chars after last code.
+        indices.update({i: s[i] for i in range(start, textlen)})
+    return indices
+
+
+def get_indices_list(s: Union[str, 'ChainedBase']) -> List[str]:
+    """ Retrieve a list of characters and escape codes where each escape
+        code uses only one index. The indexes will not match up with the
+        indexes in the original string.
+    """
+    indices = get_indices(s)
+    return [
+        indices[i] for i in sorted(indices, key=int)
+    ]
+
+
 def is_escape_code(s: Union[str, 'ChainedBase']) -> bool:
     """ Returns True if `s` appears to be any kind of escape code. """
     return codepat.match(str(s)) is not None
@@ -87,7 +151,7 @@ def strip_codes(s: Union[str, 'ChainedBase']) -> str:
 
 
 @total_ordering
-class ChainedBase(object):
+class ChainedBase(Sequence):
     """ Base object for Colr and Control. Handles basic string-manipulation
         methods.
     """
@@ -398,6 +462,10 @@ class ChainedBase(object):
             str(data),
         ))
         return self
+
+    def index(self, sub, start=None, end=None):
+        """ A shortcut to self.data.index(). """
+        return self.data.index(sub, start, end)
 
     def iter_parts(self, text=None):
         """ Iterate over CodeParts and TextParts, in the order
