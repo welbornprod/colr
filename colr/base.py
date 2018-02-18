@@ -80,8 +80,10 @@ def is_escape_code(s: Union[str, 'ChainedBase']) -> bool:
 
 
 def strip_codes(s: Union[str, 'ChainedBase']) -> str:
-    """ Strip all color codes from a string. """
-    return codepat.sub('', str(s or ''))
+    """ Strip all color codes from a string.
+        Returns empty string for "falsey" inputs (except 0).
+    """
+    return codepat.sub('', str(s) if (s or (s == 0)) else '')
 
 
 @total_ordering
