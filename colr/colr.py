@@ -90,6 +90,7 @@ __all__ = [
     'extforeformat',
     'format_back',
     'format_fore',
+    'get_all_names',
     'get_code_num',
     'get_codes',
     'get_known_codes',
@@ -132,6 +133,11 @@ _namemap = (
     ('cyan', 6),
     ('white', 7)
 )  # type: Tuple[Tuple[str, int], ...]
+
+# Public list of names.
+basic_names = (
+    t[0] for t in _namemap
+)  # type: Tuple[str]
 
 # Map of base code -> style name/alias.
 _stylemap = (
@@ -383,6 +389,14 @@ def format_style(number: int) -> str:
     if str(number) not in _stylenums:
         raise InvalidStyle(number)
     return codeformat(number)
+
+
+def get_all_names() -> Tuple[str]:
+    """ Retrieve a tuple of all known color names, basic and 'known names'.
+    """
+    names = list(basic_names)
+    names.extend(name_data)
+    return tuple(sorted(set(names)))
 
 
 def get_code_num(s: str) -> Optional[int]:
