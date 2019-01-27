@@ -871,6 +871,71 @@ class ColrTests(ColrTestCase):
                 msg='Failed to strip characters from colorized Colr.',
             )
 
+    def test_justify(self):
+        """ Colr.ljust, .rjust, .center should have the correct length. """
+        testcases = (
+            {
+                'colr': Colr('.', 'grey'),
+                'width': 1,
+            },
+            {
+                'colr': Colr('test', 'red').join('<', '>', style='bright'),
+                # Characters in the string:
+                'width': 6,
+            },
+            {
+                'colr': Colr('test', 'red').join(
+                    ['this'] * 10,
+                    fore='blue',
+                    style='bright'
+                ),
+                # Programmatically doing this, to understand where it's from.
+                # 10 this, with 9 test joining them.
+                'width': (len('this') * 10) + (len('test') * 9),
+            },
+            {
+                'colr': Colr('test', 'red', back='blue', style='dim').join(
+                    '<', '>',
+                    fore='black',
+                    back='grey',
+                    style='bright',
+                ),
+                # Characters in the string:
+                'width': 6,
+            },
+            {
+                'colr': Colr('\n').join(
+                    Colr('test', 'red').join('<', '>', style='bright')
+                    for _ in range(10)
+                ),
+                # Programmatically doing this, to understand where it's from.
+                # 10 '<test>', with 9 '\n' joining them.
+                'width': (len('<test>') * 10) + (len('\n') * 9),
+            },
+        )
+        for testcase in testcases:
+            for testwidth in range(testcase['width'], 150):
+                for methodname in ('ljust', 'rjust', 'center'):
+                    testmeth = getattr(testcase['colr'], methodname)
+                    classmeth = getattr(Colr, methodname)
+                    cl = testmeth(testwidth)
+                    self.assertCallEqual(
+                        testwidth,
+                        len(cl.stripped()),
+                        func=classmeth,
+                        args=(cl, testwidth),
+                        msg='Failed to {} correctly.'.format(methodname),
+                    )
+                    self.assertCallEqual(
+                        cl.stripped().count(' '),
+                        testwidth - testcase['width'],
+                        func=classmeth,
+                        args=(cl, testwidth),
+                        msg='Failed to {} correctly, widths are wrong.'.format(
+                            methodname
+                        ),
+                    )
+
     def test_name_data(self):
         """ Colr should use name_data.names when all other style names fail.
         """
