@@ -43,7 +43,7 @@ from typing import (
     Union,
 )
 
-__version__ = '0.8.4'
+__version__ = '0.8.5'
 
 _codepats = (
     # Colors.
@@ -431,6 +431,11 @@ class ChainedBase(Sequence):
 
         return ''.join(str(x) for x in parts)
 
+    def append(self, char, length=1):
+        """ Append a char or str (`char`) a number of times (`length`). """
+        self.data = ''.join((self.data, (str(char) * length)))
+        return self
+
     def center(self, width, fillchar=' ', squeeze=False, **kwargs):
         """ s.center() doesn't work well on strings with color codes.
             This method will use .center() before colorizing the text.
@@ -462,6 +467,14 @@ class ChainedBase(Sequence):
             str(data),
         ))
         return self
+
+    def copy(self):
+        """ Return a copy of this instance, with the same data. """
+        return self.__class__(self.data)
+
+    def indent(self, length, char=' '):
+        """ Prepend `length` spaces (or `char`) to this instance. """
+        return self.prepend(char or ' ', length)
 
     def index(self, sub, start=None, end=None):
         """ A shortcut to self.data.index(). """
@@ -534,6 +547,11 @@ class ChainedBase(Sequence):
             they are discovered from `self.data`.
         """
         return list(self.iter_parts(text=text))
+
+    def prepend(self, char, length=1):
+        """ Prepend a char or str (`char`) a number of times (`length`). """
+        self.data = ''.join((str(char) * length, self.data))
+        return self
 
     def rjust(self, width, fillchar=' ', squeeze=False, **kwargs):
         """ s.rjust() doesn't work well on strings with color codes.

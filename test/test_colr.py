@@ -192,6 +192,21 @@ class ColrTests(ColrTestCase):
                     msg='str(Colr()) did not match.'
                 )
 
+    def test_append(self):
+        """ Colr.append should append a char, str, or Colr. """
+        colrnames = ('red', 'blue', 'black', 'white')
+        for i, name in enumerate(colrnames):
+            n = (i + 1) * 2
+            clr = Colr('test', name)
+            clr2 = clr.copy()
+            self.assertCallEqual(
+                clr.append(' ', length=n),
+                Colr('{}{}'.format(clr2, ' ' * n)),
+                func=Colr.append,
+                args=(' ', n),
+                msg='Failed to append properly.',
+            )
+
     def test_bytes(self):
         """ bytes(Colr()) should encode self.data. """
         s = 'test'
@@ -384,6 +399,31 @@ class ColrTests(ColrTestCase):
                 func=Colr,
                 args=argset,
                 msg='Failed to add closing code for falsey value.',
+            )
+
+    def test_copy(self):
+        """ Colr.copy() should return the same data with the same class. """
+        colrnames = ('red', 'white', 'blue', 'black')
+        for name in colrnames:
+            clr1 = Colr('test', name)
+            clr2 = clr1.copy()
+            self.assertCallEqual(
+                clr1,
+                clr2,
+                func=Colr.copy,
+                msg='Copy was not equal!',
+            )
+            self.assertCallEqual(
+                clr1.data,
+                clr2.data,
+                func=Colr.copy,
+                msg='Copy data was not equal!',
+            )
+            self.assertCallEqual(
+                hash(clr1),
+                hash(clr2),
+                func=Colr.copy,
+                msg='Copy hash was not equal!',
             )
 
     def test_format(self):
@@ -800,6 +840,21 @@ class ColrTests(ColrTestCase):
                 msg='Chained b_hex in rgb_mode did not match b_rgb.',
             )
 
+    def test_indent(self):
+        """ Colr.indent should indent a char, str, or Colr. """
+        colrnames = ('red', 'blue', 'black', 'white')
+        for i, name in enumerate(colrnames):
+            n = (i + 1) * 2
+            clr = Colr('test', name)
+            clr2 = clr.copy()
+            self.assertCallEqual(
+                clr.indent(n, char=' '),
+                Colr('{}{}'.format(' ' * n, clr2)),
+                func=Colr.indent,
+                args=(n, ' '),
+                msg='Failed to indent properly.',
+            )
+
     def test_iter(self):
         """ Colr should be iterable. """
         clr = Colr('This is a test.', 'red', 'blue', 'bright')
@@ -963,6 +1018,21 @@ class ColrTests(ColrTestCase):
             Colr,
             msg='Failed to create Colr from chained name_data method.'
         )
+
+    def test_prepend(self):
+        """ Colr.prepend should prepend a char, str, or Colr. """
+        colrnames = ('red', 'blue', 'black', 'white')
+        for i, name in enumerate(colrnames):
+            n = (i + 1) * 2
+            clr = Colr('test', name)
+            clr2 = clr.copy()
+            self.assertCallEqual(
+                clr.prepend(' ', length=n),
+                Colr('{}{}'.format(' ' * n, clr2)),
+                func=Colr.prepend,
+                args=(' ', n),
+                msg='Failed to prepend properly.',
+            )
 
     def test_rstrip(self):
         """ Colr.rstrip should strip characters and return another Colr. """

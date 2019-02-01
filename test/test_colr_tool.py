@@ -53,6 +53,7 @@ class ColrToolTests(ColrTestCase):
             '--help': False,
             '--listcodes': False,
             '--ljust': None,
+            '--names': False,
             '--newline': False,
             '--offset': None,
             '--rainbow': False,
