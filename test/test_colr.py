@@ -10,6 +10,7 @@
 import random
 import sys
 import unittest
+from contextlib import suppress
 
 from colr import (
     __version__,
@@ -115,17 +116,36 @@ class ColrTests(ColrTestCase):
         return argset
 
     def format_spec_from_args(self, key, **kwargs):
-        """ Create a Colr.__format__ spec from normal Colr arguments. """
-        return '{{{}:[{}]}}'.format(
-            key,
-            ', '.join(
-                '{}={}'.format(
-                    k,
-                    (
+        """ Create a Colr.__format__ spec from normal Colr arguments.
+            Arguments:
+                key        : Format key name to generate ('{key:[...]}').
+
+            Kwargs:
+                **All Colr args are accepted.
+
+            Extra kwargs:
+                shortform  : Whether to use the short form aliases
+                             (f, b, and s).
+        """
+        shortform = False
+        with suppress(KeyError):
+            shortform = kwargs.pop('shortform')
+        # Turn regular Colr args:
+        #   key == 'mycolr'
+        #   kwargs == {'fore': x, 'back': y, 'style': z}
+        # Into a usable Colr format spec:
+        #   '{mycolr:[fore=x, back=y, style=z}'
+        # ..and automatically handles RGB values versus other color values.
+        return '{{{key}:[{spec}]}}'.format(
+            key=key,
+            spec=', '.join(
+                '{styletype}={value}'.format(
+                    styletype=k[0] if shortform else k,
+                    value=(
                         ';'.join(str(x) for x in v)
-                        if isinstance(v, tuple)
+                        if isinstance(v, (list, tuple))
                         else v
-                    )
+                    ),
                 )
                 for k, v in kwargs.items()
             )
@@ -534,10 +554,13 @@ class ColrTests(ColrTestCase):
         """ Colr.__format__ should raise InvalidFormatColr on bad colors.
         """
         bad_args = (
-            # Invalid name.
+            # Invalid fore name.
             {'fore': 'not_a_color'},
+            # Invalid back name.
+            {'back': 'not_a_color'},
             # Invalid RGB (should be 0;0;0)
             {'fore': 'red', 'back': '0,0,0'},
+            # Invalid style name.
             {'fore': 'red', 'back': 'black', 'style': 'not_a_style'},
         )
         test_key = 'x'
@@ -552,11 +575,27 @@ class ColrTests(ColrTestCase):
         test_str = 'Testing'
         for argtype, args in self.example_args().items():
             clr = str(Colr(test_str, **args))
-            clrfmt = self.format_spec_from_args(test_key, **args).format(
+            clrfmt = self.format_spec_from_args(
+                test_key,
+                **args
+            ).format(
                 **{test_key: Colr(test_str)}
             )
             # A Colr.__format__ spec with the same args as Colr(**args)
             # should return the same colorized string.
+            self.assertEqual(
+                clrfmt,
+                clr,
+                msg='Colr.__format__ differs from Colr() with same args.',
+            )
+            # Test key aliases, (f, b, and s: fore, back, and style)
+            clrfmt = self.format_spec_from_args(
+                test_key,
+                shortform=True,
+                **args
+            ).format(
+                **{test_key: Colr(test_str)}
+            )
             self.assertEqual(
                 clrfmt,
                 clr,

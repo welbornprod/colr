@@ -327,3 +327,39 @@ Colr('*', 'blue') * 2
 Colr('*', 'blue') + Colr('*', 'blue')
 Colr('').join(Colr('*', 'blue'), Colr('*', 'blue'))
 ```
+
+## Special/Dunder Methods:
+
+`Colr` will recognize a dunder method (`__colr__`) on user classes.
+
+### object.\_\_colr\_\_
+
+User classes can specify a default `Colr` object to return when wrapped in
+a `Colr` call. Like `__str__` or `__bytes__`, `__colr__` methods should
+return a `Colr` object to use when `Colr` is called with no arguments on that
+object. If any other type is returned, a `TypeError` is raised.
+
+This only works when `Colr()` is called with no other styling arguments.
+
+
+```python
+from colr import Colr
+
+# Define a custom class, with default Colr styling.
+class ErrorTag(object):
+    def __str__(self):
+        """ Stringified version of this instance. """
+        return 'Error'
+
+    def __colr__(self):
+        """ Colrized version of this instance. """
+        return Colr('Error', 'red', style='bright')
+
+# Use the class with Colr.
+e = ErrorTag()
+
+# Prints a bright red 'Error', because no style arguments were passed.
+# This is the same as calling print(e.__colr__())
+print(Colr(e))
+
+```

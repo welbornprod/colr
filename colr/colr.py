@@ -755,9 +755,22 @@ class Colr(ChainedBase):
         return attrs
 
     def __format__(self, fmt):
-        """ Allow format specs to apply to self.data.
+        """ Allow format specs to apply to self.data, such as <, >, and ^.
             This adds a few color-specific features to the format_spec,
             not found in the `ChainedBase` class.
+            Colr format spec example:
+                '{:[fore=COLOR, back=COLOR, style=STYLE]}'
+                ..where COLOR is a stringified version of a valid color arg,
+                such as a known name, number, hex code, or RGB value (R;G;B).
+                RGB values should be separated with a semicolon, like:
+                    '{x:[fore=255;255;255]}'.format(x=Colr('test'))
+                Also, `f`,`b`, and `s` are accepted for `fore`, `back`,
+                and `style`.
+
+            Example:
+                'Hello {x:[fore=red, back=white, style=bright]}'.format(
+                    x=Colr('Test')
+                )
             Note, if any conversion is done on the object beforehand
             (using !s, !a, !r, and friends) this method is never called.
             It only deals with the `format_spec` described in
