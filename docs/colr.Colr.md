@@ -248,6 +248,7 @@ Justification works, ignoring any escape codes, just like the `str` methods:
 a format spec:
 
 ```python
+# 'Test' with a red fore color, white background color, and a bright style.
 'Hello {x:[fore=red, back=white, style=bright]}'.format(x=Colr('Test'))
 ```
 
@@ -255,13 +256,15 @@ Aliases were made for the `fore`, `back`, and `style` args for convenience.
 You can use `f`, `b`, and `s` instead:
 
 ```python
+# 'Test' with a red fore color, white background color, and a bright style.
 'Hello {:[f=red, b=white, s=bright]}'.format(Colr('Test'))
 ```
 
 All regular `Colr` argument types work, except the RGB values need to be
-separated by `';'` because the comma would cause confusion.
+separated by `;` because the comma would cause confusion.
 
 ```python
+# 'Test' with a white fore color, and a black background color.
 'Hello {:f=255;255;255, b=0;0;0]}'.format(Colr('Test'))
 ```
 

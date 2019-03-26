@@ -8,6 +8,7 @@
 """
 
 import os
+import re
 import subprocess
 import sys
 import unittest
@@ -26,7 +27,7 @@ colr_auto_disable()
 APPNAME = 'Colr'
 APPVERSION = colr_version
 NAME = '{} Test Runner'.format(APPNAME)
-VERSION = '0.0.1'
+VERSION = '0.0.2'
 VERSIONSTR = '{} v. {}'.format(NAME, VERSION)
 SCRIPT = os.path.split(os.path.abspath(sys.argv[0]))[1]
 SCRIPTDIR = os.path.abspath(sys.path[0])
@@ -35,10 +36,12 @@ USAGESTR = """{versionstr}
     Runs tests using `green` and provides a little more info.
 
     Usage:
-        {script} [-h | -l | -L | -v]
+        {script} [-h | -v]
         {script} [-d] [-s] TESTS...
+        {script} (-l | -L) [PATTERN...]
 
     Options:
+        PATTERN       : Regex/text pattern to match against test names.
         TESTS         : Test names for `green`.
         -d,--dryrun   : Just show test names.
         -h,--help     : Show this help message.
@@ -54,7 +57,12 @@ def main(argd):
     # Use the test directory when no args are given.
     green_exe = get_green_exe()
     if argd['--list'] or argd['--listall']:
-        return list_tests(full=argd['--listall'])
+        userpats = [
+            try_repat(s, default=None)
+            for s in argd['PATTERN']
+        ]
+
+        return list_tests(full=argd['--listall'], patterns=userpats)
     green_args = parse_test_names(argd['TESTS']) or ['test']
     if argd['--dryrun']:
         return print_test_names(green_args)
@@ -65,6 +73,41 @@ def main(argd):
     print_header(cmd)
 
     return subprocess.run(cmd).returncode
+
+
+def filter_test_info(patterns, test_info):
+    """ Filter info returned from `load_test_info` using a list of compiled
+        regex patterns. Only tests that match test method names, case names,
+        or module names are returned in the same format as `load_test_info()`.
+
+        If `patterns` is Falsey, the `test_info` is returned immediately.
+    """
+    if not patterns:
+        return test_info
+    filtered = {}
+    for modulename, cases in test_info.items():
+        keep_module = pats_search(patterns, modulename)
+        if keep_module:
+            filtered.setdefault(modulename, {})
+        casenames = {type(c).__name__: c for c in cases}
+        for casename in sorted(casenames):
+            case = casenames[casename]
+            keep_case = pats_search(patterns, casename)
+            if keep_case:
+                filtered.setdefault(modulename, {})
+                filtered[modulename].setdefault(case, [])
+            keepmethods = [
+                methodname
+                for methodname in sorted(cases[case])
+                if pats_search(patterns, methodname)
+            ]
+            if keepmethods:
+                # Add matching test methods, even if the module/case name
+                # did not match.
+                filtered.setdefault(modulename, {case: None})
+                filtered[modulename][case] = keepmethods
+
+    return filtered
 
 
 def get_green_exe():
@@ -157,24 +200,34 @@ def get_test_names(package='test'):
                 yield '.'.join((package, modulename, casename, methodname))
 
 
-def list_tests(package='test', full=False):
+def list_tests(package='test', full=False, patterns=None):
     """ List all discoverable tests. """
-    for modulename, cases in load_test_info(package=package).items():
+    test_info = filter_test_info(
+        patterns,
+        load_test_info(package=package),
+    )
+    for modulename, cases in test_info.items():
         modulefmt = C(modulename, 'blue', style='bright')
+        casenames = {type(c).__name__: c for c in cases}
         if not full:
             print(modulefmt(':'))
-        casenames = {type(c).__name__: c for c in cases}
         for casename in sorted(casenames):
-            case = cases[casenames[casename]]
+            methodnames = cases[casenames[casename]]
             casefmt = C(casename, 'cyan')
             if not full:
                 print('  {}'.format(casefmt))
-            for methodname in sorted(case):
+            for methodname in sorted(methodnames):
                 methodfmt = C(methodname, 'green')
                 if full:
                     print(C('.').join(modulefmt, casefmt, methodfmt))
                 else:
                     print('    {}'.format(methodfmt))
+            if full and (not methodnames):
+                # Methods were filtered out.
+                print(C('.').join(modulefmt, casefmt))
+        if full and (not casenames):
+            # Methods and cases were filtered out.
+            print(modulefmt)
 
     return 0
 
@@ -195,6 +248,7 @@ def load_test_info(package='test'):
             if not testmethods:
                 continue
             testinfo[modulename][case] = testmethods
+
     return testinfo
 
 
@@ -213,6 +267,18 @@ def parse_test_names(names):
                 fixed.add(testname)
                 names[i] = ''
     return sorted(fixed)
+
+
+def pats_search(patterns, s):
+    """ Returns a list of pattern matches against `s` for all regex patterns
+        in the `patterns` list.
+    """
+    matches = []
+    for p in patterns:
+        match = p.search(s)
+        if match is not None:
+            matches.append(match)
+    return matches
 
 
 def print_err(*args, **kwargs):
@@ -271,6 +337,21 @@ def print_test_names(names):
         print(C(name, 'blue'))
 
     return 0 if names else 1
+
+
+def try_repat(s, default=None):
+    """ Try compiling a regex pattern.
+        If `s` is Falsey, `default` is returned.
+        On errors, InvalidArg is raised.
+        On success, a compiled regex pattern is returned.
+    """
+    if not s:
+        return default
+    try:
+        p = re.compile(s, flags=re.IGNORECASE)
+    except re.error as ex:
+        raise InvalidArg('Invalid pattern: {}\n{}'.format(s, ex))
+    return p
 
 
 class InvalidArg(ValueError):

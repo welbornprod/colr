@@ -135,7 +135,7 @@ class ColrTests(ColrTestCase):
         #   kwargs == {'fore': x, 'back': y, 'style': z}
         # Into a usable Colr format spec:
         #   '{mycolr:[fore=x, back=y, style=z}'
-        # ..and automatically handles RGB values versus other color values.
+        # ..and automatically handle RGB values versus other color values.
         return '{{{key}:[{spec}]}}'.format(
             key=key,
             spec=', '.join(
@@ -631,9 +631,10 @@ class ColrTests(ColrTestCase):
         # Indexing after chaining.
         clr = Colr('test', 'red').blue('this').rgb(25, 25, 25, 'thing')
         stripped = clr.stripped()
-        self.assertGreater(
+        self.assertCallEqual(
             len(stripped),
-            6,
+            13,
+            func=Colr.stripped,
             msg='Stripped Colr was missing characters: {!r}'.format(stripped),
         )
         clr_s = clr[5]
