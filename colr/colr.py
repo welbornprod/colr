@@ -112,7 +112,13 @@ __all__ = [
 _disabled = False
 
 # Windows support relies on colorama (for now).
-if platform.system() == 'Windows':
+# If the environment variable 'COLR_NO_COLORAMA' is set to anything,
+# it will be disabled and Colr will run as it does on linux.
+use_colorama = (
+    (platform.system() == 'Windows') and
+    (not os.environ.get('COLR_NO_COLORAMA', None))
+)
+if use_colorama:
     try:
         from colorama import init as colorama_init
     except ImportError:
