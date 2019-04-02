@@ -90,6 +90,7 @@ __all__ = [
     'extforeformat',
     'format_back',
     'format_fore',
+    'get_all_names',
     'get_code_num',
     'get_codes',
     'get_known_codes',
@@ -97,6 +98,7 @@ __all__ = [
     'get_terminal_size',
     'InvalidArg',
     'InvalidColr',
+    'InvalidFormatColr',
     'InvalidEscapeCode',
     'InvalidRgbEscapeCode',
     'InvalidStyle',
@@ -110,7 +112,13 @@ __all__ = [
 _disabled = False
 
 # Windows support relies on colorama (for now).
-if platform.system() == 'Windows':
+# If the environment variable 'COLR_NO_COLORAMA' is set to anything,
+# it will be disabled and Colr will run as it does on linux.
+use_colorama = (
+    (platform.system() == 'Windows') and
+    (not os.environ.get('COLR_NO_COLORAMA', None))
+)
+if use_colorama:
     try:
         from colorama import init as colorama_init
     except ImportError:
@@ -131,6 +139,11 @@ _namemap = (
     ('cyan', 6),
     ('white', 7)
 )  # type: Tuple[Tuple[str, int], ...]
+
+# Public list of names.
+basic_names = (
+    t[0] for t in _namemap
+)  # type: Tuple[str]
 
 # Map of base code -> style name/alias.
 _stylemap = (
@@ -207,8 +220,8 @@ def _build_codes_reverse(
 
 
 def auto_disable(
-        enabled: Optional[bool]=True,
-        fds: Optional[Sequence[IO]]=(sys.stdout, sys.stderr)) -> None:
+        enabled: Optional[bool] = True,
+        fds: Optional[Sequence[IO]] = (sys.stdout, sys.stderr)) -> None:
     """ Automatically decide whether to disable color codes if stdout or
         stderr are not ttys.
 
@@ -256,9 +269,9 @@ def enabled() -> bool:
 
 def _format_code(
         number: FormatArg,
-        backcolor: Optional[bool]=False,
-        light: Optional[bool]=False,
-        extended: Optional[bool]=False) -> str:
+        backcolor: Optional[bool] = False,
+        light: Optional[bool] = False,
+        extended: Optional[bool] = False) -> str:
     """ Return an escape code for a fore/back color, by number.
         This is a convenience method for handling the different code types
         all in one shot.
@@ -343,8 +356,8 @@ def _format_code(
 
 def format_back(
         number: FormatArg,
-        light: Optional[bool]=False,
-        extended: Optional[bool]=False) -> str:
+        light: Optional[bool] = False,
+        extended: Optional[bool] = False) -> str:
     """ Return an escape code for a back color, by number.
         This is a convenience method for handling the different code types
         all in one shot.
@@ -360,8 +373,8 @@ def format_back(
 
 def format_fore(
         number: FormatArg,
-        light: Optional[bool]=False,
-        extended: Optional[bool]=False) -> str:
+        light: Optional[bool] = False,
+        extended: Optional[bool] = False) -> str:
     """ Return an escape code for a fore color, by number.
         This is a convenience method for handling the different code types
         all in one shot.
@@ -382,6 +395,14 @@ def format_style(number: int) -> str:
     if str(number) not in _stylenums:
         raise InvalidStyle(number)
     return codeformat(number)
+
+
+def get_all_names() -> Tuple[str]:
+    """ Retrieve a tuple of all known color names, basic and 'known names'.
+    """
+    names = list(basic_names)
+    names.extend(name_data)
+    return tuple(sorted(set(names)))
 
 
 def get_code_num(s: str) -> Optional[int]:
@@ -430,8 +451,8 @@ def get_code_num_rgb(s: str) -> Optional[Tuple[int, int, int]]:
 
 def get_known_codes(
         s: Union[str, 'Colr'],
-        unique: Optional[bool]=True,
-        rgb_mode: Optional[bool]=False):
+        unique: Optional[bool] = True,
+        rgb_mode: Optional[bool] = False):
     """ Get all known escape codes from a string, and yield the explanations.
     """
 
@@ -567,8 +588,8 @@ def in_range(x: int, minimum: int, maximum: int) -> bool:
 
 def parse_colr_arg(
         s: str,
-        default: Optional[Any]=None,
-        rgb_mode: Optional[bool]=False) -> ColorArg:
+        default: Optional[Any] = None,
+        rgb_mode: Optional[bool] = False) -> ColorArg:
     """ Parse a user argument into a usable fore/back color value for Colr.
         If a falsey value is passed, default is returned.
         Raises InvalidColr if the argument is unusable.
@@ -641,9 +662,9 @@ def parse_colr_arg(
 
 def try_parse_int(
         s: str,
-        default: Optional[Any]=None,
-        minimum: Optional[int]=None,
-        maximum: Optional[int]=None) -> Optional[Any]:
+        default: Optional[Any] = None,
+        minimum: Optional[int] = None,
+        maximum: Optional[int] = None) -> Optional[Any]:
     """ Try parsing a string into an integer.
         On failure, return `default`.
         If the number is less then `minimum` or greater than `maximum`,
@@ -678,11 +699,11 @@ class Colr(ChainedBase):
 
     def __init__(
             self,
-            text: Optional[str]=None,
-            fore: Optional[ColorArg]=None,
-            back: Optional[ColorArg]=None,
-            style: Optional[str]=None,
-            no_closing: Optional[bool]=False) -> None:
+            text: Optional[str] = None,
+            fore: Optional[ColorArg] = None,
+            back: Optional[ColorArg] = None,
+            style: Optional[str] = None,
+            no_closing: Optional[bool] = False) -> None:
         """ Initialize a Colr object with text and color options. """
         # Can be initialized with colored text, not required though.
         self.data = self.color(
@@ -739,6 +760,75 @@ class Colr(ChainedBase):
         ))
         return attrs
 
+    def __format__(self, fmt):
+        """ Allow format specs to apply to self.data, such as <, >, and ^.
+            This adds a few color-specific features to the format_spec,
+            not found in the `ChainedBase` class.
+            Colr format spec example:
+                '{:[fore=COLOR, back=COLOR, style=STYLE]}'
+                ..where COLOR is a stringified version of a valid color arg,
+                such as a known name, number, hex code, or RGB value (R;G;B).
+                RGB values should be separated with a semicolon, like:
+                    '{x:[fore=255;255;255]}'.format(x=Colr('test'))
+                Also, `f`,`b`, and `s` are accepted for `fore`, `back`,
+                and `style`.
+
+            Example:
+                'Hello {x:[fore=red, back=white, style=bright]}'.format(
+                    x=Colr('Test')
+                )
+            Note, if any conversion is done on the object beforehand
+            (using !s, !a, !r, and friends) this method is never called.
+            It only deals with the `format_spec` described in
+            `help('FORMATTING')`.
+        """
+        if not fmt:
+            return str(self)
+        if not ('[' in fmt) and (']' in fmt):
+            # No color specs found in the format.
+            return super().__format__(fmt)
+
+        # Has color specifications. Parse them out.
+        normal, _, spec = fmt.partition('[')
+        spec = spec.rstrip(']').strip().lower()
+        specargs = {}
+        # Shorter aliases to use with the spec keys.
+        aliases = {
+            'f': 'fore',
+            'b': 'back',
+            's': 'style',
+        }
+        for kvpairstr in spec.split(','):
+            kvpairstr = kvpairstr.strip()
+            if not kvpairstr:
+                continue
+            try:
+                k, v = kvpairstr.split('=')
+            except ValueError:
+                # This happens when extra commas are present, probably
+                # from a bad RGB color spec.
+                raise InvalidFormatColr(spec, kvpairstr)
+            # Handle any aliases that were used.
+            k = aliases.get(k, k)
+            # Handle RGB values.
+            if v.count(';') in (2, 3):
+                try:
+                    rgb = tuple(int(x) for x in v.split(';'))
+                except ValueError:
+                    raise InvalidFormatColr(spec, v) from None
+                specargs[k] = rgb
+            else:
+                specargs[k] = v
+
+        try:
+            clr = Colr(str(self), **specargs)
+        except InvalidColr as ex:
+            raise InvalidFormatColr(spec, ex.value) from None
+        if normal:
+            # Apply non-color-specific format specs from ChainedBase.
+            return super(self.__class__, clr).__format__(normal)
+        return str(clr)
+
     def __getattr__(self, attr):
         """ If the attribute matches a fore, back, or style name,
             return the color() function. Otherwise, return known
@@ -785,6 +875,31 @@ class Colr(ChainedBase):
             return self._ext_attr_to_partial(name, 'fore')
 
         return None
+
+    @classmethod
+    def _call_dunder_colr(cls, obj):
+        """ Call __colr__ on an object, after some checks.
+            If color is disabled, the object itself is returned.
+            If __colr__ doesn't return a Colr instance, TypeError is raised.
+            On success, a Colr instance is returned from obj.__colr__().
+        """
+        if _disabled:
+            # No colorization when disabled. Just use str.
+            return obj
+        clr = obj.__colr__()
+        if not isinstance(clr, cls):
+            # __colr__ should always return a Colr.
+            # Future development may assume a Colr was returned.
+            raise TypeError(
+                ' '.join((
+                    '__colr__ methods should return a {} instance.',
+                    'Got: {}',
+                )).format(
+                    cls.__name__,
+                    type(clr).__name__,
+                )
+            )
+        return clr
 
     def _ext_attr_to_partial(self, name, kwarg_key):
         """ Convert a string like '233' or 'aliceblue' into partial for
@@ -1281,14 +1396,20 @@ class Colr(ChainedBase):
             Raises InvalidColr for invalid color names.
             The 'reset_all' code is appended if text is given.
         """
-        text = str(text) if text is not None else ''
-        if _disabled:
-            return text
         has_args = (
             (fore is not None) or
             (back is not None) or
             (style is not None)
         )
+        if hasattr(text, '__colr__') and not has_args:
+            # Use custom __colr__ method in the absence of arguments.
+            return str(self._call_dunder_colr(text))
+
+        # Stringify everything before operating on it.
+        text = str(text) if text is not None else ''
+        if _disabled:
+            return text
+
         # Considered to have unclosed codes if embedded codes exist and
         # the last code was not a color code.
         embedded_codes = get_codes(text)
@@ -1762,6 +1883,10 @@ class InvalidArg(ValueError):
         self.label = label or self.default_label
         self.value = value
 
+    def __colr__(self):
+        """ Allows Colr(InvalidArg()) with default styling. """
+        return self.as_colr()
+
     def __str__(self):
         return self.default_format.format(
             label=self.label,
@@ -1806,7 +1931,7 @@ class InvalidColr(InvalidArg):
 
         return Colr(self.default_format.format(
             label=Colr(':\n    ').join(
-                Colr('Expecting colr name/value', **label_args),
+                Colr('Expecting color name/value', **label_args),
                 ',\n    '.join(
                     '{lbl:<5} ({val})'.format(
                         lbl=Colr(l, **type_args),
@@ -1816,6 +1941,70 @@ class InvalidColr(InvalidArg):
                 )
             ),
             value=Colr(repr(self.value), **value_args)
+        ))
+
+
+class InvalidFormatColr(InvalidColr):
+    """ A ValueError for when user passes an invalid colr name, value, rgb
+        for a Colr.__format__ spec.
+    """
+    accepted_values = (
+        ('hex', '[#]rgb/[#]rrggbb'),
+        ('name', 'white/black/etc.'),
+        ('rgb', '0-255; 0-255; 0-255'),
+        ('value', '0-255'),
+    )
+    default_label = 'Bad format spec. color name/value:\n    {types}'.format(
+        types=',\n    '.join(
+            '{lbl:<5} ({val})'.format(lbl=l, val=v)
+            for l, v in accepted_values
+        )
+    )
+    default_format = '{label}\n    Got: {value}\n    In spec: {spec}'
+
+    def __init__(self, spec, value):
+        super().__init__(value)
+        self.spec = spec
+
+    def __str__(self):
+        return self.default_format.format(
+            label=self.label,
+            value=repr(self.value),
+            spec=repr(self.spec),
+        )
+
+    def as_colr(
+            self, label_args=None, type_args=None, type_val_args=None,
+            value_args=None, spec_args=None):
+        """ Like __str__, except it returns a colorized Colr instance. """
+        label_args = label_args or {'fore': 'red'}
+        type_args = type_args or {'fore': 'yellow'}
+        type_val_args = type_val_args or {'fore': 'grey'}
+        value_args = value_args or {'fore': 'blue', 'style': 'bright'}
+        spec_args = spec_args or {'fore': 'blue'}
+        spec_repr = repr(self.spec)
+        spec_quote = spec_repr[0]
+        val_repr = repr(self.value)
+        val_quote = val_repr[0]
+        return Colr(self.default_format.format(
+            label=Colr(':\n    ').join(
+                Colr('Bad format spec. color name/value', **label_args),
+                ',\n    '.join(
+                    '{lbl:<5} ({val})'.format(
+                        lbl=Colr(l, **type_args),
+                        val=Colr(v, **type_val_args),
+                    )
+                    for l, v in self.accepted_values
+                )
+            ),
+            spec=Colr('=').join(
+                Colr(v, **spec_args)
+                for v in spec_repr[1:-1].split('=')
+            ).join((spec_quote, spec_quote)),
+            value=Colr(
+                val_repr[1:-1],
+                **value_args
+            ).join((val_quote, val_quote)),
         ))
 
 

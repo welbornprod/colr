@@ -47,7 +47,7 @@ except ImportError as ex:
     sys.exit(1)
 
 NAME = 'Progress Test Run'
-VERSION = '0.3.0'
+VERSION = '0.3.1'
 VERSIONSTR = '{} v. {}'.format(NAME, VERSION)
 SCRIPT = os.path.split(os.path.abspath(sys.argv[0]))[1]
 SCRIPTDIR = os.path.abspath(sys.path[0])
@@ -58,12 +58,10 @@ USAGESTR = """{versionstr}
 
     Usage:
         {script} -B | -e | -F | -h | -v
-        {script} [-d secs] [-D secs] [-E] [-p] [-P] [-c] [-s]
+        {script} [-d secs] [-D secs] [-E] [-a] [-p] [-P] [-c] [-s]
         {script} [-d secs] [-D secs] [-E] [-t secs] -b name...
         {script} [-d secs] [-D secs] [-E] [-t secs] -f name...
-        {script} [-d secs] [-D secs] [-E] -a [-r pattern]
-        {script} [-d secs] [-D secs] [-E] -p [-r pattern]
-
+        {script} [-d secs] [-D secs] [-E] (-a | -p) [-r pattern]
 
     Options:
         -B,--barnames             : List progress bar names.

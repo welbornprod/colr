@@ -154,6 +154,8 @@ This is a wrapper for docopt.docopt that also sets SCRIPT to `script`.
 
 Original docopt documentation follows:
     """
+    # docopt documentation is appended programmatically after this func def.
+
     global SCRIPT
     global ARGS_DESC, ARGS_HEADER, ARGS_LABEL, ARGS_OPTIONS
     global ARGS_SCRIPT, ARGS_VERSION

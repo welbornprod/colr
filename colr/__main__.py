@@ -26,6 +26,7 @@ from .colr import (
     codes,
     Colr as C,
     disabled,
+    get_all_names,
     get_code_num,
     get_known_codes,
     get_terminal_size,
@@ -74,8 +75,9 @@ USAGESTR = """{versionstr}
         {script} [TEXT] [-f fore] [-b back] [-s style] [-a] [-e]
              [-c num | -l num | -r num] [-n] -R [-o num]
              [-q num] [-w num] [-T] [-D]
-        {script} -x [TEXT] [-a] [-e] [-c num | -l num | -r num] [-n] [-D]
+        {script} -N [-D]
         {script} -t [-a] [CODE...] [-T] [-D]
+        {script} -x [TEXT] [-a] [-e] [-c num | -l num | -r num] [-n] [-D]
         {script} -z [-a] [-T] [-u] [TEXT] [-D]
 
     Options:
@@ -109,6 +111,7 @@ USAGESTR = """{versionstr}
                                     If '0' is given, terminal width is used.
                                     If a negative value is given, it will be
                                     subtracted from the terminal width.
+        -N,--names                : List all known color names.
         -n,--newline              : Do not append a newline character (\\n).
         -o num,--offset num       : Offset for start of rainbow.
                                     Default: random number between 0-255
@@ -139,6 +142,7 @@ USAGESTR = """{versionstr}
 
     Colors and style names can be given in any order when flags are used.
     Without using the flags, they must be given in order (fore, back, style).
+    Run `{script} --names` to get a list of all known color names.
 
 """.format(script=SCRIPT, versionstr=VERSIONSTR)  # noqa
 
@@ -172,7 +176,9 @@ def main(argd=None):
     if argd['--auto-disable']:
         auto_disable()
 
-    if argd['--translate']:
+    if argd['--names']:
+        return list_names()
+    elif argd['--translate']:
         # Just translate a simple code and exit.
         try:
             print('\n'.join(
@@ -336,6 +342,49 @@ def list_known_codes(s, unique=True, rgb_mode=False):
     codetype = ' unique' if unique else ''
     print('\nFound {}{} escape {}.'.format(total, codetype, plural))
     return 0 if total > 0 else 1
+
+
+def list_names():
+    """ List all known color names. """
+    names = get_all_names()
+    # This is 375 right now. Probably won't ever change, but I'm not sure.
+    nameslen = len(names)
+    print('\nListing {} names:\n'.format(nameslen))
+    # Using 3 columns of names, still alphabetically sorted from the top down.
+    # Longest name so far: lightgoldenrodyellow (20 chars)
+    namewidth = 20
+    # namewidth * columns == 60, colorwidth * columns == 18, final == 78.
+    swatch = ' ' * 9
+
+    third = nameslen // 3
+    lastthird = third * 2
+    cols = (
+        names[0: third],
+        names[third: lastthird],
+        names[lastthird:],
+    )
+    # Exactly enough spaces to fill in a blank item (+2 for ': ').
+    # This may not ever be used, unless another 'known name' is added.
+    blankitem = ' ' * (namewidth + len(swatch) + 2)
+
+    for i in range(third):
+        nameset = []
+        for colset in cols:
+            try:
+                nameset.append(colset[i])
+            except IndexError:
+                nameset.append(None)
+                continue
+        line = C('').join(
+            C(': ').join(
+                C(name.rjust(namewidth)),
+                C(swatch, back=name),
+            ) if name else blankitem
+            for name in nameset
+        )
+        print(line)
+
+    return 0
 
 
 def load_debug_deps():

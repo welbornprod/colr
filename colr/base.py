@@ -32,16 +32,18 @@
 """
 import re
 import sys
+from collections.abc import Sequence
 from contextlib import suppress
 from functools import total_ordering
 from time import sleep
 from types import GeneratorType
 from typing import (
+    Dict,
     List,
     Union,
 )
 
-__version__ = '0.8.1'
+__version__ = '0.8.6'
 
 _codepats = (
     # Colors.
@@ -61,10 +63,10 @@ closing_code = '\033[0m'
 
 # Used to strip escape codes from a string.
 codepat = re.compile(
-    '\033\[({})'.format('|'.join(_codepats))
+    r'\033\[({})'.format('|'.join(_codepats))
 )
 # Used to grab codes from a string.
-codegrabpat = re.compile('\033\[[\d;]+?m{1}')
+codegrabpat = re.compile(r'\033\[[\d;]+?m{1}')
 
 
 def get_codes(s: Union[str, 'ChainedBase']) -> List[str]:
@@ -74,18 +76,82 @@ def get_codes(s: Union[str, 'ChainedBase']) -> List[str]:
     return codegrabpat.findall(str(s))
 
 
+def get_code_indices(s: Union[str, 'ChainedBase']) -> Dict[int, str]:
+    """ Retrieve a dict of {index: escape_code} for a given string.
+        If no escape codes are found, an empty dict is returned.
+    """
+    indices = {}
+    i = 0
+    codes = get_codes(s)
+    for code in codes:
+        codeindex = s.index(code)
+        realindex = i + codeindex
+        indices[realindex] = code
+        codelen = len(code)
+        i = realindex + codelen
+        s = s[codeindex + codelen:]
+    return indices
+
+
+def get_indices(s: Union[str, 'ChainedBase']) -> Dict[int, str]:
+    """ Retrieve a dict of characters and escape codes with their real index
+        into the string as the key.
+    """
+    codes = get_code_indices(s)
+    if not codes:
+        # This function is not for non-escape-code stuff, but okay.
+        return {i: c for i, c in enumerate(s)}
+
+    indices = {}
+    for codeindex in sorted(codes):
+        code = codes[codeindex]
+        if codeindex == 0:
+            indices[codeindex] = code
+            continue
+        # Grab characters before codeindex.
+        start = max(indices or {0: ''}, key=int)
+        startcode = indices.get(start, '')
+        startlen = start + len(startcode)
+        indices.update({i: s[i] for i in range(startlen, codeindex)})
+        indices[codeindex] = code
+
+    if not indices:
+        return {i: c for i, c in enumerate(s)}
+    lastindex = max(indices, key=int)
+    lastitem = indices[lastindex]
+    start = lastindex + len(lastitem)
+    textlen = len(s)
+    if start < (textlen - 1):
+        # Grab chars after last code.
+        indices.update({i: s[i] for i in range(start, textlen)})
+    return indices
+
+
+def get_indices_list(s: Union[str, 'ChainedBase']) -> List[str]:
+    """ Retrieve a list of characters and escape codes where each escape
+        code uses only one index. The indexes will not match up with the
+        indexes in the original string.
+    """
+    indices = get_indices(s)
+    return [
+        indices[i] for i in sorted(indices, key=int)
+    ]
+
+
 def is_escape_code(s: Union[str, 'ChainedBase']) -> bool:
     """ Returns True if `s` appears to be any kind of escape code. """
     return codepat.match(str(s)) is not None
 
 
 def strip_codes(s: Union[str, 'ChainedBase']) -> str:
-    """ Strip all color codes from a string. """
-    return codepat.sub('', str(s or ''))
+    """ Strip all color codes from a string.
+        Returns empty string for "falsey" inputs (except 0).
+    """
+    return codepat.sub('', str(s) if (s or (s == 0)) else '')
 
 
 @total_ordering
-class ChainedBase(object):
+class ChainedBase(Sequence):
     """ Base object for Colr and Control. Handles basic string-manipulation
         methods.
     """
@@ -130,7 +196,14 @@ class ChainedBase(object):
         return isinstance(other, self.__class__) and other.data == self.data
 
     def __format__(self, fmt):
-        """ Allow format specs to  apply to self.data """
+        """ Allow format specs to apply to self.data.
+            Note, if any conversion is done on the object beforehand
+            (using !s, !a, !r, and friends) this method is never called.
+            It only deals with the `format_spec` described in
+            `help('FORMATTING')`.
+        """
+        if not fmt:
+            return str(self)
         methodmap = {
             '<': self.ljust,
             '>': self.rjust,
@@ -156,7 +229,7 @@ class ChainedBase(object):
     def __getitem__(self, key):
         """ Allow subscripting self.data. This will ignore any escape codes,
             because otherwise it would be just about useless.
-            Returns another Colr instance.
+            Returns another ChainedBase instance.
         """
         length = len(self.stripped())
         if isinstance(key, slice):
@@ -188,7 +261,6 @@ class ChainedBase(object):
                     )
                 break
             if part.is_code():
-                # print('PART: {!r}, POS: {}'.format(part, pos))
                 codeparts.append(part)
                 continue
             chars = []
@@ -210,8 +282,12 @@ class ChainedBase(object):
         return self.__class__(''.join(str(x) for x in parts))
 
     def __hash__(self):
-        """ A Colr's hash value is based on self.data. """
+        """ A ChainedBase's hash value is based on self.data. """
         return hash(str(self.data or ''))
+
+    def __iter__(self):
+        """ Iterating over a ChainedBase means iterating over self.data. """
+        return self.data.__iter__()
 
     def __len__(self):
         """ Return len() for any built up string data. This will count color
@@ -270,7 +346,7 @@ class ChainedBase(object):
         """ Perform a str justify method on the text arg, or self.data, before
             applying color codes.
             Arguments:
-                methodname  : Name of str method to apply.
+                methodname  : Name of str justification method to apply.
                 methodargs  : Arguments for the str method.
 
             Keyword Arguments:
@@ -355,10 +431,15 @@ class ChainedBase(object):
 
         return ''.join(str(x) for x in parts)
 
+    def append(self, char, length=1):
+        """ Append a char or str (`char`) a number of times (`length`). """
+        self.data = ''.join((self.data, (str(char) * length)))
+        return self
+
     def center(self, width, fillchar=' ', squeeze=False, **kwargs):
         """ s.center() doesn't work well on strings with color codes.
             This method will use .center() before colorizing the text.
-            Returns a Colr() object.
+            Returns a ChainedBase() object.
             Arguments:
                 width    : The width for the resulting string (before colors)
                 fillchar : The character to pad with. Default: ' '
@@ -387,6 +468,18 @@ class ChainedBase(object):
         ))
         return self
 
+    def copy(self):
+        """ Return a copy of this instance, with the same data. """
+        return self.__class__(self.data)
+
+    def indent(self, length, char=' '):
+        """ Prepend `length` spaces (or `char`) to this instance. """
+        return self.prepend(char or ' ', length)
+
+    def index(self, sub, start=None, end=None):
+        """ A shortcut to self.data.index(). """
+        return self.data.index(sub, start, end)
+
     def iter_parts(self, text=None):
         """ Iterate over CodeParts and TextParts, in the order
             they are discovered from `self.data`.
@@ -410,7 +503,7 @@ class ChainedBase(object):
             yield TextPart(s, start=0, stop=length)
 
     def join(self, *args, **colorkwargs):
-        """ Like str.join, except it returns a Colr.
+        """ Like str.join, except it returns a ChainedBase.
             Arguments:
                 args  : One or more ChainedBase or str objects.
                         If a list or tuple is given it will be flattened.
@@ -427,7 +520,7 @@ class ChainedBase(object):
     def ljust(self, width, fillchar=' ', squeeze=False, **kwargs):
         """ s.ljust() doesn't work well on strings with color codes.
             This method will use .ljust() before colorizing the text.
-            Returns a Colr() object.
+            Returns a ChainedBase() object.
             Arguments:
                 width    : The width for the resulting string (before colors)
                 fillchar : The character to pad with. Default: ' '
@@ -454,6 +547,11 @@ class ChainedBase(object):
             they are discovered from `self.data`.
         """
         return list(self.iter_parts(text=text))
+
+    def prepend(self, char, length=1):
+        """ Prepend a char or str (`char`) a number of times (`length`). """
+        self.data = ''.join((str(char) * length, self.data))
+        return self
 
     def rjust(self, width, fillchar=' ', squeeze=False, **kwargs):
         """ s.rjust() doesn't work well on strings with color codes.

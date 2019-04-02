@@ -230,6 +230,51 @@ Colr('test', 'blue') == Colr('test', 'blue')
 Colr('test', 'blue') != Colr('test', 'red')
 ```
 
+### Colr.\_\_format\_\_
+
+`Colr` instances can be left, right, or center justified using the format
+spec found in `help('FORMATTING')`, and can be colorized with a special
+format spec designed for the `Colr` class.
+
+
+Justification works, ignoring any escape codes, just like the `str` methods:
+```python
+'{:<40}'.format(Colr('Test')) == str(Colr('Test').ljust(40))
+'{:>40}'.format(Colr('Test')) == str(Colr('Test').rjust(40))
+'{:^80}'.format(Colr('Test')) == str(Colr('Test').center(80))
+```
+
+`Colr` instances can be formatted (wrapped in another `Colr`) by passing
+a format spec:
+
+```python
+# 'Test' with a red fore color, white background color, and a bright style.
+'Hello {x:[fore=red, back=white, style=bright]}'.format(x=Colr('Test'))
+```
+
+Aliases were made for the `fore`, `back`, and `style` args for convenience.
+You can use `f`, `b`, and `s` instead:
+
+```python
+# 'Test' with a red fore color, white background color, and a bright style.
+'Hello {:[f=red, b=white, s=bright]}'.format(Colr('Test'))
+```
+
+All regular `Colr` argument types work, except the RGB values need to be
+separated by `;` because the comma would cause confusion.
+
+```python
+# 'Test' with a white fore color, and a black background color.
+'Hello {:f=255;255;255, b=0;0;0]}'.format(Colr('Test'))
+```
+
+Mixing of the justification and color arguments also works:
+
+```python
+'{:^80[f=red, b=white]}'.format(Colr('Test')) == str(Colr('Test', 'red', 'white').center(80))
+```
+
+
 ### Colr.\_\_lt\_\_, \_\_gt\_\_, \_\_le\_\_, \_\_ge\_\_
 Escape codes are stripped for less-than/greater-than comparisons.
 
@@ -263,6 +308,18 @@ Hashing a `Colr` just means hashing `Colr().data`, but this works:
 hash(Colr('test', 'blue')) == hash(Colr('test', 'blue'))
 ```
 
+### Colr.\_\_iter\_\_
+
+Iterating over a `Colr` just means iterating over `Colr().data`:
+```python
+# Generator, equivalent to: str(Colr('test', 'blue'))
+s = ''.join(c for c in Colr('test', 'blue'))
+
+# For-loop, equivalent to: for c in str(Colr('test', 'blue'))
+for c in Colr('test', 'blue'):
+    print(c, end='')
+```
+
 ### Colr.\_\_mul\_\_
 
 `Colr` instances can be multiplied by an `int` to build color strings.
@@ -272,4 +329,40 @@ These are all equal:
 Colr('*', 'blue') * 2
 Colr('*', 'blue') + Colr('*', 'blue')
 Colr('').join(Colr('*', 'blue'), Colr('*', 'blue'))
+```
+
+## Special/Dunder Methods:
+
+`Colr` will recognize a dunder method (`__colr__`) on user classes.
+
+### object.\_\_colr\_\_
+
+User classes can specify a default `Colr` object to return when wrapped in
+a `Colr` call. Like `__str__` or `__bytes__`, `__colr__` methods should
+return a `Colr` object to use when `Colr` is called with no arguments on that
+object. If any other type is returned, a `TypeError` is raised.
+
+This only works when `Colr()` is called with no other styling arguments.
+
+
+```python
+from colr import Colr
+
+# Define a custom class, with default Colr styling.
+class ErrorTag(object):
+    def __str__(self):
+        """ Stringified version of this instance. """
+        return 'Error'
+
+    def __colr__(self):
+        """ Colrized version of this instance. """
+        return Colr('Error', 'red', style='bright')
+
+# Use the class with Colr.
+e = ErrorTag()
+
+# Prints a bright red 'Error', because no style arguments were passed.
+# This is the same as calling print(e.__colr__())
+print(Colr(e))
+
 ```

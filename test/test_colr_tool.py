@@ -53,6 +53,7 @@ class ColrToolTests(ColrTestCase):
             '--help': False,
             '--listcodes': False,
             '--ljust': None,
+            '--names': False,
             '--newline': False,
             '--offset': None,
             '--rainbow': False,
@@ -245,9 +246,7 @@ class ColrToolTests(ColrTestCase):
                 msg='Hex value failed with --truecolor.',
             )
         # Invalid color values should raise a InvalidColr.
-        argd['--truecolor'] = False
-
-        argd = {'TEXT': 'Hello World'}
+        argd = {'TEXT': 'Hello World', '--truecolor': False}
         badargsets = (
             {'FORE': 'ffooll', 'BACK': r.choice(self.valid_hex_vals)},
             {'BACK': 'oopsie', 'FORE': r.choice(self.valid_hex_vals)},

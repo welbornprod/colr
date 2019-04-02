@@ -10,6 +10,7 @@
 import random
 import sys
 import unittest
+from contextlib import suppress
 
 from colr import (
     __version__,
@@ -19,6 +20,7 @@ from colr import (
     Colr,
     get_codes,
     InvalidColr,
+    InvalidFormatColr,
     name_data,
     strip_codes,
 )
@@ -82,6 +84,73 @@ class ColrTests(ColrTestCase):
             },
         }
 
+    def example_format_args(self):
+        """ Return a dict of {example-arg-type: example-args} to be used
+            for testing Colr.__format__ specs.
+        """
+        # Converts actual RGB tuples into RGB strings suitable for __format__.
+        random_args = self.example_args()
+        for k in ('rgb-fore', 'rgb-fore-back', 'rgb-fore-back-style'):
+            random_args[k]['fore'] = ';'.join(
+                str(x) for x in random_args[k]['fore']
+            )
+            if random_args[k].get('back', None) is None:
+                continue
+            random_args[k]['back'] = ';'.join(
+                str(x) for x in random_args[k]['back']
+            )
+        return random_args
+
+    def example_format_specs(self, key):
+        """ Return a list of random format specs to be used for testing
+            Colr.__format__ specs.
+
+            Returns a dict of:
+                { 'arg-type': 'key:[format_spec]'}
+        """
+        argset = {
+            k: self.format_spec_from_args(key, **v)
+            for k, v in self.example_format_args().items()
+        }
+        argset['no-colors'] = '{{{}}}'.format(key)
+        return argset
+
+    def format_spec_from_args(self, key, **kwargs):
+        """ Create a Colr.__format__ spec from normal Colr arguments.
+            Arguments:
+                key        : Format key name to generate ('{key:[...]}').
+
+            Kwargs:
+                **All Colr args are accepted.
+
+            Extra kwargs:
+                shortform  : Whether to use the short form aliases
+                             (f, b, and s).
+        """
+        shortform = False
+        with suppress(KeyError):
+            shortform = kwargs.pop('shortform')
+        # Turn regular Colr args:
+        #   key == 'mycolr'
+        #   kwargs == {'fore': x, 'back': y, 'style': z}
+        # Into a usable Colr format spec:
+        #   '{mycolr:[fore=x, back=y, style=z}'
+        # ..and automatically handle RGB values versus other color values.
+        return '{{{key}:[{spec}]}}'.format(
+            key=key,
+            spec=', '.join(
+                '{styletype}={value}'.format(
+                    styletype=k[0] if shortform else k,
+                    value=(
+                        ';'.join(str(x) for x in v)
+                        if isinstance(v, (list, tuple))
+                        else v
+                    ),
+                )
+                for k, v in kwargs.items()
+            )
+        )
+
     def has_closing_code(self, clr):
         """ Return True if a Colr() ends with a closing code. """
         try:
@@ -142,6 +211,21 @@ class ColrTests(ColrTestCase):
                     s,
                     msg='str(Colr()) did not match.'
                 )
+
+    def test_append(self):
+        """ Colr.append should append a char, str, or Colr. """
+        colrnames = ('red', 'blue', 'black', 'white')
+        for i, name in enumerate(colrnames):
+            n = (i + 1) * 2
+            clr = Colr('test', name)
+            clr2 = clr.copy()
+            self.assertCallEqual(
+                clr.append(' ', length=n),
+                Colr('{}{}'.format(clr2, ' ' * n)),
+                func=Colr.append,
+                args=(' ', n),
+                msg='Failed to append properly.',
+            )
 
     def test_bytes(self):
         """ bytes(Colr()) should encode self.data. """
@@ -211,7 +295,61 @@ class ColrTests(ColrTestCase):
                 )
             )
 
-        # Should get the correct code type for the correct value.
+    def test_color_colr(self):
+        """ Colr.color should honor __colr__ methods. """
+        customtext = 'test'
+        custom = CustomUserClass(customtext)
+        try:
+            clr = Colr(custom)
+        except InvalidColr as ex:
+            self.fail(
+                'InvalidColr raised for valid custom class: {}'.format(
+                    ex
+                )
+            )
+        self.assertEqual(
+            clr,
+            Colr(customtext, **CustomUserClass.default_args),
+            msg='Colr.color failed for custom class with __colr__ method.',
+        )
+
+    def test_color_colr_override(self):
+        """ Colr.color should override __colr__ methods when asked. """
+        # Overriding the Colr call args disables __colr__ method.
+        customtext = 'test'
+        custom = CustomUserClass(customtext)
+        customargs = {'fore': 'red', 'back': 'white', 'style': 'underline'}
+        try:
+            clr = Colr(custom, **customargs)
+        except InvalidColr as ex:
+            self.fail(
+                'InvalidColr raised for valid custom class: {}'.format(
+                    ex
+                )
+            )
+        self.assertEqual(
+            clr,
+            Colr(customtext, **customargs),
+            msg='Colr.color failed to override custom class __colr__ method.',
+        )
+
+    def test_color_colr_typeerror(self):
+        """ Colr.color should raise TypeError when __colr__ returns non Colrs.
+        """
+        try:
+            Colr(CustomUserClass())
+        except TypeError as ex:
+            msg = 'Shouldn\'t raise TypeError for valid __colr__ method.'
+            self.fail(
+                '\n'.join((msg, str(ex)))
+            )
+
+        with self.assertRaises(TypeError):
+            Colr(CustomUserClassBad())
+
+    def test_color_correct_val(self):
+        """ Colr.color should get the correct code type for the correct value.
+        """
         self.assertTrue(
             is_code(str(Colr(' ', 'red')).split()[0])
         )
@@ -222,7 +360,10 @@ class ColrTests(ColrTestCase):
             is_rgb_code(str(Colr(' ', (0, 0, 255))).split()[0])
         )
 
-        # Should raise InvalidColr on invalid color name/value.
+    def test_color_invalid(self):
+        """ Colr.color should raise InvalidColr on invalid color name/value.
+        """
+        s = 'test'
         with self.assertRaises(InvalidColr):
             Colr(s, 'NOTACOLOR')
         with self.assertRaises(InvalidColr):
@@ -278,6 +419,31 @@ class ColrTests(ColrTestCase):
                 func=Colr,
                 args=argset,
                 msg='Failed to add closing code for falsey value.',
+            )
+
+    def test_copy(self):
+        """ Colr.copy() should return the same data with the same class. """
+        colrnames = ('red', 'white', 'blue', 'black')
+        for name in colrnames:
+            clr1 = Colr('test', name)
+            clr2 = clr1.copy()
+            self.assertCallEqual(
+                clr1,
+                clr2,
+                func=Colr.copy,
+                msg='Copy was not equal!',
+            )
+            self.assertCallEqual(
+                clr1.data,
+                clr2.data,
+                func=Colr.copy,
+                msg='Copy data was not equal!',
+            )
+            self.assertCallEqual(
+                hash(clr1),
+                hash(clr2),
+                func=Colr.copy,
+                msg='Copy hash was not equal!',
             )
 
     def test_format(self):
@@ -375,6 +541,67 @@ class ColrTests(ColrTestCase):
             msg='Colr(\'{}\').format(Colr()) breaks formatting!',
         )
 
+    def test_format_color(self):
+        """ Colr.__format__ should accept Colr argument specs. """
+        test_key = 'x'
+        for argtype, argspec in self.example_format_specs(test_key).items():
+            fmt_args = {
+                test_key: Colr('Testing'),
+            }
+            argspec.format(**fmt_args)
+
+    def test_format_raises(self):
+        """ Colr.__format__ should raise InvalidFormatColr on bad colors.
+        """
+        bad_args = (
+            # Invalid fore name.
+            {'fore': 'not_a_color'},
+            # Invalid back name.
+            {'back': 'not_a_color'},
+            # Invalid RGB (should be 0;0;0)
+            {'fore': 'red', 'back': '0,0,0'},
+            # Invalid style name.
+            {'fore': 'red', 'back': 'black', 'style': 'not_a_style'},
+        )
+        test_key = 'x'
+        for args in bad_args:
+            spec = self.format_spec_from_args(test_key, **args)
+            with self.assertRaises(InvalidFormatColr):
+                spec.format(**{test_key: Colr('Test')})
+
+    def test_format_spec(self):
+        """ Colr.__format__ specs should match normal Colr use. """
+        test_key = 'x'
+        test_str = 'Testing'
+        for argtype, args in self.example_args().items():
+            clr = str(Colr(test_str, **args))
+            clrfmt = self.format_spec_from_args(
+                test_key,
+                **args
+            ).format(
+                **{test_key: Colr(test_str)}
+            )
+            # A Colr.__format__ spec with the same args as Colr(**args)
+            # should return the same colorized string.
+            self.assertEqual(
+                clrfmt,
+                clr,
+                msg='Colr.__format__ differs from Colr() with same args.',
+            )
+            # Test key aliases, (f, b, and s: fore, back, and style)
+            clrfmt = self.format_spec_from_args(
+                test_key,
+                shortform=True,
+                **args
+            ).format(
+                **{test_key: Colr(test_str)}
+            )
+            self.assertEqual(
+                clrfmt,
+                clr,
+                msg='Colr.__format__ differs from Colr() with same args.',
+            )
+
     def test_getitem(self):
         """ Colr.__getitem__ should grab escape codes before and after. """
         # Simple string indexing, with color codes.
@@ -404,9 +631,10 @@ class ColrTests(ColrTestCase):
         # Indexing after chaining.
         clr = Colr('test', 'red').blue('this').rgb(25, 25, 25, 'thing')
         stripped = clr.stripped()
-        self.assertGreater(
+        self.assertCallEqual(
             len(stripped),
-            6,
+            13,
+            func=Colr.stripped,
             msg='Stripped Colr was missing characters: {!r}'.format(stripped),
         )
         clr_s = clr[5]
@@ -652,6 +880,39 @@ class ColrTests(ColrTestCase):
                 msg='Chained b_hex in rgb_mode did not match b_rgb.',
             )
 
+    def test_indent(self):
+        """ Colr.indent should indent a char, str, or Colr. """
+        colrnames = ('red', 'blue', 'black', 'white')
+        for i, name in enumerate(colrnames):
+            n = (i + 1) * 2
+            clr = Colr('test', name)
+            clr2 = clr.copy()
+            self.assertCallEqual(
+                clr.indent(n, char=' '),
+                Colr('{}{}'.format(' ' * n, clr2)),
+                func=Colr.indent,
+                args=(n, ' '),
+                msg='Failed to indent properly.',
+            )
+
+    def test_iter(self):
+        """ Colr should be iterable. """
+        clr = Colr('This is a test.', 'red', 'blue', 'bright')
+        self.assertEqual(
+            ''.join(c for c in clr),
+            clr.data,
+            msg='Colr was not iterable in generator expression.'
+        )
+
+        chars = []
+        for c in clr:
+            chars.append(c)
+        self.assertEqual(
+            ''.join(chars),
+            clr.data,
+            msg='Colr was not iterable in for-loop.'
+        )
+
     def test_lstrip(self):
         """ Colr.lstrip should strip characters and return another Colr. """
         teststrings = (
@@ -705,6 +966,71 @@ class ColrTests(ColrTestCase):
                 msg='Failed to strip characters from colorized Colr.',
             )
 
+    def test_justify(self):
+        """ Colr.ljust, .rjust, .center should have the correct length. """
+        testcases = (
+            {
+                'colr': Colr('.', 'grey'),
+                'width': 1,
+            },
+            {
+                'colr': Colr('test', 'red').join('<', '>', style='bright'),
+                # Characters in the string:
+                'width': 6,
+            },
+            {
+                'colr': Colr('test', 'red').join(
+                    ['this'] * 10,
+                    fore='blue',
+                    style='bright'
+                ),
+                # Programmatically doing this, to understand where it's from.
+                # 10 this, with 9 test joining them.
+                'width': (len('this') * 10) + (len('test') * 9),
+            },
+            {
+                'colr': Colr('test', 'red', back='blue', style='dim').join(
+                    '<', '>',
+                    fore='black',
+                    back='grey',
+                    style='bright',
+                ),
+                # Characters in the string:
+                'width': 6,
+            },
+            {
+                'colr': Colr('\n').join(
+                    Colr('test', 'red').join('<', '>', style='bright')
+                    for _ in range(10)
+                ),
+                # Programmatically doing this, to understand where it's from.
+                # 10 '<test>', with 9 '\n' joining them.
+                'width': (len('<test>') * 10) + (len('\n') * 9),
+            },
+        )
+        for testcase in testcases:
+            for testwidth in range(testcase['width'], 150):
+                for methodname in ('ljust', 'rjust', 'center'):
+                    testmeth = getattr(testcase['colr'], methodname)
+                    classmeth = getattr(Colr, methodname)
+                    cl = testmeth(testwidth)
+                    self.assertCallEqual(
+                        testwidth,
+                        len(cl.stripped()),
+                        func=classmeth,
+                        args=(cl, testwidth),
+                        msg='Failed to {} correctly.'.format(methodname),
+                    )
+                    self.assertCallEqual(
+                        cl.stripped().count(' '),
+                        testwidth - testcase['width'],
+                        func=classmeth,
+                        args=(cl, testwidth),
+                        msg='Failed to {} correctly, widths are wrong.'.format(
+                            methodname
+                        ),
+                    )
+
     def test_name_data(self):
         """ Colr should use name_data.names when all other style names fail.
         """
@@ -732,6 +1058,21 @@ class ColrTests(ColrTestCase):
             Colr,
             msg='Failed to create Colr from chained name_data method.'
         )
+
+    def test_prepend(self):
+        """ Colr.prepend should prepend a char, str, or Colr. """
+        colrnames = ('red', 'blue', 'black', 'white')
+        for i, name in enumerate(colrnames):
+            n = (i + 1) * 2
+            clr = Colr('test', name)
+            clr2 = clr.copy()
+            self.assertCallEqual(
+                clr.prepend(' ', length=n),
+                Colr('{}{}'.format(' ' * n, clr2)),
+                func=Colr.prepend,
+                args=(' ', n),
+                msg='Failed to prepend properly.',
+            )
 
     def test_rstrip(self):
         """ Colr.rstrip should strip characters and return another Colr. """
@@ -883,6 +1224,31 @@ class ColrTests(ColrTestCase):
             func=c.stripped,
             msg='Stripped Colr has different content.',
         )
+
+
+class CustomUserClass(object):
+    """ Example of a user class with a __colr__ method. Telling Colr.color
+        how to colorize it when no other arguments are given.
+    """
+    default_args = {'fore': 'blue', 'style': 'bright'}
+
+    def __init__(self, val=None, **kwargs):
+        self.val = str(val) if val is not None else 'Example string.'
+        self.colr_args = kwargs or self.default_args
+
+    def __colr__(self):
+        return Colr(self.val, **self.colr_args)
+
+    def __str__(self):
+        return self.val
+
+
+class CustomUserClassBad(object):
+    """ An example of a user class with a __colr__ method that misbehaves. """
+    def __colr__(self):
+        # This will raise a TypeError when Colr(self) is called!
+        # This is used in the ColrTests.color_colr_typeerror test.
+        return 'This is not a Colr.'
 
 
 if __name__ == '__main__':

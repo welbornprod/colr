@@ -173,8 +173,10 @@ class EscapeCode(object):
             times, joined by ';'.
             If `count` is less than 1, '' is returned.
         """
-        # Not using for-loop, because the id doesn't matter.
+        # Not using for-loop, because the id for each item doesn't matter.
         # This multiplication method is faster than [s for _ in range(count)].
+        # Tested with timeitcompare on my machine -Cj:
+        #   https://github.com/welbornprod/timeitcompare
         return self.__class__(';'.join([str(self)] * count))
 
     def write(self, file=sys.stdout):

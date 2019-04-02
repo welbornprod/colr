@@ -481,7 +481,7 @@ class Control(ChainedBase):
         """
         try:
             return self.__class__(''.join(str(self) * count))
-        except TypeError as ex:
+        except TypeError:
             raise TypeError(
                 '`count` must be an integer. Got: {!r}'.format(count)
             )

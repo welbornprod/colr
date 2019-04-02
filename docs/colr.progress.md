@@ -10,6 +10,7 @@ Section | Description
 [BarSet](#colrbarset) | Usage and examples for the `BarSet` object, a list of animation frames for the `ProgressBar` object.
 [FrameSet](#colrframeset) | Usage and examples for the `FrameSet` object, a list of animation frames for the `AnimatedProgress` object.
 [Frames](#colrframes) | A collection of `FrameSets` included with `Colr` by default.
+[ProgressBar](#colrprogressbar) | Usage and examples for the `ProgressBar` object.
 [StaticProgress](#colrstaticprogress) | Usage and examples for the `StaticProgress` object.
 
 ## colr.StaticProgress
@@ -21,6 +22,8 @@ the same line until stopped. The text can be updated by setting the `text`
 attribute.
 
 ### Example
+
+[![asciicast](https://asciinema.org/a/05btd2ncv99tl7z8i0aclw8yo.png)](https://asciinema.org/a/05btd2ncv99tl7z8i0aclw8yo)
 
 #### Basic Usage
 ```python
@@ -54,6 +57,8 @@ delay. There are some predefined [`FrameSet`](#colrframeset)s in the
 [`Frames`](#colrframes) class.
 
 ### Example
+
+[![asciicast](https://asciinema.org/a/d4d40krdo889epom8h7xdmd2h.png)](https://asciinema.org/a/d4d40krdo889epom8h7xdmd2h)
 
 #### Basic Usage
 ```python
@@ -97,6 +102,8 @@ There are some predefined [`BarSet`](#colrbarset) objects in the
 [`Bars`](#colrbars) class.
 
 ### Example
+
+[![asciicast](https://asciinema.org/a/0rasmlxavprwxfu84dnunwglv.png)](https://asciinema.org/a/0rasmlxavprwxfu84dnunwglv)
 
 #### Basic Usage
 ```python
