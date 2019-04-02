@@ -214,8 +214,8 @@ def _build_codes_reverse(
 
 
 def auto_disable(
-        enabled: Optional[bool]=True,
-        fds: Optional[Sequence[IO]]=(sys.stdout, sys.stderr)) -> None:
+        enabled: Optional[bool] = True,
+        fds: Optional[Sequence[IO]] = (sys.stdout, sys.stderr)) -> None:
     """ Automatically decide whether to disable color codes if stdout or
         stderr are not ttys.
 
@@ -263,9 +263,9 @@ def enabled() -> bool:
 
 def _format_code(
         number: FormatArg,
-        backcolor: Optional[bool]=False,
-        light: Optional[bool]=False,
-        extended: Optional[bool]=False) -> str:
+        backcolor: Optional[bool] = False,
+        light: Optional[bool] = False,
+        extended: Optional[bool] = False) -> str:
     """ Return an escape code for a fore/back color, by number.
         This is a convenience method for handling the different code types
         all in one shot.
@@ -350,8 +350,8 @@ def _format_code(
 
 def format_back(
         number: FormatArg,
-        light: Optional[bool]=False,
-        extended: Optional[bool]=False) -> str:
+        light: Optional[bool] = False,
+        extended: Optional[bool] = False) -> str:
     """ Return an escape code for a back color, by number.
         This is a convenience method for handling the different code types
         all in one shot.
@@ -367,8 +367,8 @@ def format_back(
 
 def format_fore(
         number: FormatArg,
-        light: Optional[bool]=False,
-        extended: Optional[bool]=False) -> str:
+        light: Optional[bool] = False,
+        extended: Optional[bool] = False) -> str:
     """ Return an escape code for a fore color, by number.
         This is a convenience method for handling the different code types
         all in one shot.
@@ -445,8 +445,8 @@ def get_code_num_rgb(s: str) -> Optional[Tuple[int, int, int]]:
 
 def get_known_codes(
         s: Union[str, 'Colr'],
-        unique: Optional[bool]=True,
-        rgb_mode: Optional[bool]=False):
+        unique: Optional[bool] = True,
+        rgb_mode: Optional[bool] = False):
     """ Get all known escape codes from a string, and yield the explanations.
     """
 
@@ -582,8 +582,8 @@ def in_range(x: int, minimum: int, maximum: int) -> bool:
 
 def parse_colr_arg(
         s: str,
-        default: Optional[Any]=None,
-        rgb_mode: Optional[bool]=False) -> ColorArg:
+        default: Optional[Any] = None,
+        rgb_mode: Optional[bool] = False) -> ColorArg:
     """ Parse a user argument into a usable fore/back color value for Colr.
         If a falsey value is passed, default is returned.
         Raises InvalidColr if the argument is unusable.
@@ -656,9 +656,9 @@ def parse_colr_arg(
 
 def try_parse_int(
         s: str,
-        default: Optional[Any]=None,
-        minimum: Optional[int]=None,
-        maximum: Optional[int]=None) -> Optional[Any]:
+        default: Optional[Any] = None,
+        minimum: Optional[int] = None,
+        maximum: Optional[int] = None) -> Optional[Any]:
     """ Try parsing a string into an integer.
         On failure, return `default`.
         If the number is less then `minimum` or greater than `maximum`,
@@ -693,11 +693,11 @@ class Colr(ChainedBase):
 
     def __init__(
             self,
-            text: Optional[str]=None,
-            fore: Optional[ColorArg]=None,
-            back: Optional[ColorArg]=None,
-            style: Optional[str]=None,
-            no_closing: Optional[bool]=False) -> None:
+            text: Optional[str] = None,
+            fore: Optional[ColorArg] = None,
+            back: Optional[ColorArg] = None,
+            style: Optional[str] = None,
+            no_closing: Optional[bool] = False) -> None:
         """ Initialize a Colr object with text and color options. """
         # Can be initialized with colored text, not required though.
         self.data = self.color(

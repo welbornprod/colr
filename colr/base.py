@@ -63,10 +63,10 @@ closing_code = '\033[0m'
 
 # Used to strip escape codes from a string.
 codepat = re.compile(
-    '\033\[({})'.format('|'.join(_codepats))
+    r'\033\[({})'.format('|'.join(_codepats))
 )
 # Used to grab codes from a string.
-codegrabpat = re.compile('\033\[[\d;]+?m{1}')
+codegrabpat = re.compile(r'\033\[[\d;]+?m{1}')
 
 
 def get_codes(s: Union[str, 'ChainedBase']) -> List[str]:

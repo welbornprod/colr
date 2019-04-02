@@ -339,7 +339,7 @@ def fix_hex(hexval: str) -> str:
     return hexval
 
 
-def hex2rgb(hexval: str, allow_short: bool=False) -> RGB:
+def hex2rgb(hexval: str, allow_short: bool = False) -> RGB:
     """ Return a tuple of (R, G, B) from a hex color. """
     if not hexval:
         raise ValueError(
@@ -377,12 +377,12 @@ def hex2rgb(hexval: str, allow_short: bool=False) -> RGB:
     return r, g, b
 
 
-def hex2term(hexval: str, allow_short: bool=False) -> str:
+def hex2term(hexval: str, allow_short: bool = False) -> str:
     """ Convert a hex value into the nearest terminal code number. """
     return rgb2term(*hex2rgb(hexval, allow_short=allow_short))
 
 
-def hex2termhex(hexval: str, allow_short: bool=False) -> str:
+def hex2termhex(hexval: str, allow_short: bool = False) -> str:
     """ Convert a hex value into the nearest terminal color matched hex. """
     return rgb2termhex(*hex2rgb(hexval, allow_short=allow_short))
 
@@ -454,7 +454,7 @@ def rgb2termhex(r: int, g: int, b: int) -> str:
     return rgb2hex(*res)
 
 
-def term2hex(code: Numeric, default: Optional[str]=None) -> str:
+def term2hex(code: Numeric, default: Optional[str] = None) -> str:
     """ Convenience function for term2hex_map.get(code, None).
         Accepts strs or ints in the form of: 1, 01, 123.
         Returns `default` if the code is not found.
@@ -487,8 +487,8 @@ class ColorCode(object):
 
     def __init__(
             self,
-            code: Optional[Any]=None,
-            rgb_mode: Optional[bool]=False) -> None:
+            code: Optional[Any] = None,
+            rgb_mode: Optional[bool] = False) -> None:
         self.rgb = (0, 0, 0)  # type: RGB
         self.hexval = None  # type: str
         self.code = None  # type: str
