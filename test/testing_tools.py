@@ -112,7 +112,9 @@ def format_func_sig(name, *args, **kwargs):
     )
 
 
-def func_name(level: Optional[int]=1, parent: Optional[Callable]=None) -> str:
+def func_name(
+        level: Optional[int] = 1,
+        parent: Optional[Callable] = None) -> str:
     """ Return the name of the function that is calling this function. """
     frame = inspect.currentframe()
     # Go back a number of frames (usually 1).

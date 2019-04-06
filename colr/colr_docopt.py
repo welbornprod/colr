@@ -126,82 +126,12 @@ def _docoptextras(help, version, options, doc):
 docopt.DocoptExit = _ColorDocoptExit
 docopt.extras = _docoptextras
 
-# Docopt is kinda dead now. docopt-ng has been accepting patches,
-# but the function signature has changed.
-use_docopt_ng = 'more_magic' in docopt.docopt.__code__.co_varnames
-
 # We still need to use docopt later.
 _old_docopt = docopt.docopt
 
 
-# Replacement function for docopt-ng.docopt.
-def docopt_ng_colr(
-        docstring=None, argv=None, default_help=None, version=None,
-        options_first=False, more_magic=False,
-        script=None, colors=None):
-    """
-This is a wrapper for docopt-ng.docopt that also sets SCRIPT to `script`.
-    When SCRIPT is set, it can be colorized for the usage string.
-    A dict of Colr options can be passed with `colors` to alter the
-    styles.
-    Available color options keys:
-        desc     : Colr args for the description of options.
-        label    : Colr args for the 'Usage:' and 'Options:' labels.
-        header   : Colr args for the top line (program name), and any
-                   other line that is not indented at all.
-        options  : Colr args for the options themselves ('-h,--help').
-        script   : Colr args for the script name, if found in the usage
-                   text.
-        version  : Colr args for the version when --version is used.
-
-    Example:
-        # `colors` only updates the default settings. You must override
-        # them to change ALL the settings.
-        argd = docopt(
-            ...,
-            script=SCRIPT,
-            colors={'script': {'fore': 'red'}}
-        )
-
-Original docopt documentation follows:
-    """
-    # docopt documentation is appended programmatically after this func def.
-
-    global SCRIPT
-    global ARGS_DESC, ARGS_HEADER, ARGS_LABEL, ARGS_OPTIONS
-    global ARGS_SCRIPT, ARGS_VERSION
-
-    SCRIPT = script
-    if colors:
-        # Setup colors, if any were given.
-        ARGS_DESC.update(
-            colors.get('desc', colors.get('description', {}))
-        )
-        ARGS_HEADER.update(colors.get('header', {}))
-        ARGS_LABEL.update(colors.get('label', {}))
-        ARGS_OPTIONS.update(colors.get('options', {}))
-        ARGS_SCRIPT.update(colors.get('script', {}))
-        ARGS_VERSION.update(colors.get('version', {}))
-
-    return _old_docopt(
-        docstring=docstring,
-        argv=argv,
-        default_help=help,
-        version=version,
-        options_first=options_first,
-        more_magic=more_magic,
-    )
-
-
-# Append old docopt() documentation to this wrapper's docs.
-docopt_ng_colr.__doc__ = '\n'.join((
-    docopt_ng_colr.__doc__,
-    _old_docopt.__doc__,
-))
-
-
 # Replacement function for original docopt.docopt.
-def docopt_colr(
+def docopt(
         doc, argv=None, help=True, version=None, options_first=False,
         script=None, colors=None):
     """
@@ -258,10 +188,4 @@ Original docopt documentation follows:
 
 
 # Append old docopt() documentation to this wrapper's docs.
-docopt_colr.__doc__ = '\n'.join((docopt_colr.__doc__, _old_docopt.__doc__))
-
-# Choose function signature to expose.
-if use_docopt_ng:
-    docopt = docopt_ng_colr
-else:
-    docopt = docopt_colr
+docopt.__doc__ = '\n'.join((docopt.__doc__, _old_docopt.__doc__))

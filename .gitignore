@@ -10,3 +10,4 @@ progress.depends.txt
 *.egg
 build
 sandbox.py
+use-docoptng.sh

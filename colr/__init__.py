@@ -84,7 +84,11 @@ from .progress_frames import (
 )
 
 try:
-    from .colr_docopt import docopt  # noqa
+    from .colr_docopt import (
+        docopt,
+        docopt_file,
+        docopt_version,
+    )
     has_docopt = True
 except ImportError:
     has_docopt = False

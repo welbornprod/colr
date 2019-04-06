@@ -1,3 +1,4 @@
+v0.8.7 04/06/19 -- Basic support for docopt-ng.
 v0.8.6 03/31/19 -- Doc/test updates.
 v0.8.5 01/31/19 -- Add append, prepend, indent, and copy methods.
 v0.8.3 02/18/18 -- Explicit Sequence inheritance, and char/code navigation helpers.
