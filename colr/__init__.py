@@ -170,3 +170,5 @@ __all__ = [
 ]
 if has_docopt:
     __all__.append('docopt')
+    __all__.append('docopt_version')
+    __all__.append('docopt_file')
