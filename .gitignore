@@ -11,3 +11,4 @@ progress.depends.txt
 build
 sandbox.py
 use-docoptng.sh
+*scratch_test.py

@@ -446,7 +446,38 @@ class ColrTests(ColrTestCase):
                 msg='Copy hash was not equal!',
             )
 
-    def test_format(self):
+    def test_format_colr(self):
+        """ Colr.__format__ should accept Colr argument specs. """
+        test_key = 'x'
+        for argtype, argspec in self.example_format_specs(test_key).items():
+            fmt_args = {
+                test_key: Colr('Testing'),
+            }
+            argspec.format(**fmt_args)
+
+    def test_format_colr_keyless(self):
+        """ Colr.__format__ should accept Colr argument specs without keys. """
+        spec_args = (
+            ('red', ),
+            ('red', 'black', ),
+            ('red', 'black', 'bold'),
+            ('255;255;255', ),
+            ('1;1;1,' '0;0;0', ),
+            ('1;1;1', '0;0;0', 'bright'),
+            ('#ffffff', ),
+            ('#ffffff', '#000000', ),
+            ('#ffffff', '#000000', 'dim'),
+        )
+        c = Colr('test')
+        specs = [
+            '{{c:[{spec}]}}'.format(spec=', '.join(args))
+            for args in spec_args
+        ]
+        for spec in specs:
+            # Should not raise.
+            spec.format(c=c)
+
+    def test_format_just(self):
         """ Colr.__format__ should use Colr.ljust and friends. """
         testformats = {
             '{:<10}': {
@@ -541,15 +572,6 @@ class ColrTests(ColrTestCase):
             msg='Colr(\'{}\').format(Colr()) breaks formatting!',
         )
 
-    def test_format_color(self):
-        """ Colr.__format__ should accept Colr argument specs. """
-        test_key = 'x'
-        for argtype, argspec in self.example_format_specs(test_key).items():
-            fmt_args = {
-                test_key: Colr('Testing'),
-            }
-            argspec.format(**fmt_args)
-
     def test_format_raises(self):
         """ Colr.__format__ should raise InvalidFormatColr on bad colors.
         """
@@ -566,7 +588,13 @@ class ColrTests(ColrTestCase):
         test_key = 'x'
         for args in bad_args:
             spec = self.format_spec_from_args(test_key, **args)
-            with self.assertRaises(InvalidFormatColr):
+            raisechk = self.assertCallRaises(
+                InvalidFormatColr,
+                func=spec.format,
+                kwargs={test_key: Colr('Test')},
+                msg='Failed to raise for spec: {!r}'.format(spec),
+            )
+            with raisechk:
                 spec.format(**{test_key: Colr('Test')})
 
     def test_format_spec(self):
