@@ -60,15 +60,27 @@ class ColrTests(ColrTestCase):
                 'style': self.random_style(),
             },
             'hex-fore': {
-                'fore': self.random_hex(),
+                'fore': self.random_hex(with_hash=False),
             },
             'hex-fore-back': {
-                'fore': self.random_hex(),
-                'back': self.random_hex(),
+                'fore': self.random_hex(with_hash=False),
+                'back': self.random_hex(with_hash=False),
             },
             'hex-fore-back-style': {
-                'fore': self.random_hex(),
-                'back': self.random_hex(),
+                'fore': self.random_hex(with_hash=False),
+                'back': self.random_hex(with_hash=False),
+                'style': self.random_style(),
+            },
+            'hex-hash-fore': {
+                'fore': self.random_hex(with_hash=True),
+            },
+            'hex-hash-fore-back': {
+                'fore': self.random_hex(with_hash=True),
+                'back': self.random_hex(with_hash=True),
+            },
+            'hex-hash-fore-back-style': {
+                'fore': self.random_hex(with_hash=True),
+                'back': self.random_hex(with_hash=True),
                 'style': self.random_style(),
             },
             'rgb-fore': {
@@ -165,9 +177,10 @@ class ColrTests(ColrTestCase):
         """ Return a random, but valid, fore/back argument from `codes`. """
         return random.choice(list(codes['fore']))
 
-    def random_hex(self):
+    def random_hex(self, with_hash=False):
         """ Return a random, but valid, hex argument. """
-        return rgb2hex(*self.random_rgb())
+        s = rgb2hex(*self.random_rgb())
+        return '#{}'.format(s) if with_hash else s
 
     def random_rgb(self):
         """ Return a random, but valid, RGB tuple arg. """
@@ -285,16 +298,28 @@ class ColrTests(ColrTestCase):
         """ Colr.color should accept valid color names/values. """
         # None of these should raise a InvalidColr.
         s = 'test'
-        try:
-            Colr(s, 'red')
-            Colr(s, 16)
-            Colr(s, (255, 0, 0))
-        except InvalidColr as ex:
-            self.fail(
-                'InvalidColr raised for valid color name/value: {}'.format(
-                    ex
+        for func in (Colr, Colr().color):
+            try:
+                func(s, 'red')
+                func(s, 16)
+                func(s, (255, 0, 0))
+            except InvalidColr as ex:
+                self.fail(
+                    'InvalidColr raised for valid color: {}'.format(
+                        ex
+                    )
                 )
-            )
+            # Test a larger set of color values.
+            for argtype, args in self.example_args().items():
+                try:
+                    func(s, **args)
+                except InvalidColr as ex:
+                    self.fail(
+                        'InvalidColr raised for valid args: {!r}\n{}'.format(
+                            args,
+                            ex,
+                        )
+                    )
 
     def test_color_colr(self):
         """ Colr.color should honor __colr__ methods. """
