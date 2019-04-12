@@ -191,7 +191,7 @@ class ColrTests(ColrTestCase):
             clr = Colr('Testing', 'blue')
             try:
                 newclr = clr + other
-            except TypeError as ex:
+            except TypeError:
                 self.fail(
                     'Colr + {} should not raise a TypeError.'.format(
                         othername
