@@ -98,6 +98,7 @@ __all__ = [
     'get_terminal_size',
     'InvalidArg',
     'InvalidColr',
+    'InvalidFormatArg',
     'InvalidFormatColr',
     'InvalidEscapeCode',
     'InvalidRgbEscapeCode',
@@ -1180,7 +1181,8 @@ class Colr(ChainedBase):
         # Shorter aliases to use with the spec keys.
         aliases = {s[0]: s for s in validkeys}
         # Stack of keys (in order of position) when not using spec-keys.
-        unused_keys = ['fore', 'back', 'style']
+        # They will be popped off as the values are parsed.
+        unused_keys = list(validkeys)
         for kvpairstr in spec.split(','):
             kvpairstr = kvpairstr.strip()
             if not kvpairstr:
@@ -1197,7 +1199,7 @@ class Colr(ChainedBase):
                     raise InvalidFormatArg(
                         spec,
                         kvpairstr,
-                        msg='Too many arguments/values.'
+                        msg='Too many arguments/values.',
                     ) from None
                 # Just a value was given, use the positional key for it.
                 v = kvpairstr
@@ -1409,7 +1411,7 @@ class Colr(ChainedBase):
     def chained(self, text=None, fore=None, back=None, style=None):
         """ Called by the various 'color' methods to colorize a single string.
             The RESET_ALL code is appended to the string unless text is empty.
-            Raises ValueError on invalid color names.
+            Raises InvalidColr on invalid color names.
 
             Arguments:
                 text  : String to colorize, or None for  BG/Style change.
@@ -1937,6 +1939,10 @@ class InvalidArg(ValueError):
         ))
 
 
+# TODO: Remove all of this dynamic stuff, and hard-code the format strings
+#       for each of the InvalidColr,InvalidFormatColr,InvalidFormatArg
+#       exceptions. They can still be custom-colored. They're not using
+#       inheritance very well anymore. They might as well be easier to read.
 class InvalidColr(InvalidArg):
     """ A ValueError for when user passes an invalid colr name, value, rgb.
     """
@@ -2059,9 +2065,14 @@ class InvalidFormatArg(InvalidFormatColr):
     """ A ValueError for when user passes an invalid key/value
         for a Colr.__format__ spec.
     """
+    accepted_keys = ('fore', 'back', 'style')
+    example_values = {s: '{}_arg'.format(s) for s in accepted_keys}
     accepted_values = (
-        ('keyed', 'fore=fore_arg, back=back_arg, style=style_arg'),
-        ('keyless', 'fore_arg, back_arg, style_arg'),
+        (
+            'keyed',
+            ', '.join('{}={}'.format(k, v) for k, v in example_values.items())
+        ),
+        ('keyless', ', '.join('{}_arg'.format(s) for s in accepted_keys)),
     )
     default_msg = 'Bad format spec. argument.'
     default_label = (
@@ -2072,6 +2083,63 @@ class InvalidFormatArg(InvalidFormatColr):
             )
         )
     )
+
+    def as_colr(
+            self, label_args=None, type_args=None, type_val_args=None,
+            value_args=None, spec_args=None):
+        """ Like __str__, except it returns a colorized Colr instance. """
+        label_args = label_args or {'fore': 'red'}
+        type_args = type_args or {'fore': 'yellow'}
+        type_val_args = type_val_args or {'fore': 'dimgrey'}
+        value_args = value_args or {'fore': 'blue', 'style': 'bright'}
+        spec_args = spec_args or {'fore': 'blue'}
+        key_args = {'fore': 'blue'}
+        spec_repr = repr(self.spec)
+        spec_quote = spec_repr[0]
+        val_repr = repr(self.value)
+        val_quote = val_repr[0]
+        colr_vals = (
+            (
+                'keyed',
+                ', '.join(
+                    '{}={}'.format(
+                        Colr(k, **key_args),
+                        Colr(v, **type_val_args)
+                    )
+                    for k, v in self.example_values.items())
+            ),
+            (
+                'keyless',
+                ', '.join(
+                    str(Colr('{}_arg'.format(s), **type_val_args))
+                    for s in self.accepted_keys
+                )
+            ),
+        )
+        return Colr(self.default_format.format(
+            label=Colr(':\n    ').join(
+                Colr(
+                    '{} Expecting'.format(self.msg or self.default_msg),
+                    **label_args
+                ),
+                ',\n    '.join(
+                    '{lbl:<8} [{val}]'.format(
+                        lbl=Colr(l, **type_args),
+                        val=v,
+                    )
+                    for l, v in colr_vals
+                )
+            ),
+            spec=Colr('=').join(
+                Colr(v, **spec_args)
+                for v in spec_repr[1:-1].split('=')
+            ).join((spec_quote, spec_quote)),
+            value=Colr(
+                val_repr[1:-1],
+                **value_args
+            ).join((val_quote, val_quote)),
+        ))
+
 
 class InvalidEscapeCode(InvalidArg):
     """ A ValueError for when an invalid escape code is given. """

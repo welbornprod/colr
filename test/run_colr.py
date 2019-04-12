@@ -378,8 +378,8 @@ def display_test_square_brackets(maxwidth=80):
     """
     colornames = list(codes['fore'])
     teststrings = (
-        (']', ),
-        (']' * 20, ),
+        (']', '1 bracket'),
+        (']' * 20, '20 brackets'),
         ('[bracket test]', ),
         ('[bracket test]', 'this'),
         ('[bracket test]', 'this', '[thing]'),

@@ -20,6 +20,7 @@ from colr import (
     Colr,
     get_codes,
     InvalidColr,
+    InvalidFormatArg,
     InvalidFormatColr,
     name_data,
     strip_codes,
@@ -580,8 +581,6 @@ class ColrTests(ColrTestCase):
             {'fore': 'not_a_color'},
             # Invalid back name.
             {'back': 'not_a_color'},
-            # Invalid RGB (should be 0;0;0)
-            {'fore': 'red', 'back': '0,0,0'},
             # Invalid style name.
             {'fore': 'red', 'back': 'black', 'style': 'not_a_style'},
         )
@@ -590,6 +589,26 @@ class ColrTests(ColrTestCase):
             spec = self.format_spec_from_args(test_key, **args)
             raisechk = self.assertCallRaises(
                 InvalidFormatColr,
+                func=spec.format,
+                kwargs={test_key: Colr('Test')},
+                msg='Failed to raise for spec: {!r}'.format(spec),
+            )
+            with raisechk:
+                spec.format(**{test_key: Colr('Test')})
+
+        bad_args = (
+            # Invalid RGB (should be 0;0;0)
+            {'fore': 'red', 'back': '0,0,0'},
+            # Invalid RGB (should be 0;0;0)
+            {'fore': '0,0,0', 'back': 'black'},
+            # Invalid style.
+            {'fore': 'red', 'back': 'black', 'style': '0,0,0'},
+        )
+        test_key = 'x'
+        for args in bad_args:
+            spec = self.format_spec_from_args(test_key, **args)
+            raisechk = self.assertCallRaises(
+                InvalidFormatArg,
                 func=spec.format,
                 kwargs={test_key: Colr('Test')},
                 msg='Failed to raise for spec: {!r}'.format(spec),
