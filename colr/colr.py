@@ -1961,6 +1961,7 @@ class InvalidColr(InvalidArg):
     default_format = '{label}\n    Got: {value}'
 
     def __colr__(self):
+        """ Like __str__, except it returns a colorized Colr instance. """
         return self.as_colr()
 
     def as_colr(
@@ -2006,7 +2007,7 @@ class InvalidFormatColr(InvalidColr):
             )
         )
     )
-    default_format = '{label}\n    Got: {value}\n    In spec: {spec}'
+    default_format = '{label}\nGot: {value}\nIn spec: {spec}'
 
     def __init__(self, spec, value, msg=None):
         super().__init__(value)
