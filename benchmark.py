@@ -80,6 +80,9 @@ default_frames = (
     Frames.dots.prepend(' ' * 9).append(' ').as_rainbow()
 )
 
+# Difference between benchmarks before they are "marked".
+max_diff = 0.005
+
 
 def main(argd):
     """ Main entry point, expects docopt arg dict as argd. """
@@ -91,20 +94,36 @@ def main(argd):
         return list_benchmarks()
     return run_benchmarks(
         pattern=try_repat(argd['PATTERN'], default=None),
-        repeat=parse_int(argd['--repeat'], default=DEFAULT_REPEAT),
-        number=parse_int(argd['--number'], default=DEFAULT_NUMBER),
+        repeat=max(1, parse_int(argd['--repeat'], default=DEFAULT_REPEAT)),
+        number=max(100, parse_int(argd['--number'], default=DEFAULT_NUMBER)),
         save=argd['--save'],
     )
 
 
 def bench_Colr(repeat=None, number=None):
     argsets = (
-        {'args': ('fore', 'red')},
-        {'args': ('fore bold', ), 'kwargs': {'style': 'bold'}},
+        {'args': ('this', 'red')},
+        {'args': ('this thing', ), 'kwargs': {'style': 'bold'}},
         (
-            {'args': ('fore', 'red')},
-            {'args': ('bold', ), 'kwargs': {'style': 'bold'}}
+            {'args': ('this', 'red')},
+            {'args': ('thing', ), 'kwargs': {'style': 'bold'}}
         ),
+        {
+            'args': ('this', 'red'),
+            'method': {
+                'bold': {'args': (' thing', )},
+            },
+        },
+        {
+            'method': {
+                'red': {
+                    'args': ('this', ),
+                    'method': {
+                        'bold': {'args': (' thing', )},
+                    },
+                },
+            }
+        }
     )
     for argset in argsets:
         if not isinstance(argset, (list, tuple)):
@@ -119,11 +138,11 @@ def bench_Colr(repeat=None, number=None):
 
 def bench_color(repeat=None, number=None):
     argsets = (
-        {'args': ('fore', 'red')},
-        {'args': ('fore bold', ), 'kwargs': {'style': 'bold'}},
+        {'args': ('this', 'red')},
+        {'args': ('this thing', ), 'kwargs': {'style': 'bold'}},
         (
-            {'args': ('fore', 'red')},
-            {'args': ('bold', ), 'kwargs': {'style': 'bold'}}
+            {'args': ('this', 'red')},
+            {'args': ('thing', ), 'kwargs': {'style': 'bold'}}
         ),
     )
     for argset in argsets:
@@ -173,7 +192,7 @@ def format_result(name, time, code, indent=4):
     """ Format a timing result for printing. """
     codefmt = format_code(code)
     prevtime = config['times'][git_branch].get(name, {}).get(code, None)
-    if (prevtime is not None) and (time - prevtime > 0.0005):
+    if (prevtime is not None) and ((time - prevtime) > max_diff):
         timeargs = {'fore': 'red', 'style': 'bright'}
     else:
         timeargs = {'fore': 'cyan'}
@@ -269,7 +288,7 @@ def run_bench_set(func, repeat=None, number=None, save=False):
     namefmt = C(name, 'blue', style='bright')
     label = f'{namefmt}:'
     print(f'\n{label}')
-    for code, time in func():
+    for code, time in func(repeat=repeat, number=number):
         print(format_result(name, time, code))
         if save:
             config['times'][git_branch][name][code] = time
@@ -308,13 +327,15 @@ def time_code(code_builder, *argsets, repeat=None, number=None):
         frames=default_frames,
         show_time=False,
     )
+    repeat = repeat or DEFAULT_REPEAT
+    number = number or DEFAULT_NUMBER
     with progress:
-        result = min(
-            t.repeat(
-                repeat=repeat or DEFAULT_REPEAT,
-                number=number or DEFAULT_NUMBER,
-            )
+        results = t.repeat(
+            repeat=repeat,
+            number=number,
         )
+        result = sum(results) / repeat
+    progress.stop()
     return code, result
 
 
@@ -367,10 +388,11 @@ class ArgStr(object):
         return f'{self.func_name}({fullargs})'
 
     def add_method(self, method_name, argset):
+        validate_argsets(argset)
         self.func_name = f'{str(self)}.{method_name}'
         self.args = argset.get('args', [])
         self.kwargs = argset.get('kwargs', {})
-        self.add_methods(argset.get('methods', {}))
+        self.add_methods(argset.get('method', {}))
         return self
 
     def add_methods(self, method_argsets):
@@ -385,7 +407,7 @@ class ArgStr(object):
             *(argset.get('args', [])),
             **(argset.get('kwargs', {})),
         )
-        return cls.add_methods(argset.get('methods', {}))
+        return cls.add_methods(argset.get('method', {}))
 
 
 class InvalidArg(ValueError):
