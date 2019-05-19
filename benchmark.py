@@ -17,14 +17,18 @@ from pygments import highlight
 from pygments.lexers import get_lexer_by_name
 from pygments.formatters import Terminal256Formatter
 
-from colr import (
+from colr import (  # noqa (color is eval'd later)
     AnimatedProgress,
-    Colr as C,
+    Colr,
     Frames,
+    color,
     docopt,
 )
 from easysettings import load_json_settings
 from printdebug import DebugColrPrinter
+
+# Shorter alias.
+C = Colr
 
 NAME = 'Colr - Benchmarks'
 VERSION = '0.0.1'
@@ -123,7 +127,16 @@ def bench_Colr(repeat=None, number=None):
                     },
                 },
             }
-        }
+        },
+        {
+            'args': ('this', 'red'),
+            'method': {
+                '': {
+                    'args': (' thing', ),
+                    'kwargs': {'style': 'bold'},
+                },
+            },
+        },
     )
     for argset in argsets:
         if not isinstance(argset, (list, tuple)):
@@ -198,7 +211,9 @@ def format_result(name, time, code, indent=4):
         timeargs = {'fore': 'cyan'}
     timefmt = C('').join(C(f'{time:>3.3f}', **timeargs), C('s', 'dimgrey'))
     indent = ' ' * indent
-    return f'{indent}{timefmt}: {codefmt}'
+    eq = C('==', 'green')
+    coderesult = eval(code)
+    return f'{indent}{timefmt}: {codefmt} {eq} {coderesult}'
 
 
 def get_bench_name(func):
@@ -255,7 +270,6 @@ def list_benchmarks():
                 count += 1
 
     if not count:
-        print_err('No benchmarks have been saved.')
         return 1
     return 0
 
@@ -389,7 +403,8 @@ class ArgStr(object):
 
     def add_method(self, method_name, argset):
         validate_argsets(argset)
-        self.func_name = f'{str(self)}.{method_name}'
+        joiner = '.' if method_name else ''
+        self.func_name = f'{str(self)}{joiner}{method_name}'
         self.args = argset.get('args', [])
         self.kwargs = argset.get('kwargs', {})
         self.add_methods(argset.get('method', {}))
