@@ -8,18 +8,23 @@
 
 import os
 import re
+import subprocess
 import sys
 from timeit import Timer
 from types import FunctionType
 
-from colr import (
-    Colr as C,
-    docopt,
-)
-from printdebug import DebugColrPrinter
 from pygments import highlight
 from pygments.lexers import get_lexer_by_name
 from pygments.formatters import Terminal256Formatter
+
+from colr import (
+    AnimatedProgress,
+    Colr as C,
+    Frames,
+    docopt,
+)
+from easysettings import load_json_settings
+from printdebug import DebugColrPrinter
 
 NAME = 'Colr - Benchmarks'
 VERSION = '0.0.1'
@@ -27,13 +32,14 @@ VERSIONSTR = '{} v. {}'.format(NAME, VERSION)
 SCRIPT = os.path.split(os.path.abspath(sys.argv[0]))[1]
 SCRIPTDIR = os.path.abspath(sys.path[0])
 
+CONFIG_FILE = os.path.join(SCRIPTDIR, 'benchmarks.json')
 DEFAULT_REPEAT = 3
 DEFAULT_NUMBER = 10000
 
 USAGESTR = """{versionstr}
     Usage:
         {script} -h | -v
-        {script} [-D] [-n num] [-r num] [PATTERN]
+        {script} [-D] [-n num] [-r num] [-S] [PATTERN]
 
     Options:
         PATTERN              : Text/regex pattern to match against benchmark
@@ -45,6 +51,7 @@ USAGESTR = """{versionstr}
                                Default: {default_num}
         -r num,--repeat num  : Number of time to repeat the time test.
                                Default: {default_repeat}
+        -S,--save            : Save the benchmark results in benchmarks.json.
         -v,--version         : Show version.
 """.format(
     default_num=DEFAULT_NUMBER,
@@ -61,11 +68,29 @@ debug_err = debugprinter.debug_err
 pygments_lexer = get_lexer_by_name('python3')
 pygments_formatter = Terminal256Formatter(bg='dark', style='monokai')
 
+config = load_json_settings(CONFIG_FILE, default={'times': {}})
+
+# Global git branch being worked on, set in `main()`.
+git_branch = None
+
+# An indented, rainbowed, dots Frame.
+default_frames = (
+    Frames.dots.prepend(' ' * 9).append(' ').as_rainbow()
+)
+
 
 def main(argd):
     """ Main entry point, expects docopt arg dict as argd. """
+    global git_branch
     debugprinter.enable(argd['--debug'])
-    return run_benchmarks(pattern=argd['PATTERN'])
+    git_branch = get_git_branch()
+    config['times'].setdefault(git_branch, {})
+    return run_benchmarks(
+        pattern=try_repat(argd['PATTERN'], default=None),
+        repeat=parse_int(argd['--repeat'], default=DEFAULT_REPEAT),
+        number=parse_int(argd['--number'], default=DEFAULT_NUMBER),
+        save=argd['--save'],
+    )
 
 
 def bench_Colr(repeat=None, number=None):
@@ -77,14 +102,15 @@ def bench_Colr(repeat=None, number=None):
             {'args': ('bold', ), 'kwargs': {'style': 'bold'}}
         ),
     )
-    results = []
     for argset in argsets:
         if not isinstance(argset, (list, tuple)):
             argset = (argset, )
-        results.append(
-            time_code(build_code_Colr, *argset, repeat=repeat, number=number)
+        yield time_code(
+            build_code_Colr,
+            *argset,
+            repeat=repeat,
+            number=number,
         )
-    return results
 
 
 def bench_color(repeat=None, number=None):
@@ -96,14 +122,15 @@ def bench_color(repeat=None, number=None):
             {'args': ('bold', ), 'kwargs': {'style': 'bold'}}
         ),
     )
-    results = []
     for argset in argsets:
         if not isinstance(argset, (list, tuple)):
             argset = (argset, )
-        results.append(
-            time_code(build_code_color, *argset, repeat=repeat, number=number)
+        yield time_code(
+            build_code_color,
+            *argset,
+            repeat=repeat,
+            number=number,
         )
-    return results
 
 
 def build_code_Colr(*argsets):
@@ -156,6 +183,22 @@ def get_benchmark_funcs():
     return sorted(funcs, key=lambda f: f.__name__)
 
 
+def get_git_branch():
+    """ Return the current git branch being worked on. """
+    cmd = ['git', 'status', '--porcelain=v2', '--branch']
+    out = subprocess.check_output(cmd).decode()
+    for line in out.splitlines():
+        if not line.startswith('# branch.head'):
+            continue
+        branch = line.split(' ')[-1]
+        return branch
+
+    raise ValueError('\n'.join((
+        'Unable to determine branch from `git status`.',
+        f'Output was:\n{out}\n'
+    )))
+
+
 def parse_int(s, default=None):
     """ Parse a string as an integer, returns `default` for falsey value.
         Raises InvalidArg with a message on invalid numbers.
@@ -177,32 +220,41 @@ def print_err(*args, **kwargs):
     print(*args, **kwargs)
 
 
-def run_bench_set(func, repeat=None, number=None):
+def run_bench_set(func, repeat=None, number=None, save=False):
     name = get_bench_name(func)
+    config['times'][git_branch].setdefault(name, {})
     debug(f'Running benchmarks (for: {name}')
     namefmt = C(name, 'blue', style='bright')
     label = f'{namefmt}:'
     print(f'\n{label}')
     for code, time in func():
         codefmt = format_code(code)
-        timefmt = C('').join(C(f'{time:>3.3f}', 'cyan'), C('s', 'dimgrey'))
+        prevtime = config['times'][git_branch][name].get(code, None)
+        if (prevtime is not None) and (time - prevtime > 0.0005):
+            timeargs = {'fore': 'red', 'style': 'bright'}
+        else:
+            timeargs = {'fore': 'cyan'}
+        timefmt = C('').join(C(f'{time:>3.3f}', **timeargs), C('s', 'dimgrey'))
         print(f'    {timefmt}: {codefmt}')
+        if save:
+            config['times'][git_branch][name][code] = time
 
 
-def run_benchmarks(pattern=None, repeat=None, number=None):
-    pat = try_repat(pattern, default=None)
-    repeat = parse_int(repeat, default=3)
-    number = parse_int(number, default=10000)
+def run_benchmarks(pattern=None, repeat=None, number=None, save=False):
     count = 0
     funcs = get_benchmark_funcs()
     for func in funcs:
-        debug(f'Found: {func.__name__}')
-        if (pat is not None) and (pat.search(get_bench_name(func)) is None):
+        name = get_bench_name(func)
+        debug(f'Found: ({name}) {func.__name__}')
+        if (pattern is not None) and (pattern.search(name) is None):
             # Doesn't match the pattern.
-            debug(f'Ignoring for pattern: {pat.pattern!r}', align=True)
+            debug(f'Ignoring for pattern: {pattern.pattern!r}', align=True)
             continue
         count += 1
-        run_bench_set(func, repeat=repeat, number=number)
+        run_bench_set(func, repeat=repeat, number=number, save=save)
+    if save:
+        debug(f'Saving benchmarks in: {CONFIG_FILE}')
+        config.save()
     return 0 if count else 1
 
 
@@ -215,13 +267,19 @@ def time_code(code_builder, *argsets, repeat=None, number=None):
     validate_argsets(*argsets)
     code = code_builder(*argsets)
     t = Timer(code, setup='from colr import Colr, color;C = Colr;')
-    debug(f'Timing: {code}')
-    result = min(
-        t.repeat(
-            repeat=repeat or DEFAULT_REPEAT,
-            number=number or DEFAULT_NUMBER,
-        )
+    codefmt = format_code(code)
+    progress = AnimatedProgress(
+        codefmt,
+        frames=default_frames,
+        show_time=False,
     )
+    with progress:
+        result = min(
+            t.repeat(
+                repeat=repeat or DEFAULT_REPEAT,
+                number=number or DEFAULT_NUMBER,
+            )
+        )
     return code, result
 
 

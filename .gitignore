@@ -14,3 +14,4 @@ use-docoptng.sh
 *scratch_test.py
 .coverage
 coverage_html
+benchmarks.json

@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 
 """ colr/base.py
 
@@ -43,7 +42,7 @@ from typing import (
     Union,
 )
 
-__version__ = '0.8.8'
+__version__ = '0.8.9'
 
 _codepats = (
     # Colors.
