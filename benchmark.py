@@ -39,6 +39,7 @@ DEFAULT_NUMBER = 10000
 USAGESTR = """{versionstr}
     Usage:
         {script} -h | -v
+        {script} [-D] -l
         {script} [-D] [-n num] [-r num] [-S] [PATTERN]
 
     Options:
@@ -47,6 +48,7 @@ USAGESTR = """{versionstr}
                                Only matching benchmark functions will run.
         -D,--debug           : Show some debug info while running.
         -h,--help            : Show this help message.
+        -l,--list            : List any previously saved benchmarks.
         -n num,--number num  : Number of code runs per time test.
                                Default: {default_num}
         -r num,--repeat num  : Number of time to repeat the time test.
@@ -85,6 +87,8 @@ def main(argd):
     debugprinter.enable(argd['--debug'])
     git_branch = get_git_branch()
     config['times'].setdefault(git_branch, {})
+    if argd['--list']:
+        return list_benchmarks()
     return run_benchmarks(
         pattern=try_repat(argd['PATTERN'], default=None),
         repeat=parse_int(argd['--repeat'], default=DEFAULT_REPEAT),
@@ -165,6 +169,19 @@ def format_code(s):
     return highlight(s, pygments_lexer, pygments_formatter).strip()
 
 
+def format_result(name, time, code, indent=4):
+    """ Format a timing result for printing. """
+    codefmt = format_code(code)
+    prevtime = config['times'][git_branch].get(name, {}).get(code, None)
+    if (prevtime is not None) and (time - prevtime > 0.0005):
+        timeargs = {'fore': 'red', 'style': 'bright'}
+    else:
+        timeargs = {'fore': 'cyan'}
+    timefmt = C('').join(C(f'{time:>3.3f}', **timeargs), C('s', 'dimgrey'))
+    indent = ' ' * indent
+    return f'{indent}{timefmt}: {codefmt}'
+
+
 def get_bench_name(func):
     """ Get a benchmark name, based on it's function (strip the `bench_` part.)
     """
@@ -199,6 +216,31 @@ def get_git_branch():
     )))
 
 
+def list_benchmarks():
+    """ Print any previously saved benchmarks. """
+    count = 0
+    for branch in sorted(config['times']):
+        branchfmt = C(branch, 'blue', style='bright')
+        print(f'{branchfmt}:')
+        if not config['times'][branch]:
+            print(C(': ').join(
+                C('        No benchmarks saved for', 'red'),
+                branchfmt,
+            ))
+            continue
+        for name in sorted(config['times'][branch]):
+            namefmt = C(name, 'green', style='bright')
+            print(f'    {namefmt}:')
+            for code, time in config['times'][branch][name].items():
+                print(format_result(name, time, code, indent=8))
+                count += 1
+
+    if not count:
+        print_err('No benchmarks have been saved.')
+        return 1
+    return 0
+
+
 def parse_int(s, default=None):
     """ Parse a string as an integer, returns `default` for falsey value.
         Raises InvalidArg with a message on invalid numbers.
@@ -228,14 +270,7 @@ def run_bench_set(func, repeat=None, number=None, save=False):
     label = f'{namefmt}:'
     print(f'\n{label}')
     for code, time in func():
-        codefmt = format_code(code)
-        prevtime = config['times'][git_branch][name].get(code, None)
-        if (prevtime is not None) and (time - prevtime > 0.0005):
-            timeargs = {'fore': 'red', 'style': 'bright'}
-        else:
-            timeargs = {'fore': 'cyan'}
-        timefmt = C('').join(C(f'{time:>3.3f}', **timeargs), C('s', 'dimgrey'))
-        print(f'    {timefmt}: {codefmt}')
+        print(format_result(name, time, code))
         if save:
             config['times'][git_branch][name][code] = time
 
