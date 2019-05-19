@@ -10,6 +10,7 @@ import os
 import re
 import subprocess
 import sys
+from cProfile import Profile
 from timeit import Timer
 from types import FunctionType
 
@@ -17,6 +18,8 @@ from pygments import highlight
 from pygments.lexers import get_lexer_by_name
 from pygments.formatters import Terminal256Formatter
 
+from easysettings import load_json_settings
+from printdebug import DebugColrPrinter
 from colr import (  # noqa (color is eval'd later)
     AnimatedProgress,
     Colr,
@@ -24,8 +27,6 @@ from colr import (  # noqa (color is eval'd later)
     color,
     docopt,
 )
-from easysettings import load_json_settings
-from printdebug import DebugColrPrinter
 
 # Shorter alias.
 C = Colr
@@ -44,7 +45,7 @@ USAGESTR = """{versionstr}
     Usage:
         {script} -h | -v
         {script} [-D] -l
-        {script} [-D] [-n num] [-r num] [-S] [PATTERN]
+        {script} [-D] [-n num] [-r num] [-p | -S] [PATTERN]
 
     Options:
         PATTERN              : Text/regex pattern to match against benchmark
@@ -57,6 +58,7 @@ USAGESTR = """{versionstr}
                                Default: {default_num}
         -r num,--repeat num  : Number of time to repeat the time test.
                                Default: {default_repeat}
+        -p,--profile         : Profile the code while benchmarking.
         -S,--save            : Save the benchmark results in benchmarks.json.
         -v,--version         : Show version.
 """.format(
@@ -87,11 +89,18 @@ default_frames = (
 # Difference between benchmarks before they are "marked".
 max_diff = 0.005
 
+# A Profile object, set when --profile is used.
+profiler = None
+
 
 def main(argd):
     """ Main entry point, expects docopt arg dict as argd. """
-    global git_branch
+    global git_branch, profiler
+
     debugprinter.enable(argd['--debug'])
+    if argd['--profile']:
+        profiler = Profile(subcalls=True)
+
     git_branch = get_git_branch()
     config['times'].setdefault(git_branch, {})
     if argd['--list']:
@@ -178,7 +187,7 @@ def build_code_Colr(*argsets):
         return colrstrs[0]
 
     colrstr_code = ', '.join(colrstrs)
-    return f'C(\' \').join({colrstr_code})'
+    return f'Colr(\' \').join({colrstr_code})'
 
 
 def build_code_color(*argsets):
@@ -309,6 +318,7 @@ def run_bench_set(func, repeat=None, number=None, save=False):
 
 
 def run_benchmarks(pattern=None, repeat=None, number=None, save=False):
+    """ Run all bench_* functions, unless filtered by `pattern` """
     count = 0
     funcs = get_benchmark_funcs()
     for func in funcs:
@@ -323,6 +333,9 @@ def run_benchmarks(pattern=None, repeat=None, number=None, save=False):
     if save:
         debug(f'Saving benchmarks in: {CONFIG_FILE}')
         config.save()
+    if profiler is not None:
+        print(C('').join(C('\nProfile', 'blue', style='bright'), ':'))
+        profiler.print_stats()
     return 0 if count else 1
 
 
@@ -344,12 +357,14 @@ def time_code(code_builder, *argsets, repeat=None, number=None):
     repeat = repeat or DEFAULT_REPEAT
     number = number or DEFAULT_NUMBER
     with progress:
+        if profiler:
+            profiler.run(code)
         results = t.repeat(
             repeat=repeat,
             number=number,
         )
-        result = sum(results) / repeat
-    progress.stop()
+        result = min(results)
+
     return code, result
 
 
