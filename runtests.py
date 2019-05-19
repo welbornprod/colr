@@ -54,6 +54,8 @@ USAGESTR = """{versionstr}
         -v,--version         : Show version.
 """.format(script=SCRIPT, versionstr=VERSIONSTR)
 
+COVERAGE_DIR = os.path.join(SCRIPTDIR, 'coverage_html')
+
 
 def main(argd):
     """ Main entry point, expects doctopt arg dict as argd. """
@@ -79,7 +81,19 @@ def main(argd):
     cmd.extend(green_args)
     print_header(cmd)
 
-    return subprocess.run(cmd).returncode
+    exitcode = subprocess.run(cmd).returncode
+    if exitcode:
+        return exitcode
+    # Success.
+    if argd['--run-coverage'] or argd['--quiet-coverage']:
+        # Create coverage report.
+        print(C(': ').join(
+            C('Creating coverage report in', 'cyan'),
+            C(COVERAGE_DIR, 'blue', style='bright'),
+        ))
+        covcmd = ['coverage', 'html', '--directory', COVERAGE_DIR]
+        exitcode = subprocess.run(covcmd).returncode
+    return exitcode
 
 
 def filter_test_info(patterns, test_info):
@@ -159,7 +173,7 @@ def get_test_files(package='test'):
         files = [s for s in os.listdir(package) if s.startswith('test_')]
     except EnvironmentError as ex:
         raise EnvironmentError(
-            'Unable to list "test" dir: {}'.format(os.getcwd())
+            'Unable to list "test" dir: {}\n{}'.format(os.getcwd(), ex)
         )
     return [os.path.splitext(s)[0] for s in files]
 

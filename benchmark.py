@@ -87,7 +87,7 @@ default_frames = (
 )
 
 # Difference between benchmarks before they are "marked".
-max_diff = 0.005
+max_diff = 0.01
 
 # A Profile object, set when --profile is used.
 profiler = None

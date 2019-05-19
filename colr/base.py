@@ -231,7 +231,10 @@ class ChainedBase(Sequence):
             Returns another ChainedBase instance.
         """
         length = len(self.stripped())
+        lastindex = length - 1
         if isinstance(key, slice):
+            # Get slice values for non-escape code data.
+            # Adjusts actual start/stop for actual length.
             start, stop, step = key.indices(length)
         elif isinstance(key, int):
             if key > length:
@@ -239,25 +242,43 @@ class ChainedBase(Sequence):
                     'Index out of bounds for plain text, too large.'
                 )
             elif key < 0:
+                # Negative index (length + key).
                 key = length + key
                 if key < 0:
                     raise IndexError(
                         'Index out of bounds for plain text, too small.'
                     )
+            # Single element slice.
             start, stop, step = key, key + 1, 1
         else:
-            raise TypeError('Indices must be integers.')
+            raise TypeError('Indices must be integers/slices.')
+        if step == 0:
+            raise ValueError('slice step cannot be 0.')
 
-        pos = -1
+        if (start == lastindex) and (stop == lastindex):
+            # A slice like [::n]
+            if step < 0:
+                # A negative step of everything.
+                start += 1
+                stop = 0
+            else:
+                # A positive step of everything.
+                start = 0
+                stop += 1
+
+        if step > 0:
+            pos = -1
+        else:
+            pos = start + 1
         codeparts = []
         parts = []
         found_char = False
+
         for part in self.iter_parts():
             if pos == stop:
                 if not found_char:
-                    raise IndexError(
-                        'Index out of bounds for non-escape code data.'
-                    )
+                    msgfmt = 'Index out of bounds for non-escape code data: {}'
+                    raise IndexError(msgfmt.format(pos))
                 break
             if part.is_code():
                 codeparts.append(part)
@@ -265,20 +286,26 @@ class ChainedBase(Sequence):
             chars = []
             for char in str(part)[::step]:
                 pos += step
-                if pos < start:
+                if (step > 0) and (pos < start):
+                    continue
+                elif (step < 0) and (pos > start):
                     continue
                 if pos == stop:
                     break
-                parts.extend(
-                    p
-                    for p in codeparts
-                )
+                parts.extend(codeparts)
                 codeparts = []
                 chars.append(char)
                 found_char = True
 
             parts.append(''.join(chars))
-        return self.__class__(''.join(str(x) for x in parts))
+
+        s = ''.join(str(x) for x in parts)
+        if not s:
+            # Reached the end of text, before an escape code.
+            raise IndexError(
+                'Index out of bounds for non-escape code data: {}'.format(stop)
+            )
+        return self.__class__(s)
 
     def __hash__(self):
         """ A ChainedBase's hash value is based on self.data. """
@@ -652,7 +679,7 @@ class ChainedPart(object):
         return str(self.data)
 
     def get_slice(self):
-        """ Return a `slice` object using thi ChainedPart's `start` and
+        """ Return a `slice` object using this ChainedPart's `start` and
             `stop` attribute.
         """
         return slice(self.start, self.stop)
@@ -674,6 +701,11 @@ class CodePart(ChainedPart):
     def is_text(self):
         return False
 
+    def reverse(self):
+        # Doesn't actually reverse anything, because it would break
+        # the escape code.
+        return self.__class__(self.data)
+
 
 class TextPart(ChainedPart):
     """ Helper class for ChainedBase.parts().
@@ -684,3 +716,6 @@ class TextPart(ChainedPart):
 
     def is_text(self):
         return True
+
+    def reverse(self):
+        return self.__class__(self.data[::-1])
