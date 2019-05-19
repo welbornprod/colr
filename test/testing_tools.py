@@ -22,6 +22,18 @@ from typing import (
 from colr import Colr
 
 
+class _NotSet(object):
+    def __bool__(self):
+        return False
+
+    def __str__(self):
+        return '<Not Set>'
+
+
+# Singleton instance, something other than None to mean 'Not Set'.
+NotSet = _NotSet()
+
+
 def _equality_msg(op, a, b, msg=None):
     """ The ne_msg and eq_msg wrap this function to reduce code duplication.
         It builds a message suitable for an assert*Equal msg parameter.
@@ -199,7 +211,7 @@ class ColrTestCase(unittest.TestCase):
             raise self.failureException(_equality_msg('~', a, b, msg=msg))
 
     def assertCallDictEqual(
-            self, a, b, func=None,
+            self, a, b=NotSet, func=NotSet,
             args=None, kwargs=None,
             otherargs=None, otherkwargs=None, msg=None):
         self.assertUnitTestMethodEqual(
@@ -215,13 +227,13 @@ class ColrTestCase(unittest.TestCase):
         )
 
     def assertCallEqual(
-            self, a, b, func=None,
+            self, a, b=NotSet, func=None,
             args=None, kwargs=None,
             otherargs=None, otherkwargs=None, msg=None):
         """ Like self.assertEqual, but includes the func call info. """
+        a, b = self.fix_ab_args(a, b, func, args, kwargs)
         if a == b:
             return None
-
         callargs = args or []
         callkwargs = kwargs or {}
         raise self.failureException(
@@ -238,8 +250,9 @@ class ColrTestCase(unittest.TestCase):
         )
 
     def assertCallFalse(
-            self, val, func=None, args=None, kwargs=None, msg=None):
+            self, val=NotSet, func=NotSet, args=None, kwargs=None, msg=None):
         """ Like self.assertFalse, but includes the func call info. """
+        val = self.fix_val_arg(val, func, args, kwargs)
         if not val:
             return None
         callargs = args or []
@@ -279,7 +292,7 @@ class ColrTestCase(unittest.TestCase):
             )
 
     def assertCallListEqual(
-            self, a, b, func=None,
+            self, a, b=NotSet, func=NotSet,
             args=None, kwargs=None,
             otherargs=None, otherkwargs=None, msg=None):
         self.assertUnitTestMethodEqual(
@@ -295,10 +308,11 @@ class ColrTestCase(unittest.TestCase):
         )
 
     def assertCallNotEqual(
-            self, a, b, func=None,
+            self, a, b=NotSet, func=NotSet,
             args=None, kwargs=None,
             otherargs=None, otherkwargs=None, msg=None):
         """ Like self.assertNotEqual, but includes the func call info. """
+        a, b = self.fix_ab_args(a, b, func, args, kwargs)
         if a != b:
             return None
 
@@ -320,6 +334,8 @@ class ColrTestCase(unittest.TestCase):
     def assertCallRaises(
             self, exception, func=None, args=None, kwargs=None, msg=None):
         """ Like self.assertRaises, but includes the func call info. """
+        # TODO: Make func(args, kwargs) callable by this method like the
+        #       other assertCall* methods.
         context = ColrAssertRaisesContext(
             exception,
             self,
@@ -330,8 +346,9 @@ class ColrTestCase(unittest.TestCase):
         return context.handle('assertCallRaises', [], {'msg': msg})
 
     def assertCallTrue(
-            self, val, func=None, args=None, kwargs=None, msg=None):
+            self, val=NotSet, func=NotSet, args=None, kwargs=None, msg=None):
         """ Like self.assertTrue, but includes the func call info. """
+        val = self.fix_val_arg(val, func, args, kwargs)
         if val:
             return None
         callargs = args or []
@@ -351,6 +368,7 @@ class ColrTestCase(unittest.TestCase):
             self, a, b, func=None,
             args=None, kwargs=None,
             otherargs=None, otherkwargs=None, msg=None):
+
         self.assertUnitTestMethodEqual(
             super().assertTupleEqual,
             a,
@@ -403,9 +421,11 @@ class ColrTestCase(unittest.TestCase):
             )
 
     def assertUnitTestMethodEqual(
-            self, method, a, b, func=None,
+            self, method, a, b=NotSet, func=NotSet,
             args=None, kwargs=None,
             otherargs=None, otherkwargs=None, msg=None):
+        a, b = self.fix_ab_args(a, b, func, args, kwargs)
+
         try:
             method(a, b, msg=msg)
         except self.failureException as ex:
@@ -433,6 +453,22 @@ class ColrTestCase(unittest.TestCase):
         with suppress(KeyError):
             kwargs.setdefault('_call_func', kwargs.pop('func'))
         return call_msg(s, *args, **kwargs)
+
+    def fix_ab_args(self, a, b, func, args, kwargs):
+        if b is NotSet:
+            if not func:
+                raise ValueError('Must supply `b` if not using `func`.')
+            # User passed the expected result, compute the returned result.
+            b = a
+            a = func(*(args or []), **(kwargs or {}))
+        return a, b
+
+    def fix_val_arg(self, val, func, args, kwargs):
+        if val is NotSet:
+            if not func:
+                raise ValueError('Must supply `val` if not using `func`.')
+            val = func(*(args or []), **(kwargs or {}))
+        return val
 
 
 class TestFileBytes(BytesIO):
