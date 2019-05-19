@@ -20,6 +20,7 @@ from colr import (
     Colr,
     get_codes,
     InvalidColr,
+    InvalidFormatArg,
     InvalidFormatColr,
     name_data,
     strip_codes,
@@ -59,15 +60,27 @@ class ColrTests(ColrTestCase):
                 'style': self.random_style(),
             },
             'hex-fore': {
-                'fore': self.random_hex(),
+                'fore': self.random_hex(with_hash=False),
             },
             'hex-fore-back': {
-                'fore': self.random_hex(),
-                'back': self.random_hex(),
+                'fore': self.random_hex(with_hash=False),
+                'back': self.random_hex(with_hash=False),
             },
             'hex-fore-back-style': {
-                'fore': self.random_hex(),
-                'back': self.random_hex(),
+                'fore': self.random_hex(with_hash=False),
+                'back': self.random_hex(with_hash=False),
+                'style': self.random_style(),
+            },
+            'hex-hash-fore': {
+                'fore': self.random_hex(with_hash=True),
+            },
+            'hex-hash-fore-back': {
+                'fore': self.random_hex(with_hash=True),
+                'back': self.random_hex(with_hash=True),
+            },
+            'hex-hash-fore-back-style': {
+                'fore': self.random_hex(with_hash=True),
+                'back': self.random_hex(with_hash=True),
                 'style': self.random_style(),
             },
             'rgb-fore': {
@@ -164,9 +177,10 @@ class ColrTests(ColrTestCase):
         """ Return a random, but valid, fore/back argument from `codes`. """
         return random.choice(list(codes['fore']))
 
-    def random_hex(self):
+    def random_hex(self, with_hash=False):
         """ Return a random, but valid, hex argument. """
-        return rgb2hex(*self.random_rgb())
+        s = rgb2hex(*self.random_rgb())
+        return '#{}'.format(s) if with_hash else s
 
     def random_rgb(self):
         """ Return a random, but valid, RGB tuple arg. """
@@ -190,7 +204,7 @@ class ColrTests(ColrTestCase):
             clr = Colr('Testing', 'blue')
             try:
                 newclr = clr + other
-            except TypeError as ex:
+            except TypeError:
                 self.fail(
                     'Colr + {} should not raise a TypeError.'.format(
                         othername
@@ -284,16 +298,28 @@ class ColrTests(ColrTestCase):
         """ Colr.color should accept valid color names/values. """
         # None of these should raise a InvalidColr.
         s = 'test'
-        try:
-            Colr(s, 'red')
-            Colr(s, 16)
-            Colr(s, (255, 0, 0))
-        except InvalidColr as ex:
-            self.fail(
-                'InvalidColr raised for valid color name/value: {}'.format(
-                    ex
+        for func in (Colr, Colr().color):
+            try:
+                func(s, 'red')
+                func(s, 16)
+                func(s, (255, 0, 0))
+            except InvalidColr as ex:
+                self.fail(
+                    'InvalidColr raised for valid color: {}'.format(
+                        ex
+                    )
                 )
-            )
+            # Test a larger set of color values.
+            for argtype, args in self.example_args().items():
+                try:
+                    func(s, **args)
+                except InvalidColr as ex:
+                    self.fail(
+                        'InvalidColr raised for valid args: {!r}\n{}'.format(
+                            args,
+                            ex,
+                        )
+                    )
 
     def test_color_colr(self):
         """ Colr.color should honor __colr__ methods. """
@@ -446,7 +472,38 @@ class ColrTests(ColrTestCase):
                 msg='Copy hash was not equal!',
             )
 
-    def test_format(self):
+    def test_format_colr(self):
+        """ Colr.__format__ should accept Colr argument specs. """
+        test_key = 'x'
+        for argtype, argspec in self.example_format_specs(test_key).items():
+            fmt_args = {
+                test_key: Colr('Testing'),
+            }
+            argspec.format(**fmt_args)
+
+    def test_format_colr_keyless(self):
+        """ Colr.__format__ should accept Colr argument specs without keys. """
+        spec_args = (
+            ('red', ),
+            ('red', 'black', ),
+            ('red', 'black', 'bold'),
+            ('255;255;255', ),
+            ('1;1;1,' '0;0;0', ),
+            ('1;1;1', '0;0;0', 'bright'),
+            ('#ffffff', ),
+            ('#ffffff', '#000000', ),
+            ('#ffffff', '#000000', 'dim'),
+        )
+        c = Colr('test')
+        specs = [
+            '{{c:[{spec}]}}'.format(spec=', '.join(args))
+            for args in spec_args
+        ]
+        for spec in specs:
+            # Should not raise.
+            spec.format(c=c)
+
+    def test_format_just(self):
         """ Colr.__format__ should use Colr.ljust and friends. """
         testformats = {
             '{:<10}': {
@@ -541,15 +598,6 @@ class ColrTests(ColrTestCase):
             msg='Colr(\'{}\').format(Colr()) breaks formatting!',
         )
 
-    def test_format_color(self):
-        """ Colr.__format__ should accept Colr argument specs. """
-        test_key = 'x'
-        for argtype, argspec in self.example_format_specs(test_key).items():
-            fmt_args = {
-                test_key: Colr('Testing'),
-            }
-            argspec.format(**fmt_args)
-
     def test_format_raises(self):
         """ Colr.__format__ should raise InvalidFormatColr on bad colors.
         """
@@ -558,15 +606,39 @@ class ColrTests(ColrTestCase):
             {'fore': 'not_a_color'},
             # Invalid back name.
             {'back': 'not_a_color'},
-            # Invalid RGB (should be 0;0;0)
-            {'fore': 'red', 'back': '0,0,0'},
             # Invalid style name.
             {'fore': 'red', 'back': 'black', 'style': 'not_a_style'},
         )
         test_key = 'x'
         for args in bad_args:
             spec = self.format_spec_from_args(test_key, **args)
-            with self.assertRaises(InvalidFormatColr):
+            raisechk = self.assertCallRaises(
+                InvalidFormatColr,
+                func=spec.format,
+                kwargs={test_key: Colr('Test')},
+                msg='Failed to raise for spec: {!r}'.format(spec),
+            )
+            with raisechk:
+                spec.format(**{test_key: Colr('Test')})
+
+        bad_args = (
+            # Invalid RGB (should be 0;0;0)
+            {'fore': 'red', 'back': '0,0,0'},
+            # Invalid RGB (should be 0;0;0)
+            {'fore': '0,0,0', 'back': 'black'},
+            # Invalid style.
+            {'fore': 'red', 'back': 'black', 'style': '0,0,0'},
+        )
+        test_key = 'x'
+        for args in bad_args:
+            spec = self.format_spec_from_args(test_key, **args)
+            raisechk = self.assertCallRaises(
+                InvalidFormatArg,
+                func=spec.format,
+                kwargs={test_key: Colr('Test')},
+                msg='Failed to raise for spec: {!r}'.format(spec),
+            )
+            with raisechk:
                 spec.format(**{test_key: Colr('Test')})
 
     def test_format_spec(self):

@@ -30,6 +30,11 @@ import docopt
 
 from .colr import Colr as C
 
+docopt_version = docopt.__version__
+docopt_file = getattr(getattr(docopt, '__spec__', None), 'origin', None)
+
+__all__ = ['docopt', 'docopt_version', 'docopt_file']
+
 # This can be set with a call to colr_docopt.docopt().
 # When set, the script name can be colorized.
 SCRIPT = None
@@ -121,10 +126,11 @@ def _docoptextras(help, version, options, doc):
 docopt.DocoptExit = _ColorDocoptExit
 docopt.extras = _docoptextras
 
+# We still need to use docopt later.
 _old_docopt = docopt.docopt
 
 
-# Just provide the docopt function to users.
+# Replacement function for original docopt.docopt.
 def docopt(
         doc, argv=None, help=True, version=None, options_first=False,
         script=None, colors=None):

@@ -27,7 +27,7 @@ colr_auto_disable()
 APPNAME = 'Colr'
 APPVERSION = colr_version
 NAME = '{} Test Runner'.format(APPNAME)
-VERSION = '0.0.2'
+VERSION = '0.1.0'
 VERSIONSTR = '{} v. {}'.format(NAME, VERSION)
 SCRIPT = os.path.split(os.path.abspath(sys.argv[0]))[1]
 SCRIPTDIR = os.path.abspath(sys.path[0])
@@ -36,19 +36,22 @@ USAGESTR = """{versionstr}
     Runs tests using `green` and provides a little more info.
 
     Usage:
-        {script} [-h | -v]
-        {script} [-d] [-s] TESTS...
+        {script} -h | -v
+        {script} [-d] [-s] [-r | -R]
+        {script} [-d] [-s] [-r | -R] TESTS...
         {script} (-l | -L) [PATTERN...]
 
     Options:
-        PATTERN       : Regex/text pattern to match against test names.
-        TESTS         : Test names for `green`.
-        -d,--dryrun   : Just show test names.
-        -h,--help     : Show this help message.
-        -L,--listall  : List all test names with their full name.
-        -l,--list     : List all test cases/names.
-        -s,--stdout   : Allow stdout (removes -q from green args).
-        -v,--version  : Show version.
+        PATTERN              : Regex/text pattern to match against test names.
+        TESTS                : Test names for `green`.
+        -d,--dryrun          : Just show test names.
+        -h,--help            : Show this help message.
+        -L,--listall         : List all test names with their full name.
+        -l,--list            : List all test cases/names.
+        -r,--run-coverage    : Run coverage.
+        -R,--quiet-coverage  : Run coverage without stdout output.
+        -s,--stdout          : Allow stdout (removes -q from green args).
+        -v,--version         : Show version.
 """.format(script=SCRIPT, versionstr=VERSIONSTR)
 
 
@@ -69,6 +72,10 @@ def main(argd):
     cmd = [green_exe, '-vv']
     if not argd['--stdout']:
         cmd.append('-q')
+    if argd['--run-coverage']:
+        cmd.append('-r')
+    elif argd['--quiet-coverage']:
+        cmd.append('-R')
     cmd.extend(green_args)
     print_header(cmd)
 

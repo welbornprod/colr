@@ -53,6 +53,7 @@ from .colr import (  # noqa
     get_terminal_size,
     InvalidArg,
     InvalidColr,
+    InvalidFormatArg,
     InvalidFormatColr,
     InvalidEscapeCode,
     InvalidRgbEscapeCode,
@@ -84,7 +85,11 @@ from .progress_frames import (
 )
 
 try:
-    from .colr_docopt import docopt  # noqa
+    from .colr_docopt import (
+        docopt,
+        docopt_file,
+        docopt_version,
+    )
     has_docopt = True
 except ImportError:
     has_docopt = False
@@ -132,6 +137,7 @@ __all__ = [
     'get_terminal_size',
     'InvalidArg',
     'InvalidColr',
+    'InvalidFormatArg',
     'InvalidFormatColr',
     'InvalidEscapeCode',
     'InvalidRgbEscapeCode',
@@ -170,3 +176,5 @@ __all__ = [
 ]
 if has_docopt:
     __all__.append('docopt')
+    __all__.append('docopt_version')
+    __all__.append('docopt_file')

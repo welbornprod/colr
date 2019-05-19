@@ -98,7 +98,7 @@ C = Colr
 errhandler="
 def handle_err(typ, ex, tb):
     if isinstance(ex, InvalidColr):
-        print(ex.as_colr(), file=sys.stderr)
+        print(C(ex), file=sys.stderr)
     else:
         traceback.print_exception(typ, ex, tb)
 "

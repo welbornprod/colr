@@ -344,6 +344,15 @@ class FrameSet(FrameSetBase):
             '({s.data!r}, name={s.name!r}, delay={s.delay!r})'
         )).format(clsname=self.__class__.__name__, s=self)
 
+    def append(self, append_str):
+        """ Append a string to every frame. """
+        app = str(append_str)
+        self.data = tuple(
+            ''.join((s, app))
+            for s in self.data
+        )
+        return self
+
     def as_colr(self, **kwargs):
         """ Wrap each frame in a Colr object, using `kwargs` for Colr().
             Keyword Arguments:
@@ -400,6 +409,15 @@ class FrameSet(FrameSetBase):
             name=name,
             delay=delay
         )
+
+    def prepend(self, prepend_str):
+        """ Prepend a string to every frame. """
+        prep = str(prepend_str)
+        self.data = tuple(
+            ''.join((prep, s))
+            for s in self.data
+        )
+        return self
 
 
 class BarSet(FrameSet):
