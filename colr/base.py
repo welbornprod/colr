@@ -155,8 +155,8 @@ class ChainedBase(Sequence):
         methods.
     """
 
-    def __init__(self, text):
-        self.data = text
+    def __init__(self, text=None):
+        self.data = str('' if text is None else text)
 
     def __add__(self, other):
         """ Allow the old string concat methods through addition. """
@@ -237,7 +237,7 @@ class ChainedBase(Sequence):
             # Adjusts actual start/stop for actual length.
             start, stop, step = key.indices(length)
         elif isinstance(key, int):
-            if key > length:
+            if key > lastindex:
                 raise IndexError(
                     'Index out of bounds for plain text, too large.'
                 )
@@ -252,8 +252,6 @@ class ChainedBase(Sequence):
             start, stop, step = key, key + 1, 1
         else:
             raise TypeError('Indices must be integers/slices.')
-        if step == 0:
-            raise ValueError('slice step cannot be 0.')
 
         if (start == lastindex) and (stop == lastindex):
             # A slice like [::n]
@@ -364,7 +362,7 @@ class ChainedBase(Sequence):
         return repr(self.data)
 
     def __str__(self):
-        return self.data
+        return str(self.data)
 
     def _str_just(
             self, methodname, width, fillchar=' ', squeeze=False,
@@ -619,7 +617,18 @@ class ChainedBase(Sequence):
     def write(self, file=sys.stdout, end='', delay=None):
         """ Write this control code str to a file, clear self.data, and
             return self.
-            Default: sys.stdout
+            Arguments:
+                file  : File object to write to.
+                        self.data is encoded using the default .encode()
+                        call before writing.
+                        Default: sys.stdout
+                end   : Line ending character/string.
+                        Default: '' (Nothing/Empty-String)
+                delay : Seconds to delay between calls to `write()`.
+                        Used in text animations.
+                        `delay` recalculated to accommodate whitespace chars
+                        and escape codes, and is passed to `time.sleep()`.
+                        Default: None
         """
         s = str(self)
         filebuf = getattr(file, 'buffer', file)
@@ -701,11 +710,6 @@ class CodePart(ChainedPart):
     def is_text(self):
         return False
 
-    def reverse(self):
-        # Doesn't actually reverse anything, because it would break
-        # the escape code.
-        return self.__class__(self.data)
-
 
 class TextPart(ChainedPart):
     """ Helper class for ChainedBase.parts().
@@ -716,6 +720,3 @@ class TextPart(ChainedPart):
 
     def is_text(self):
         return True
-
-    def reverse(self):
-        return self.__class__(self.data[::-1])

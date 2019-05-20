@@ -39,11 +39,30 @@ def _equality_msg(op, a, b, msg=None):
         It builds a message suitable for an assert*Equal msg parameter.
     """
     fmta = str(Colr(repr(a), 'yellow'))
-    if repr(a) != str(a):
-        fmta = '{} ({})'.format(fmta, a)
+    try:
+        if repr(a) != str(a):
+            fmta = '{} ({})'.format(fmta, a)
+    except TypeError as ex:
+        # str() returned non-string type. Catch it now, instead of pushing
+        # to PyPi.
+        raise TypeError('{} (A value) (type: {}) (value: {!r})'.format(
+            ex,
+            type(a).__name__,
+            a,
+        ))
+
     fmtb = str(Colr(repr(b), 'green'))
-    if repr(b) != str(b):
-        fmtb = '{} ({})'.format(fmtb, b)
+    try:
+        if repr(b) != str(b):
+            fmtb = '{} ({})'.format(fmtb, b)
+    except TypeError as ex:
+        # str() returned non-string type. Catch it now, instead of pushing
+        # to PyPi.
+        raise TypeError('{} (B value) (type: {}) (value: {!r})'.format(
+            ex,
+            type(b).__name__,
+            b,
+        ))
 
     return '\n'.join((
         '\n  {} {}'.format(

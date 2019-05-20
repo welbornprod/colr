@@ -37,6 +37,7 @@ USAGESTR = """{versionstr}
 
     Usage:
         {script} -h | -v
+        {script} -V
         {script} [-d] [-s] [-r | -R]
         {script} [-d] [-s] [-r | -R] TESTS...
         {script} (-l | -L) [PATTERN...]
@@ -51,6 +52,8 @@ USAGESTR = """{versionstr}
         -r,--run-coverage    : Run coverage.
         -R,--quiet-coverage  : Run coverage without stdout output.
         -s,--stdout          : Allow stdout (removes -q from green args).
+        -V,--view-coverage   : Shortcut to open the html coverage report
+                               in google-chrome.
         -v,--version         : Show version.
 """.format(script=SCRIPT, versionstr=VERSIONSTR)
 
@@ -68,6 +71,9 @@ def main(argd):
         ]
 
         return list_tests(full=argd['--listall'], patterns=userpats)
+    elif argd['--view-coverage']:
+        return view_coverage()
+
     green_args = parse_test_names(argd['TESTS']) or ['test']
     if argd['--dryrun']:
         return print_test_names(green_args)
@@ -91,7 +97,14 @@ def main(argd):
             C('Creating coverage report in', 'cyan'),
             C(COVERAGE_DIR, 'blue', style='bright'),
         ))
-        covcmd = ['coverage', 'html', '--directory', COVERAGE_DIR]
+        covcmd = [
+            'coverage',
+            'html',
+            '--directory',
+            COVERAGE_DIR,
+            '--title',
+            'Coverage for Colr v. {}'.format(colr_version),
+        ]
         exitcode = subprocess.run(covcmd).returncode
     return exitcode
 
@@ -303,10 +316,27 @@ def pats_search(patterns, s):
 
 
 def print_err(*args, **kwargs):
-    """ A wrapper for print() that uses stderr by default. """
+    """ A wrapper for print() that uses stderr by default.
+        Colorizes messages, unless a Colr itself is passed in.
+    """
     if kwargs.get('file', None) is None:
         kwargs['file'] = sys.stderr
-    print(*args, **kwargs)
+
+    # Use color if the file is a tty.
+    if kwargs['file'].isatty():
+        # Keep any Colr args passed, convert strs into Colrs.
+        msg = kwargs.get('sep', ' ').join(
+            str(a) if isinstance(a, C) else str(C(a, 'red'))
+            for a in args
+        )
+    else:
+        # The file is not a tty anyway, no escape codes.
+        msg = kwargs.get('sep', ' ').join(
+            str(a.stripped() if isinstance(a, C) else a)
+            for a in args
+        )
+
+    print(msg, **kwargs)
 
 
 def print_header(cmd):
@@ -373,6 +403,33 @@ def try_repat(s, default=None):
     except re.error as ex:
         raise InvalidArg('Invalid pattern: {}\n{}'.format(s, ex))
     return p
+
+
+def view_coverage():
+    """ Open the html coverage report in google-chrome. """
+    indexfile = os.path.join(COVERAGE_DIR, 'index.html')
+    if not os.path.exists(indexfile):
+        print_err(C(': ').join(
+            C('Missing coverage report file', 'red'),
+            C(indexfile, 'blue'),
+        ))
+        print_err(C(' ').join(
+            C('Run', 'red'),
+            C('./runtests.py -R', 'blue').join('`', '`'),
+            C('to generate it.', 'red'),
+        ))
+        return 1
+
+    cmd = ['google-chrome', indexfile]
+    print(C(': ').join(
+        C('Running', 'cyan'),
+        C(' ').join(
+            C(cmd[0], 'blue', style='bright'),
+            C(' '.join(cmd[1:]), 'blue'),
+        ),
+    ))
+    subprocess.Popen(cmd)
+    return 0
 
 
 class InvalidArg(ValueError):

@@ -11,7 +11,10 @@ from colr.base import (
     get_indices,
     get_indices_list,
 )
-from .testing_tools import ColrTestCase
+from .testing_tools import (
+    ColrTestCase,
+    TestFileBytes,
+)
 
 
 class BaseTests(ColrTestCase):
@@ -20,23 +23,45 @@ class BaseTests(ColrTestCase):
         """ __add__ should add ChainedBases, and raise TypeError for others.
         """
         cb = ChainedBase('')
-        cb = cb + 'test'
-        self.assertEqual(
-            cb,
+        self.assertCallEqual(
             ChainedBase('test'),
+            func=cb.__add__,
+            args=('test', ),
+            msg='Failed to add data to a ChainedBase.',
+        )
+        # radd
+        self.assertCallEqual(
+            ChainedBase('test'),
+            func=cb.__radd__,
+            args=('test', ),
+            msg='Failed to radd data to a ChainedBase.',
         )
 
         with self.assertRaises(TypeError):
-            cb += 25
+            cb + 25
+        with self.assertRaises(TypeError):
+            25 + cb
 
     def test_call(self):
         """ Calling a ChainedBase appends data to it. """
         cb = ChainedBase('')
-        cb('test')
-        self.assertEqual(
-            cb,
+        self.assertCallEqual(
             ChainedBase('test'),
+            func=cb.__call__,
+            args=('test', ),
             msg='Call did not add data.',
+        )
+
+    def test_center(self):
+        """ Center justify should behave like str.just, without escape codes.
+        """
+        s = '\x1b[31mtesting\x1b[0m'
+        cb = ChainedBase(s)
+        self.assertCallEqual(
+            ChainedBase('  {} '.format(s)),
+            func=cb.center,
+            args=(10, ),
+            msg='Failed to properly center a ChainedBase.',
         )
 
     def test_format(self):
@@ -44,15 +69,15 @@ class BaseTests(ColrTestCase):
         cb = ChainedBase('test')
         cases = {
             '{}': 'test',
+            '{:}': 'test',
             '{:>8}': '    test',
             '{:<8}': 'test    ',
+            '{:^8}': '  test  ',
         }
         for fmt, expected in cases.items():
-            s = fmt.format(cb)
             self.assertCallEqual(
-                s,
                 expected,
-                func=str.format,
+                func=fmt.format,
                 args=('test', ),
                 msg='Failed to format ChainedBase.',
             )
@@ -81,33 +106,309 @@ class BaseTests(ColrTestCase):
             # Reversed slices.
             # A [::-n] slice.
             ((6, 6, -1), '\x1b[31mgnitset'),
+            # A [6:0:-1] slice.
             ((6, 0, -1), '\x1b[31mgnitse'),
+            # A slice that starts way outside the bounds.
+            ((65, 0, -1), '\x1b[31mgnitse'),
+            # A stepping slice less than -1.
             ((6, 0, -2), '\x1b[31mgist'),
         )
         for index, expected in cases:
             if isinstance(index, tuple):
                 index = slice(*index)
             self.assertCallEqual(
-                cb[index],
                 ChainedBase(expected),
                 func=cb.__getitem__,
                 args=(index, ),
                 msg='Failed to ignore escape codes in __getitem__',
             )
 
-        with self.assertRaises(IndexError):
-            cb[7]
-        with self.assertRaises(IndexError):
-            cb[slice(7, 10)]
+        err_cases = (7, slice(7, 10), -8)
+        for index in err_cases:
+            with self.assertRaises(IndexError):
+                cb[index]
+
+        with self.assertRaises(TypeError):
+            # Index must be integer/slice.
+            cb['wat']
+
+        with self.assertRaises(ValueError):
+            # Step cannot be 0.
+            cb[0:2:0]
+
+    def test_index(self):
+        """ index() should behave like self.data.index(). """
+        cb = ChainedBase('\x1b[31mtesting\x1b[0m')
+        cases = {
+            '\x1b': 0,
+            't': 5,
+            'ing': 9,
+        }
+        for substr, expected in cases.items():
+            self.assertCallEqual(
+                expected,
+                func=cb.index,
+                args=(substr, ),
+                msg='Failed to find index for known substr: {!r}'.format(substr)
+            )
+
+    def test_join(self):
+        """ join() should join self.data for ChainedBases and strings. """
+        cases = {
+            ('a', ): 'a',
+            ('a', 'b'): 'ab',
+            (('a', 'b', 'c'), ): 'abc',
+            (ChainedBase('ac'), ): 'ac',
+            (ChainedBase('ac'), ChainedBase('bc')): 'acbc',
+            ((ChainedBase('a'), ChainedBase('b'), ChainedBase('c')), ): 'abc',
+            ((ChainedBase('ac'), 'b', ChainedBase('cc')), ): 'acbcc',
+        }
+        for joinargs, expected in cases.items():
+            self.assertCallEqual(
+                ChainedBase(expected),
+                func=ChainedBase('').join,
+                args=joinargs,
+                msg='Failed to join strings correctly.',
+            )
+
+    def test_just(self):
+        """ ljust()/rjust() should work around escape codes. """
+        s = '\x1b[31mtest\x1b[0m'
+        rjustcases = {
+            0: '\x1b[31mtest\x1b[0m',
+            8: '    \x1b[31mtest\x1b[0m',
+        }
+        for width, expected in rjustcases.items():
+            self.assertCallEqual(
+                ChainedBase(expected),
+                func=ChainedBase(s).rjust,
+                args=(width, ),
+                msg='Failed to rjust ChainedBase correctly.',
+            )
+        ljustcases = {
+            0: '\x1b[31mtest\x1b[0m',
+            8: '\x1b[31mtest\x1b[0m    ',
+        }
+        for width, expected in ljustcases.items():
+            self.assertCallEqual(
+                ChainedBase(expected),
+                func=ChainedBase(s).ljust,
+                args=(width, ),
+                msg='Failed to ljust ChainedBase correctly.',
+            )
+            # New text.
+            self.assertCallEqual(
+                ChainedBase(expected),
+                func=ChainedBase().ljust,
+                kwargs={'text': s, 'width': width},
+                msg='Failed to ljust(text={!r}) ChainedBase correctly.'.format(
+                    s,
+                ),
+            )
+
+        # Bad width should raise ValueError.
+        cb = ChainedBase(s)
+        for func in (cb.ljust, cb.rjust):
+            raiser = self.assertCallRaises(
+                ValueError,
+                func=func,
+                kwargs={'width': 'BAD'},
+                msg='Failed to raise for bad `width` arg.',
+            )
+            with raiser:
+                func(width='BAD')
 
     def test_len(self):
         """ __len__ should return len(self.data). """
         # This is mostly here for test coverage.
         cb = ChainedBase('test')
-        self.assertEqual(
-            len(cb),
+        self.assertCallEqual(
             4,
+            func=cb.__len__,
             msg='__len__ failed.',
+        )
+
+    def test_lstrip(self):
+        """ lstrip() should act like str.lstrip(). """
+        cases = {
+            '  test': 'test',
+            '\n\ttest': 'test',
+            '\n\n\t\t  \n\n \t\ttest': 'test',
+        }
+        for s, expected in cases.items():
+            self.assertCallEqual(
+                ChainedBase(expected),
+                func=ChainedBase(s).lstrip,
+                msg='Failed to lstrip ChainedBase.',
+            )
+
+    def test_lt(self):
+        """ __lt__ should operate on ChainedBases and strings. """
+        a = ChainedBase('a')
+        b = ChainedBase('b')
+        self.assertLess(
+            a,
+            b,
+            msg='__lt__ failed to recognize the proper order.'
+        )
+        self.assertLess(
+            a,
+            'c',
+            msg='__lt__ failed to recognize the proper order for str.'
+        )
+        with self.assertRaises(TypeError):
+            a < 5
+
+    def test_mul(self):
+        """ __mul__ should act like str.__mul__. """
+        a = ChainedBase('a')
+        self.assertEqual(
+            a * 3,
+            ChainedBase('aaa'),
+            msg='Failed to multiply ChainedBase data.'
+        )
+        # rmul
+        self.assertEqual(
+            3 * a,
+            ChainedBase('aaa'),
+            msg='Failed to multiply ChainedBase data.'
+        )
+
+        with self.assertRaises(TypeError):
+            # Non-int multiplier.
+            a * 'wat'
+        with self.assertRaises(TypeError):
+            # Non-int rmultiplier.
+            'wat' * a
+
+    def test_rstrip(self):
+        """ rstrip() should act like str.rstrip(). """
+        cases = {
+            'test  ': 'test',
+            'test\n\t': 'test',
+            'test\n\n\t\t  \n\n \t\t': 'test',
+        }
+        for s, expected in cases.items():
+            self.assertCallEqual(
+                ChainedBase(expected),
+                func=ChainedBase(s).rstrip,
+                msg='Failed to rstrip ChainedBase.',
+            )
+
+    def test_str(self):
+        """ str() should return str(self.data). """
+        # Mostly here for test coverage.
+        cases = {
+            'test': 'test',
+            0: '0',
+            1: '1',
+            1.5: '1.5',
+            tuple(): '()',
+            tuple((1, 2)): '(1, 2)',
+        }
+        # str() called on a ChainedBase.
+        for initarg, expected in cases.items():
+            cb = ChainedBase(initarg)
+            self.assertCallEqual(
+                expected,
+                func=str,
+                args=(cb, ),
+                msg='str() failed to return the proper string for {!r}.'.format(
+                    initarg,
+                ),
+            )
+        # ChainedBase.str method.
+        for initarg, expected in cases.items():
+            cb = ChainedBase(initarg)
+            self.assertCallEqual(
+                expected,
+                func=cb.str,
+                msg='str() failed to return the proper string for {!r}.'.format(
+                    initarg,
+                ),
+            )
+        # Initialized with False/True
+        for val in (False, True):
+            cb = ChainedBase(val)
+            self.assertCallEqual(
+                str(val),
+                func=str,
+                args=(cb, ),
+                msg='str() failed to return the proper string for False.',
+            )
+
+    def test_strip(self):
+        """ strip() should act like str.strip(). """
+        cases = {
+            '  test  ': 'test',
+            '\n\ttest\n\t': 'test',
+            '\n\n\t\t  \n\n \t\ttest\n\n\t\t  \n\n \t\t': 'test',
+        }
+        for s, expected in cases.items():
+            self.assertCallEqual(
+                ChainedBase(expected),
+                func=ChainedBase(s).strip,
+                msg='Failed to strip ChainedBase.',
+            )
+        charcases = (
+            ('\x1b[31mtest\x1b[0m', '\x1b[31m', 'test\x1b[0m'),
+            ('\x1b[31mtest\x1b[0m', '\x1b[0m', '\x1b[31mtest'),
+            ('test', '\x1b[0m', 'test'),
+        )
+        for s, chars, expected in charcases:
+            self.assertCallEqual(
+                ChainedBase(expected),
+                func=ChainedBase(s).strip,
+                args=(chars, ),
+                msg='Failed to strip escape codes properly.',
+            )
+
+    def test_write(self):
+        """ write() should write self.data and then clear it. """
+        cb = ChainedBase('test')
+        file = TestFileBytes()
+        cb.write(file=file)
+        self.assertCallEqual(
+            bytes(file),
+            b'test',
+            func=cb.write,
+            kwargs={'file': file},
+            msg='Failed to write to file object.',
+        )
+        self.assertEqual(
+            cb,
+            ChainedBase(''),
+            msg='Failed to clear self.data after write() call.',
+        )
+
+        cb = ChainedBase('again')
+        cb.write(file=file, end='\n')
+        self.assertCallEqual(
+            bytes(file),
+            b'again\n',
+            func=cb.write,
+            kwargs={'file': file, 'end': '\n'},
+            msg='Failed to write to file object with `end`.',
+        )
+        self.assertEqual(
+            cb,
+            ChainedBase(''),
+            msg='Failed to clear self.data after write() call.',
+        )
+
+        cb = ChainedBase('with delay')
+        cb.write(file=file, end='\n', delay=0.005)
+        self.assertCallEqual(
+            bytes(file),
+            b'with delay\n',
+            func=cb.write,
+            kwargs={'file': file, 'end': '\n', 'delay': 0.005},
+            msg='Failed to write to file object with delay.',
+        )
+        self.assertEqual(
+            cb,
+            ChainedBase(''),
+            msg='Failed to clear self.data after write() call.',
         )
 
 
@@ -131,9 +432,7 @@ class BaseFunctionTests(ColrTestCase):
             },
         }
         for s, expected in cases.items():
-            result = get_code_indices(s)
             self.assertCallDictEqual(
-                result,
                 expected,
                 func=get_code_indices,
                 args=(s, ),
@@ -142,9 +441,12 @@ class BaseFunctionTests(ColrTestCase):
 
     def test_get_indices(self):
         """ get_indices should locate chars and escape codes. """
-        cases = {}
-        # None
-        cases['no codes'] = {i: c for i, c in enumerate('no codes')}
+        cases = {
+            # Empty string case.
+            '': {},
+            # No escape code case.
+            'no codes': {i: c for i, c in enumerate('no codes')},
+        }
         # Start
         cases['\x1b[31m;one code'] = {0: '\x1b[31m'}
         cases['\x1b[31m;one code'].update(
@@ -166,11 +468,9 @@ class BaseFunctionTests(ColrTestCase):
             {i + 14: c for i, c in enumerate('test')}
         )
         for s, expected in cases.items():
-            result = get_indices(s)
             self.assertCallDictEqual(
-                result,
                 expected,
-                func=get_code_indices,
+                func=get_indices,
                 args=(s, ),
                 msg='Failed to find code and char indices.',
             )
@@ -206,9 +506,7 @@ class BaseFunctionTests(ColrTestCase):
         ]
 
         for s, expected in cases.items():
-            result = get_indices_list(s)
             self.assertCallListEqual(
-                result,
                 expected,
                 func=get_indices_list,
                 args=(s, ),
