@@ -93,19 +93,8 @@ def main(argd):
     # Success.
     if argd['--run-coverage'] or argd['--quiet-coverage']:
         # Create coverage report.
-        print(C(': ').join(
-            C('Creating coverage report in', 'cyan'),
-            C(COVERAGE_DIR, 'blue', style='bright'),
-        ))
-        covcmd = [
-            'coverage',
-            'html',
-            '--directory',
-            COVERAGE_DIR,
-            '--title',
-            'Coverage for Colr v. {}'.format(colr_version),
-        ]
-        exitcode = subprocess.run(covcmd).returncode
+        return run_coverage(quiet=argd['--quiet-coverage'])
+
     return exitcode
 
 
@@ -388,6 +377,33 @@ def print_test_names(names):
         print(C(name, 'blue'))
 
     return 0 if names else 1
+
+
+def run_coverage(quiet=False):
+    """ Run coverage, and return an exit status code. """
+    print(C(': ').join(
+        C('Creating coverage report in', 'cyan'),
+        C(COVERAGE_DIR, 'blue', style='bright'),
+    ))
+    covcmd = [
+        'coverage',
+        'html',
+        '--directory',
+        COVERAGE_DIR,
+        '--title',
+        'Coverage for Colr v. {}'.format(colr_version),
+    ]
+    exitcode = subprocess.run(covcmd).returncode
+    if exitcode:
+        return exitcode
+    # Show console report.
+    print(C('').join(C('\nCoverage Report', 'cyan'), ':'))
+    # TODO: Colorize by parsing lines in `subprocess.check_output()`.
+    covreportcmd = [
+        'coverage',
+        'report',
+    ]
+    return subprocess.run(covreportcmd).returncode
 
 
 def try_repat(s, default=None):

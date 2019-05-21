@@ -213,7 +213,9 @@ class BaseTests(ColrTestCase):
                 ValueError,
                 func=func,
                 kwargs={'width': 'BAD'},
-                msg='Failed to raise for bad `width` arg.',
+                msg='Failed to raise in {} for bad `width` arg.'.format(
+                    func.__name__,
+                ),
             )
             with raiser:
                 func(width='BAD')
