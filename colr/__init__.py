@@ -85,7 +85,7 @@ from .progress_frames import (
 )
 
 try:
-    from .colr_docopt import (
+    from .colr_docopt import (  # noqa
         docopt,
         docopt_file,
         docopt_version,
@@ -107,6 +107,10 @@ from .trans import (
     term2hex,
     term2hex_map,
     term2rgb
+)
+
+from .preset import (
+    Preset,
 )
 
 __all__ = [
@@ -172,8 +176,11 @@ __all__ = [
     'rgb2termhex',
     'term2hex',
     'term2hex_map',
-    'term2rgb'
+    'term2rgb',
+    # Preset stuff made available.
+    'Preset',
 ]
+
 if has_docopt:
     __all__.append('docopt')
     __all__.append('docopt_version')

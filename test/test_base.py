@@ -7,6 +7,9 @@
 
 from colr.base import (
     ChainedBase,
+    ChainedPart,
+    CodePart,
+    TextPart,
     get_code_indices,
     get_indices,
     get_indices_list,
@@ -70,6 +73,7 @@ class BaseTests(ColrTestCase):
         cases = {
             '{}': 'test',
             '{:}': 'test',
+            '{:8}': 'test    ',
             '{:>8}': '    test',
             '{:<8}': 'test    ',
             '{:^8}': '  test  ',
@@ -78,18 +82,18 @@ class BaseTests(ColrTestCase):
             self.assertCallEqual(
                 expected,
                 func=fmt.format,
-                args=('test', ),
+                args=(cb, ),
                 msg='Failed to format ChainedBase.',
             )
-        badfmt = '{:>BAD}'
-        raiser = self.assertCallRaises(
-            ValueError,
-            func=str.format,
-            args=(badfmt, ),
-            msg='Failed to raise on bad width specifier.',
-        )
-        with raiser:
-            badfmt.format(cb)
+        for badfmt in ('{:>BAD}', '{:BAD}'):
+            raiser = self.assertCallRaises(
+                ValueError,
+                func=str.format,
+                args=(badfmt, ),
+                msg='Failed to raise on bad width specifier.',
+            )
+            with raiser:
+                badfmt.format(cb)
 
     def test_getitem(self):
         """ __getitem__ should navigate escape codes, and raise on errors.
@@ -103,6 +107,10 @@ class BaseTests(ColrTestCase):
             ((0, 6, 2), '\x1b[31mtsig'),
             # A [::n] slice.
             ((6, 6, 1), '\x1b[31mtesting'),
+            # A slice that ends past the string.
+            ((45, 99), ''),
+            # A negative slice that ends before the string.
+            ((-1, -3), ''),
             # Reversed slices.
             # A [::-n] slice.
             ((6, 6, -1), '\x1b[31mgnitset'),
@@ -123,18 +131,31 @@ class BaseTests(ColrTestCase):
                 msg='Failed to ignore escape codes in __getitem__',
             )
 
-        err_cases = (7, slice(7, 10), -8)
+        err_cases = (7, -8)
         for index in err_cases:
-            with self.assertRaises(IndexError):
+            raiser = self.assertRaises(
+                IndexError,
+                msg='Failed to raise for bad index: {!r}'.format(index)
+            )
+            with raiser:
                 cb[index]
-
-        with self.assertRaises(TypeError):
+        index = 'wat'
+        raiser = self.assertRaises(
+            TypeError,
+            msg='Failed to raise for bad index: {!r}'.format(index),
+        )
+        with raiser:
             # Index must be integer/slice.
-            cb['wat']
+            cb[index]
 
-        with self.assertRaises(ValueError):
+        index = slice(0, 2, 0)
+        raiser = self.assertRaises(
+            ValueError,
+            msg='Failed to raise for 0 step.',
+        )
+        with raiser:
             # Step cannot be 0.
-            cb[0:2:0]
+            cb[index]
 
     def test_index(self):
         """ index() should behave like self.data.index(). """
@@ -220,6 +241,23 @@ class BaseTests(ColrTestCase):
             with raiser:
                 func(width='BAD')
 
+        # Text squeezer should honor existing data.
+        cb = ChainedBase('test')
+        self.assertCallEqual(
+            ChainedBase('testthis    '),
+            func=cb.ljust,
+            args=(12, ),
+            kwargs={'text': 'this', 'squeeze': True},
+            msg='Failed to "squeeze" old text and new text for ljust.',
+        )
+        self.assertCallEqual(
+            ChainedBase('test    this'),
+            func=cb.rjust,
+            args=(12, ),
+            kwargs={'text': 'this', 'squeeze': True},
+            msg='Failed to "squeeze" old text and new text for rjust.',
+        )
+
     def test_len(self):
         """ __len__ should return len(self.data). """
         # This is mostly here for test coverage.
@@ -282,6 +320,93 @@ class BaseTests(ColrTestCase):
         with self.assertRaises(TypeError):
             # Non-int rmultiplier.
             'wat' * a
+
+    def test_parts(self):
+        """ parts() should recognize code parts and text parts. """
+        s = '\x1b[31mtesting\x1b[0m'
+        cb = ChainedBase(s)
+        parts = cb.parts()
+        self.assertTrue(
+            parts[0].is_code(),
+            msg='First part should be a code part.',
+        )
+        self.assertFalse(
+            parts[0].is_text(),
+            msg='First part should be a code part.',
+        )
+        self.assertTrue(
+            parts[1].is_text(),
+            msg='Second part should be a text part.',
+        )
+        self.assertFalse(
+            parts[1].is_code(),
+            msg='Second part should be a text part.',
+        )
+        self.assertTrue(
+            parts[2].is_code(),
+            msg='Third part should be a code part.',
+        )
+        self.assertFalse(
+            parts[2].is_text(),
+            msg='Third part should be a code part.',
+        )
+        # __eq__
+        codepart = CodePart(s, start=0, stop=5)
+        self.assertEqual(
+            parts[0],
+            codepart,
+            msg='CodePart doesn\'t match.'
+        )
+        textpart = TextPart(s, start=5, stop=12)
+        self.assertEqual(
+            parts[1],
+            textpart,
+            msg='TextPart doesn\'t match.'
+        )
+        # __eq__ should raise TypeError.
+        raiser = self.assertRaises(
+            TypeError,
+            msg='Failed to raise for bad type.',
+        )
+        for badtype in (1, 'a', 0.3, [], {}):
+            with raiser:
+                codepart == badtype
+            with raiser:
+                textpart == badtype
+
+        # __hash__
+        self.assertEqual(
+            hash(parts[0]),
+            hash(codepart),
+            msg='hash() failed on same code part.',
+        )
+        self.assertEqual(
+            hash(parts[1]),
+            hash(textpart),
+            msg='hash() failed on same text part.',
+        )
+
+        # __repr__
+        self.assertEqual(
+            repr(codepart),
+            'CodePart({!r})'.format(s[codepart.start:codepart.stop]),
+            msg='repr() failed on CodePart.',
+        )
+        self.assertEqual(
+            repr(textpart),
+            'TextPart({!r})'.format(s[textpart.start:textpart.stop]),
+            msg='repr() failed on TextPart.',
+        )
+
+        # ChainedPart cannot be used directly.
+        raiser = self.assertRaises(
+            NotImplementedError,
+            msg='Failed to raise when using a ChainedPart directly.',
+        )
+        with raiser:
+            ChainedPart('a', 0, 0).is_code()
+        with raiser:
+            ChainedPart('a', 0, 0).is_text()
 
     def test_rstrip(self):
         """ rstrip() should act like str.rstrip(). """

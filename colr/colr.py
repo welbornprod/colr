@@ -142,9 +142,9 @@ _namemap = (
 )  # type: Tuple[Tuple[str, int], ...]
 
 # Public list of names.
-basic_names = (
+basic_names = tuple(
     t[0] for t in _namemap
-)  # type: Tuple[str]
+)  # type: Tuple[str, ...]
 
 # Map of base code -> style name/alias.
 _stylemap = (
@@ -398,7 +398,7 @@ def format_style(number: int) -> str:
     return codeformat(number)
 
 
-def get_all_names() -> Tuple[str]:
+def get_all_names() -> Tuple[str, ...]:
     """ Retrieve a tuple of all known color names, basic and 'known names'.
     """
     names = list(basic_names)
