@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
-""" test_style.py
-    Tests for colr.style.Style.
+""" test_preset.py
+    Tests for colr.preset.Preset.
     -Christopher Welborn 05-21-2019
 """
 
@@ -12,7 +12,7 @@ from random import SystemRandom
 from colr import (
     __version__,
     Colr,
-    Style,
+    Preset,
 )
 
 from .testing_tools import ColrTestCase
@@ -20,10 +20,10 @@ from .testing_tools import ColrTestCase
 random = SystemRandom()
 
 
-class StyleTests(ColrTestCase):
-    """ Tests for the colr.Style object. """
+class PresetTests(ColrTestCase):
+    """ Tests for the colr.Preset object. """
     def test_eq(self):
-        """ __eq__ should work for identical Styles. """
+        """ __eq__ should work for identical Presets. """
         cases = (
             ('red', 'white', 'bold'),
             ('blue', 'red', 'normal'),
@@ -32,42 +32,42 @@ class StyleTests(ColrTestCase):
         )
         for fore, back, style in cases:
             self.assertEqual(
-                Style(fore, back, style),
-                Style(fore, back, style),
-                msg='Identical Styles did not compare equal.',
+                Preset(fore, back, style),
+                Preset(fore, back, style),
+                msg='Identical Presets did not compare equal.',
             )
         raiser = self.assertRaises(TypeError, msg='Failed to raise for __eq__.')
         for badtype in (1, 's', {}, None):
             with raiser:
-                Style() == badtype
+                Preset() == badtype
 
     def test_hash(self):
-        """ hash() should not change for identical Styles. """
+        """ hash() should not change for identical Presets. """
         self.assertEqual(
-            hash(Style('red', 'white', 'bold')),
-            hash(Style('red', 'white', 'bold')),
-            msg='hash() failed for identical Styles.'
+            hash(Preset('red', 'white', 'bold')),
+            hash(Preset('red', 'white', 'bold')),
+            msg='hash() failed for identical Presets.'
         )
 
     def test_init(self):
-        """ Initializing a Style should work. """
-        st = Style('red', 'white', 'bold')
+        """ Initializing a Preset should work. """
+        st = Preset('red', 'white', 'bold')
         for text in ('test', 'this', 'out okay?'):
             self.assertCallEqual(
                 Colr(text, 'red', 'white', 'bold'),
                 func=st,
                 args=(text, ),
-                msg='Failed to build correct Colr from Style call.',
+                msg='Failed to build correct Colr from Preset call.',
             )
 
     def test_lt(self):
-        """ __lt__ should work for Styles. """
+        """ __lt__ should work for Presets. """
         styles = [
-            Style('black', 'grey', 'highlight'),
-            Style('blue', 'red', 'normal'),
-            Style('red', 'white', 'bold'),
-            Style('white', 'yellow', 'bold'),
-            Style('yellow', 'lightblue', 'underline'),
+            Preset('black', 'grey', 'highlight'),
+            Preset('blue', 'red', 'normal'),
+            Preset('red', 'white', 'bold'),
+            Preset('white', 'yellow', 'bold'),
+            Preset('yellow', 'lightblue', 'underline'),
         ]
         randomized = styles[:]
         random.shuffle(randomized)
@@ -75,24 +75,24 @@ class StyleTests(ColrTestCase):
         self.assertListEqual(
             list(sorted(randomized)),
             styles,
-            msg='Failed to sort Styles properly due to __lt__.',
+            msg='Failed to sort Presets properly due to __lt__.',
         )
 
         cases = (
             (
                 'fore',
-                Style('blue', 'white', 'normal'),
-                Style('red', 'blue', 'bold')
+                Preset('blue', 'white', 'normal'),
+                Preset('red', 'blue', 'bold')
             ),
             (
                 'back',
-                Style('blue', 'blue', 'normal'),
-                Style('blue', 'red', 'bold')
+                Preset('blue', 'blue', 'normal'),
+                Preset('blue', 'red', 'bold')
             ),
             (
                 'style',
-                Style('red', 'blue', 'bold'),
-                Style('red', 'blue', 'normal')
+                Preset('red', 'blue', 'bold'),
+                Preset('red', 'blue', 'normal')
             ),
         )
         for argtype, a, b in cases:
@@ -109,38 +109,38 @@ class StyleTests(ColrTestCase):
         raiser = self.assertRaises(TypeError, msg='Failed to raise for __lt__.')
         for badtype in (1, 's', {}, None):
             with raiser:
-                Style() < badtype
+                Preset() < badtype
 
     def test_merge(self):
-        st = Style('red', 'white', 'bold')
-        st2 = Style('blue')
+        st = Preset('red', 'white', 'bold')
+        st2 = Preset('blue')
         self.assertEqual(
             st.merge(st2),
-            Style('blue', 'white', 'bold'),
-            msg='Failed to merge Style properly.',
+            Preset('blue', 'white', 'bold'),
+            msg='Failed to merge Preset properly.',
         )
         self.assertEqual(
             st.merge(st2, fore='yellow'),
-            Style('yellow', 'white', 'bold'),
-            msg='Failed to merge Style properly.',
+            Preset('yellow', 'white', 'bold'),
+            msg='Failed to merge Preset properly.',
         )
         self.assertEqual(
             st.merge(st2, back='black'),
-            Style('blue', 'black', 'bold'),
-            msg='Failed to merge Style properly.',
+            Preset('blue', 'black', 'bold'),
+            msg='Failed to merge Preset properly.',
         )
         self.assertEqual(
             st.merge(st2, style='normal'),
-            Style('blue', 'white', 'normal'),
-            msg='Failed to merge Style properly.',
+            Preset('blue', 'white', 'normal'),
+            msg='Failed to merge Preset properly.',
         )
 
     def test_repr(self):
-        """ repr() should work for Styles. """
+        """ repr() should work for Presets. """
         # Main here for test coverage.
         self.assertEqual(
-            repr(Style('red', 'white', 'bold')),
-            'Style(fore=\'red\', back=\'white\', style=\'bold\')',
+            repr(Preset('red', 'white', 'bold')),
+            'Preset(fore=\'red\', back=\'white\', style=\'bold\')',
             msg='repr() is wrong.',
         )
 

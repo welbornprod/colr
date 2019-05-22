@@ -109,8 +109,8 @@ from .trans import (
     term2rgb
 )
 
-from .style import (
-    Style,
+from .preset import (
+    Preset,
 )
 
 __all__ = [
@@ -177,8 +177,8 @@ __all__ = [
     'term2hex',
     'term2hex_map',
     'term2rgb',
-    # Style stuff made available.
-    'Style',
+    # Preset stuff made available.
+    'Preset',
 ]
 
 if has_docopt:

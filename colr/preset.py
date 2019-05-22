@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 """ colr/style.py
-    Style object for the Colr class.
+    Preset object for the Colr class.
     A callable that will wrap it's argument in a Colr using the arguments
     given on __init__.
     -Christopher Welborn 05-21-2019
@@ -12,11 +12,11 @@ from .colr import Colr
 
 
 @total_ordering
-class Style(object):
+class Preset(object):
     """ Colr arg dict for fore, back, and style arguments.
         Callable to wrap strings in a Colr that uses these arguments.
         Example:
-            warn = Style('red', 'white', 'bold')
+            warn = Preset('red', 'white', 'bold')
             print(warn('Watch out!'))
 
     """
@@ -28,8 +28,8 @@ class Style(object):
         self.style = style
 
     def __call__(self, text, fore=None, back=None, style=None):
-        """ Calling a Style returns a Colr instance.
-            Style arguments can be temporarily overwritten by providing them
+        """ Calling a Preset returns a Colr instance.
+            Preset arguments can be temporarily overwritten by providing them
             to this call.
         """
         return Colr(
@@ -40,8 +40,8 @@ class Style(object):
         )
 
     def __eq__(self, other):
-        if not isinstance(other, Style):
-            raise TypeError('Expecting a Style instance, got: ({}) {!r}'.format(
+        if not isinstance(other, Preset):
+            raise TypeError('Expecting a Preset instance, got: ({}) {!r}'.format(
                 type(other).__name__,
                 other,
             ))
@@ -55,8 +55,8 @@ class Style(object):
         return hash((self.fore, self.back, self.style))
 
     def __lt__(self, other):
-        if not isinstance(other, Style):
-            raise TypeError('Expecting a Style instance, got: ({}) {!r}'.format(
+        if not isinstance(other, Preset):
+            raise TypeError('Expecting a Preset instance, got: ({}) {!r}'.format(
                 type(other).__name__,
                 other,
             ))
@@ -84,7 +84,7 @@ class Style(object):
         return d
 
     def merge(self, styleobj, fore=None, back=None, style=None):
-        """ Merge new Colr arguments with this Style and return a new Style.
+        """ Merge new Colr arguments with this Preset and return a new Preset.
         """
         d = self.as_dict()
         d.update(styleobj.as_dict())
