@@ -114,8 +114,6 @@ def get_indices(s: Union[str, 'ChainedBase']) -> Dict[int, str]:
         indices.update({i: s[i] for i in range(startlen, codeindex)})
         indices[codeindex] = code
 
-    if not indices:
-        return {i: c for i, c in enumerate(s)}
     lastindex = max(indices, key=int)
     lastitem = indices[lastindex]
     start = lastindex + len(lastitem)
@@ -202,6 +200,7 @@ class ChainedBase(Sequence):
             `help('FORMATTING')`.
         """
         if not fmt:
+            # TODO: Is this even possible?
             return str(self)
         methodmap = {
             '<': self.ljust,
@@ -221,9 +220,15 @@ class ChainedBase(Sequence):
                     'Invalid width for format specifier: {}'.format(width)
                 )
             return str(methodmap[align](widthval, fillchar=char))
-
-        # Fallback to plain str modifier.
-        return str(self).__format__(fmt)
+        # No alignment char, default to ljust ('<').
+        try:
+            width = int(fmt)
+        except ValueError:
+            raise ValueError(
+                'Expecting standard str format spec, got: {!r}'.format(fmt)
+            )
+        else:
+            return str(methodmap['<'](width, fillchar=' '))
 
     def __getitem__(self, key):
         """ Allow subscripting self.data. This will ignore any escape codes,
@@ -270,13 +275,21 @@ class ChainedBase(Sequence):
             pos = start + 1
         codeparts = []
         parts = []
-        found_char = False
+
+        def is_out_of_bounds():
+            """ Tracks string position and returns True if it has went past
+                the bounds.
+            """
+            if (start <= stop) and (pos >= stop):
+                # Positive step.
+                return True
+            elif (start >= stop) and (pos <= stop):
+                # Negative step.
+                return True
+            return False
 
         for part in self.iter_parts():
-            if pos == stop:
-                if not found_char:
-                    msgfmt = 'Index out of bounds for non-escape code data: {}'
-                    raise IndexError(msgfmt.format(pos))
+            if is_out_of_bounds():
                 break
             if part.is_code():
                 codeparts.append(part)
@@ -285,24 +298,19 @@ class ChainedBase(Sequence):
             for char in str(part)[::step]:
                 pos += step
                 if (step > 0) and (pos < start):
-                    continue
-                elif (step < 0) and (pos > start):
+                    # Started negative on a positive step, but it's okay.
                     continue
                 if pos == stop:
                     break
                 parts.extend(codeparts)
                 codeparts = []
                 chars.append(char)
-                found_char = True
 
             parts.append(''.join(chars))
 
         s = ''.join(str(x) for x in parts)
-        if not s:
-            # Reached the end of text, before an escape code.
-            raise IndexError(
-                'Index out of bounds for non-escape code data: {}'.format(stop)
-            )
+        # It's okay to return an empty ChainedBase,
+        # str() does it for slices like 'test'[45:].
         return self.__class__(s)
 
     def __hash__(self):
