@@ -27,7 +27,7 @@ colr_auto_disable()
 APPNAME = 'Colr'
 APPVERSION = colr_version
 NAME = '{} Test Runner'.format(APPNAME)
-VERSION = '0.1.0'
+VERSION = '0.2.0'
 VERSIONSTR = '{} v. {}'.format(NAME, VERSION)
 SCRIPT = os.path.split(os.path.abspath(sys.argv[0]))[1]
 SCRIPTDIR = os.path.abspath(sys.path[0])
@@ -37,7 +37,7 @@ USAGESTR = """{versionstr}
 
     Usage:
         {script} -h | -v
-        {script} -V
+        {script} (-C | -c)
         {script} [-d] [-s] [-r | -R]
         {script} [-d] [-s] [-r | -R] TESTS...
         {script} (-l | -L) [PATTERN...]
@@ -45,6 +45,8 @@ USAGESTR = """{versionstr}
     Options:
         PATTERN              : Regex/text pattern to match against test names.
         TESTS                : Test names for `green`.
+        -C,--view-browser    : Shortcut to open the html coverage report
+        -c,--view-coverage   : View coverage report in the console.
         -d,--dryrun          : Just show test names.
         -h,--help            : Show this help message.
         -L,--listall         : List all test names with their full name.
@@ -52,7 +54,6 @@ USAGESTR = """{versionstr}
         -r,--run-coverage    : Run coverage.
         -R,--quiet-coverage  : Run coverage without stdout output.
         -s,--stdout          : Allow stdout (removes -q from green args).
-        -V,--view-coverage   : Shortcut to open the html coverage report
                                in google-chrome.
         -v,--version         : Show version.
 """.format(script=SCRIPT, versionstr=VERSIONSTR)
@@ -71,6 +72,8 @@ def main(argd):
         ]
 
         return list_tests(full=argd['--listall'], patterns=userpats)
+    elif argd['--view-browser']:
+        return view_coverage_browser()
     elif argd['--view-coverage']:
         return view_coverage()
 
@@ -80,10 +83,9 @@ def main(argd):
     cmd = [green_exe, '-vv']
     if not argd['--stdout']:
         cmd.append('-q')
-    if argd['--run-coverage']:
-        cmd.append('-r')
-    elif argd['--quiet-coverage']:
+    if argd['--run-coverage'] or argd['--quiet-coverage']:
         cmd.append('-R')
+
     cmd.extend(green_args)
     print_header(cmd)
 
@@ -396,14 +398,9 @@ def run_coverage(quiet=False):
     exitcode = subprocess.run(covcmd).returncode
     if exitcode:
         return exitcode
-    # Show console report.
-    print(C('').join(C('\nCoverage Report', 'cyan'), ':'))
-    # TODO: Colorize by parsing lines in `subprocess.check_output()`.
-    covreportcmd = [
-        'coverage',
-        'report',
-    ]
-    return subprocess.run(covreportcmd).returncode
+    if quiet:
+        return exitcode
+    return view_coverage()
 
 
 def try_repat(s, default=None):
@@ -422,6 +419,65 @@ def try_repat(s, default=None):
 
 
 def view_coverage():
+    """ Print the coverage report to the console. """
+    coverage_file = os.path.join(SCRIPTDIR, '.coverage')
+    if not os.path.exists(coverage_file):
+        raise InvalidArg('No coverage file found, run coverage: {}'.format(
+            coverage_file,
+        ))
+    # Show console report.
+    print(C('').join(C('\nCoverage Report', 'cyan'), ':'))
+
+    covreportcmd = [
+        'coverage',
+        'report',
+    ]
+    try:
+        output = subprocess.check_output(
+            covreportcmd,
+            stderr=subprocess.STDOUT,
+        ).decode()
+    except subprocess.CalledProcessError:
+        return 1
+    if not output.startswith('Name'):
+        print_err(output)
+        return 1
+
+    divline = C('-' * 45, 'dimgrey')
+    for line in output.splitlines():
+        if line.startswith('--'):
+            # Divider line.
+            print(divline)
+            continue
+        name, statements, miss, cover = line.split()
+        namefmt = C(name).ljust(25)
+        statementsfmt = C(statements, (46, 137, 255)).rjust(5)
+        try:
+            miss = int(miss)
+            if miss == 0:
+                missfmt = C(miss, 'lightgreen', style='bright').rjust(6)
+            else:
+                missfmt = C(miss, 'red').rjust(6)
+        except ValueError:
+            # Actual 'Miss' header.
+            missfmt = C(miss, 'red').rjust(6)
+        try:
+            cover = int(cover.rstrip('%'))
+            if cover == 100:
+                covercolr = {'fore': 'lightgreen', 'style': 'bright'}
+            elif cover > 49:
+                covercolr = {'fore': 'green'}
+            else:
+                covercolr = {'fore': 'red'}
+            coverfmt = C('{}%'.format(cover), **covercolr).rjust(6)
+        except ValueError:
+            # Actual 'Cover' header.
+            coverfmt = C(cover, 'green').rjust(6)
+        print(C(' ').join(namefmt, statementsfmt, missfmt, coverfmt))
+    return 0
+
+
+def view_coverage_browser():
     """ Open the html coverage report in google-chrome. """
     indexfile = os.path.join(COVERAGE_DIR, 'index.html')
     if not os.path.exists(indexfile):
