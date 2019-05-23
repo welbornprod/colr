@@ -27,6 +27,7 @@ try:
         __version__,
         codes,
         Colr,
+        ColrControl,
         auto_disable,
         color,
         disabled,
@@ -47,22 +48,29 @@ SCRIPTDIR = os.path.abspath(sys.path[0])
 USAGESTR = """{versionstr}
     Usage:
         {script} -h | -v
-        {script} [-c] [NAME...]
+        {script} [-c] [-C] [NAME...]
 
     Options:
-        NAME          : Name of display test function to run, or part of it.
-                        Default: all tests are run
-        -c,--color    : Force color use, even when piping.
-        -h,--help     : Show this help message.
-        -v,--version  : Show version.
+        NAME              : Name of display test function to run, or part of it.
+                            Default: all tests are run
+        -C,--colrcontrol  : Use the ColrControl class instead of Colr.
+        -c,--color        : Force color use, even when piping.
+        -h,--help         : Show this help message.
+        -v,--version      : Show version.
 """.format(script=SCRIPT, versionstr=VERSIONSTR)
 
 # Automatically disable colors when piping output.
 auto_disable()
 
+CLASS = Colr
+
 
 def main(argd):
     """ Main entry point, expects doctopt arg dict as argd. """
+    global CLASS
+    if argd['--colrcontrol']:
+        CLASS = ColrControl
+
     if argd['--color']:
         enable()
     maxwidth = get_terminal_size()[0]
@@ -77,6 +85,7 @@ def main(argd):
         ))
 
     print('Running {}'.format(color(VERSIONSTR, fore='red', style='bright')))
+    print('Class: {}'.format(CLASS.__name__))
 
     test_args = {
         'display_test_name_data': {'width': maxwidth // 20, 'namewidth': 20},
@@ -96,61 +105,61 @@ def display_test_custom_class(maxwidth=80):
     cl = CustomUserClass(msg='This is a test.', value=35)
     print('   {} with arguments: {}'.format(
         type(cl).__name__,
-        Colr(cl, fore='red', style='bright'),
+        CLASS(cl, fore='red', style='bright'),
     ))
     print('{} without arguments: {}'.format(
         type(cl).__name__,
-        Colr(cl),
+        CLASS(cl),
     ))
 
 
 def display_test_gradient_mix(maxwidth=80):
     """ Test display of the gradient options. """
     # Gradient should operate on self.data when no text is provided.
-    print(Colr('This is a gradient self.data.').gradient())
+    print(CLASS('This is a gradient self.data.').gradient())
 
     # Gradient should append to self.data when no text is provided.
     print(
-        Colr('This is a green self.data', fore='green')(' ')
+        CLASS('This is a green self.data', fore='green')(' ')
         .gradient('And this is an appended gradient.', name='blue'))
 
     # Gradient should be okay with ljust/center/rjust.
-    print(Colr().gradient('This is a left gradient').ljust(maxwidth))
-    print(Colr().gradient('Center gradient.').center(maxwidth))
-    print(Colr().gradient('Right-aligned gradient.').rjust(maxwidth))
+    print(CLASS().gradient('This is a left gradient').ljust(maxwidth))
+    print(CLASS().gradient('Center gradient.').center(maxwidth))
+    print(CLASS().gradient('Right-aligned gradient.').rjust(maxwidth))
 
     # Gradient and ljust/center/rjust would be chainable.
     chunkwidth = maxwidth / 3
-    print(Colr()
+    print(CLASS()
           .ljust(chunkwidth, text='Chained left.').gradient(name='red')
           .center(chunkwidth, text='Chained center.').gradient(name='white')
           .rjust(chunkwidth, text='Chained right.').gradient(name='blue'))
 
     # Black/white gradient should work in linemode or non-linemode.
     lines = ['This is a block made into a sad rainbow' for _ in range(5)]
-    print(Colr('\n'.join(lines)).gradient(name='black'))
+    print(CLASS('\n'.join(lines)).gradient(name='black'))
     lines = ['This is a block made into a long sad rainbow' for _ in range(5)]
-    print(Colr('\n'.join(lines)).gradient(name='white', linemode=False))
+    print(CLASS('\n'.join(lines)).gradient(name='white', linemode=False))
     lines = ['This is a block made into a better rainbow' for _ in range(5)]
-    print(Colr('\n'.join(lines)).gradient(name='red'))
+    print(CLASS('\n'.join(lines)).gradient(name='red'))
 
 
 def display_test_gradient_override(maxwidth=80):
     """ Test gradient with explicit fore, back, and styles. """
     try:
         # Both fore and back are not allowed in a gradient.
-        print(Colr().gradient(' ' * maxwidth, fore='reset', back='reset'))
+        print(CLASS().gradient(' ' * maxwidth, fore='reset', back='reset'))
     except ValueError:
         pass
 
     # Gradient back color.
-    print(Colr().gradient(' ' * maxwidth, name='black', fore='reset'))
+    print(CLASS().gradient(' ' * maxwidth, name='black', fore='reset'))
     # Explicit gradient fore color.
     print(
-        Colr().gradient('-' * maxwidth, name='white', spread=2, back='blue')
+        CLASS().gradient('-' * maxwidth, name='white', spread=2, back='blue')
     )
     # Implicit gradient fore color.
-    print(Colr().gradient('_' * maxwidth, name='white'), end='\n\n')
+    print(CLASS().gradient('_' * maxwidth, name='white'), end='\n\n')
 
 
 def display_test_gradient_rgb(maxwidth=80):
@@ -159,7 +168,7 @@ def display_test_gradient_rgb(maxwidth=80):
         'This is a block of text made into a gradient, rgb style.'
         for _ in range(10)
     ]
-    print(Colr('\n'.join(lines)).gradient_rgb(
+    print(CLASS('\n'.join(lines)).gradient_rgb(
         start=(240, 0, 255),
         stop=(188, 255, 0),
         step=1,
@@ -171,13 +180,13 @@ def display_test_gradient_rgb(maxwidth=80):
         linetext.center(maxwidth, 'X')
         for _ in range(10)
     ]
-    print(Colr('\n'.join(lines)).gradient_rgb(
+    print(CLASS('\n'.join(lines)).gradient_rgb(
         start=(0, 121, 255),
         stop=(191, 0, 182),
         step=1,
         linemode=False,
     ))
-    print(Colr().gradient_rgb(
+    print(CLASS().gradient_rgb(
         ' ' * maxwidth,
         start=(0, 0, 0),
         stop=(255, 255, 255),
@@ -192,7 +201,7 @@ def display_test_join(maxwidth=80):
             existing text width.
         """
         return (
-            Colr(label, fore='green')
+            CLASS(label, fore='green')
             .center(
                 # Centering on maxwidth would ruin the next rjust because
                 # the spaces created by .center will not be overwritten.
@@ -203,7 +212,7 @@ def display_test_join(maxwidth=80):
             )
             .rjust(
                 maxwidth,
-                text=Colr(tag, fore='red').join(
+                text=CLASS(tag, fore='red').join(
                     '[', ']',
                     fore='blue'
                 ),
@@ -211,9 +220,9 @@ def display_test_join(maxwidth=80):
         )
     print(fancy_log('This is a label:', 'This is centered.', 'Status: Okay'))
 
-    print(Colr('|', fore='blue').join(
+    print(CLASS('|', fore='blue').join(
         'This is regular text.'.ljust(maxwidth // 2 - 1),
-        Colr('This is colored.', fore='red').rjust(maxwidth // 2)
+        CLASS('This is colored.', fore='red').rjust(maxwidth // 2)
     ))
 
 
@@ -223,7 +232,7 @@ def display_test_justify(maxwidth=80):
     # Justified text should be chainable.
     chunkwidth = maxwidth / 80
     print(
-        Colr()
+        CLASS()
         .ljust(chunkwidth, text='Left', fore=255, back='green', style='b')
         .center(chunkwidth, text='Middle', fore=255, back='blue', style='b')
         .rjust(chunkwidth, text='Right', fore=255, back='red', style='b')
@@ -234,7 +243,7 @@ def display_test_justify(maxwidth=80):
     # This built up string would then be padded, instead of each individual
     # string.
     print(
-        Colr()
+        CLASS()
         # 256 color methods can be called with bg_<num>, b_<num>, b256_<num>.
         .b_82().b().f_255().ljust(chunkwidth, text='Left')
         .b256_56().b().f_255().center(chunkwidth, text='Middle')
@@ -242,11 +251,11 @@ def display_test_justify(maxwidth=80):
         .bgred().b().f_255().rjust(chunkwidth, text='Right')
     )
     # Width should be calculated without color codes.
-    print(Colr('True Middle').center(maxwidth, fore='magenta'))
+    print(CLASS('True Middle').center(maxwidth, fore='magenta'))
 
     # Squeezed justification should account for existing text width.
     # But if text was previously justified, don't ruin it.
-    print(Colr('Lefty', fore=232, back=255).center(
+    print(CLASS('Lefty', fore=232, back=255).center(
         maxwidth,
         text='Center',
         fore=232,
@@ -254,7 +263,7 @@ def display_test_justify(maxwidth=80):
         style='bright',
         squeeze=True))
     print(
-        Colr('LeftyCenter'.center(maxwidth // 2), fore=232, back=255)
+        CLASS('LeftyCenter'.center(maxwidth // 2), fore=232, back=255)
         .center(
             maxwidth / 2,
             text='Center',
@@ -281,45 +290,45 @@ def display_test_name_data(width=5, height=20, namewidth=20):
             while n in names_done:
                 n = random.choice(names)
             names_done.add(n)
-            cols.append(Colr(n.center(namewidth), fore=n))
-        print(Colr(' ').join(cols))
+            cols.append(CLASS(n.center(namewidth), fore=n))
+        print(CLASS(' ').join(cols))
 
 
 def display_test_rainbow(maxwidth=80):
     """ Test rainbow output, with or without linemode (short/long output)
     """
-    print(Colr('This is a rainbow. It is very pretty.').rainbow())
+    print(CLASS('This is a rainbow. It is very pretty.').rainbow())
     lines = ['This is a block of text made into a rainbow' for _ in range(5)]
-    print(Colr('\n'.join(lines)).rainbow(movefactor=5))
+    print(CLASS('\n'.join(lines)).rainbow(movefactor=5))
     lines = [
         'This is a block of text made into a rainbow (rgb mode)'
         for _ in range(5)
     ]
-    print(Colr('\n'.join(lines)).rainbow(movefactor=5, rgb_mode=True))
+    print(CLASS('\n'.join(lines)).rainbow(movefactor=5, rgb_mode=True))
 
     lines = ['This is a block made into a long rainbow' for _ in range(5)]
-    print(Colr('\n'.join(lines)).rainbow(linemode=False, rgb_mode=False))
+    print(CLASS('\n'.join(lines)).rainbow(linemode=False, rgb_mode=False))
     lines = [
         'This is a block made into a long rainbow (rgb mode)'
         for _ in range(5)
     ]
-    print(Colr('\n'.join(lines)).rainbow(linemode=False, rgb_mode=True))
+    print(CLASS('\n'.join(lines)).rainbow(linemode=False, rgb_mode=True))
 
     # Rainbow should honor fore,back,styles.
-    print(Colr(' ' * maxwidth).rainbow(fore='reset', spread=.5))
-    print(Colr('-' * maxwidth).rainbow(back='black', offset=30))
-    print(Colr(' ' * maxwidth).rainbow(
+    print(CLASS(' ' * maxwidth).rainbow(fore='reset', spread=.5))
+    print(CLASS('-' * maxwidth).rainbow(back='black', offset=30))
+    print(CLASS(' ' * maxwidth).rainbow(
         fore='reset',
         spread=.5,
         rgb_mode=True
     ))
-    print(Colr('-' * maxwidth).rainbow(
+    print(CLASS('-' * maxwidth).rainbow(
         back='black',
         offset=30,
         rgb_mode=True
     ))
 
-    print(Colr('Rainbow bright.').rainbow(style='bright').center(maxwidth))
+    print(CLASS('Rainbow bright.').rainbow(style='bright').center(maxwidth))
 
 
 def display_test_rgb(maxwidth=80):
@@ -327,15 +336,15 @@ def display_test_rgb(maxwidth=80):
     """
     def do_gradient_order(order=('b', 'r', 'g')):
         for r, g, b in gen_rgb_gradient(order=order):
-            print(Colr(' ', back=(r, g, b)), end='')
+            print(CLASS(' ', back=(r, g, b)), end='')
     do_gradient_order(('b', 'r', 'g'))
     do_gradient_order(('r', 'b', 'g'))
     do_gradient_order(('b', 'g', 'r'))
     do_gradient_order(('g', 'r', 'b'))
     print()
-    print(Colr().rgb(0, 0, 120).b_rgb(150, 0, 0)('This is a test.'))
+    print(CLASS().rgb(0, 0, 120).b_rgb(150, 0, 0)('This is a test.'))
     print(
-        Colr().rgb(
+        CLASS().rgb(
             255, 55, 55,
             text='Using back/style while setting rgb value.',
             back=(0, 0, 0),
@@ -343,7 +352,7 @@ def display_test_rgb(maxwidth=80):
 
     )
     print(
-        Colr().b_rgb(
+        CLASS().b_rgb(
             255, 55, 55,
             text='Using fore/style while setting rgb value.',
             fore=(0, 0, 0),
@@ -351,7 +360,7 @@ def display_test_rgb(maxwidth=80):
         ).white('\nThis should no longer be styled using rgb.')
     )
     print(
-        Colr(
+        CLASS(
             'One more line, operating on self.data',
             fore=(255, 55, 55),
             back=(0, 0, 0),
@@ -360,13 +369,13 @@ def display_test_rgb(maxwidth=80):
         .rgb(55, 55, 255, ' and then some.')
     )
     print(
-        Colr('All', 'red', back='white', style='bright')
+        CLASS('All', 'red', back='white', style='bright')
         .bgwhite().blue(' code')
         .bgwhite().f_135(' types')
         .bgwhite().rgb(25, 20, 155, ' together')
     )
     print(
-        Colr('All', fore='white', back='red')
+        CLASS('All', fore='white', back='red')
         .white().bgblue(' back code')
         .white().b_135(' types')
         .white().b_rgb(25, 20, 155, ' together')
@@ -386,8 +395,8 @@ def display_test_square_brackets(maxwidth=80):
     )
     for strings in teststrings:
         print(
-            Colr(' ').join(
-                Colr(s, random.choice(colornames))
+            CLASS(' ').join(
+                CLASS(s, random.choice(colornames))
                 for s in strings
             )
         )
@@ -475,15 +484,15 @@ class CustomUserClass(object):
         self.value = value or 5
 
     def __colr__(self):
-        """ Default colr method, when passed to Colr() with no args. """
-        return Colr(', ').join(
-            Colr(': ').join(
-                Colr('Value', 'cyan'),
-                Colr(self.value, 'blue', style='bright'),
+        """ Default colr method, when passed to CLASS() with no args. """
+        return CLASS(', ').join(
+            CLASS(': ').join(
+                CLASS('Value', 'cyan'),
+                CLASS(self.value, 'blue', style='bright'),
             ),
-            Colr(': ').join(
-                Colr('Message', 'cyan'),
-                Colr(self.msg, 'green', style='underline'),
+            CLASS(': ').join(
+                CLASS('Message', 'cyan'),
+                CLASS(self.msg, 'green', style='underline'),
             ),
         )
 

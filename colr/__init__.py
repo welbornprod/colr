@@ -69,6 +69,10 @@ from .controls import (  # noqa
     EraseMethod,
 )
 
+from .colrcontrol import (
+    ColrControl,
+)
+
 from .progress import (
     AnimatedProgress,
     ProgressBar,
@@ -153,6 +157,8 @@ __all__ = [
     # controls functions/classes made available.
     'Control',
     'EraseMethod',
+    # colrcontrol classes made available.
+    'ColrControl',
     # progress functions/classes made available.
     'AnimatedProgress',
     'ProgressBar',

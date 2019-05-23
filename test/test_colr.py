@@ -41,7 +41,6 @@ name_data_names = list(name_data)
 
 class ColrTests(ColrTestCase):
     """ Tests for the colr.Colr object. """
-
     def example_args(self):
         """ Return a dict of {example-arg-type: example-args} to be used
             for testing Colr.
@@ -880,7 +879,7 @@ class ColrTests(ColrTestCase):
             try:
                 hexcolr = Colr(s, hexcolr)
             except InvalidColr as ex:
-                self.fail('Failed to recognize {}.'.format(desc))
+                self.fail('Failed to recognize {}: {}'.format(desc, ex))
             termcolr = Colr(s, 231)
             self.assertEqual(
                 hexcolr,
