@@ -24,6 +24,9 @@ try:
         Colr as C,
         docopt,
     )
+    from colr.colrcontrol import (
+        ColrControl,
+    )
     from colr.controls import (
         Control,
         cursor_hide,
@@ -50,9 +53,10 @@ USAGESTR = """{versionstr}
 
     Usage:
         {script} -e | -h | -v
-        {script} [-d secs] [-m] [-p] [-s]
+        {script} [-C] [-d secs] [-m] [-p] [-s]
 
     Options:
+        -C,--colrcontrol       : Use ColrControl instead of Control.
         -d secs,--delay secs   : Time in seconds for delay.
                                  Default: 0.05
         -e,--erase             : Erase display/scrollback.
@@ -65,9 +69,14 @@ USAGESTR = """{versionstr}
     The default action is to run all the tests.
 """.format(script=SCRIPT, versionstr=VERSIONSTR)
 
+CLASS = Control
+
 
 def main(argd):
     """ Main entry point, expects doctopt arg dict as argd. """
+    global CLASS
+    if argd['--colrcontrol']:
+        CLASS = ColrControl
 
     if argd['--erase']:
         erase_display(EraseMethod.ALL_MOVE_ERASE)
@@ -117,37 +126,37 @@ def run_move(delay=0.025):
     width_half = width // 2
     height = 24
     # Draw a block of Xs.
-    Control(
+    CLASS(
         C('\n'.join(('X' * width) for _ in range(height))).rainbow()
     ).move_up(height - 1).write()
 
     # Draw a line down the middle.
-    Control().move_column(width_half).write()
+    CLASS().move_column(width_half).write()
     for _ in range(height):
-        Control(C('|', 'blue')).move_back().move_down().write().delay(delay)
+        CLASS(C('|', 'blue')).move_back().move_down().write().delay(delay)
 
     # Draw a line at the top left half.
-    Control().move_up(height - 1).move_column().write()
+    CLASS().move_up(height - 1).move_column().write()
     for _ in range(width_half):
-        Control(C('-', 'blue')).write().delay(delay)
+        CLASS(C('-', 'blue')).write().delay(delay)
     # Draw a line at the bottom right half.
-    Control().move_down(height - 1).move_back().write()
+    CLASS().move_down(height - 1).move_back().write()
     for _ in range(width_half + 1):
-        Control(C('-', 'blue')).write().delay(delay)
+        CLASS(C('-', 'blue')).write().delay(delay)
 
     # Erase the right half.
-    Control().move_column(width_half + 1).erase_line(EraseMethod.END).write()
+    CLASS().move_column(width_half + 1).erase_line(EraseMethod.END).write()
     for _ in range(height - 1):
-        Control().move_up().erase_line(EraseMethod.END).write().delay(delay)
+        CLASS().move_up().erase_line(EraseMethod.END).write().delay(delay)
 
     # Erase the left half.
     (
-        Control().move_column(width_half - 1).erase_line(EraseMethod.START)
+        CLASS().move_column(width_half - 1).erase_line(EraseMethod.START)
         .write()
     )
     for _ in range(height - 1):
         (
-            Control().move_down().erase_line(EraseMethod.START)
+            CLASS().move_down().erase_line(EraseMethod.START)
             .write()
             .delay(delay)
         )
@@ -156,44 +165,44 @@ def run_move(delay=0.025):
     start_colr = 255 - width_half
     for colrval in range(start_colr + width_half, start_colr, -1):
         (
-            Control().move_up(height - 1)
+            CLASS().move_up(height - 1)
             .move_column(width + (start_colr - colrval))
             .text(C('-', colrval))
             .write()
         )
         for _ in range(height - 2):
-            Control().move_down().move_back().text(C('|', colrval)).write()
+            CLASS().move_down().move_back().text(C('|', colrval)).write()
         (
-            Control().move_down().move_back().text(C('-', colrval))
+            CLASS().move_down().move_back().text(C('-', colrval))
             .write()
             .delay(delay)
         )
 
     # Shrink the "sticks".
-    Control().move_up(height - 1).write()
+    CLASS().move_up(height - 1).write()
     chardelay = delay / 3
     for _ in range(height // 2):
-        Control().move_column(width).write()
+        CLASS().move_column(width).write()
         for _ in range(width_half + 2):
             (
-                Control().erase_line(EraseMethod.END).move_back()
+                CLASS().erase_line(EraseMethod.END).move_back()
                 .write()
                 .delay(chardelay)
             )
-        Control().move_down().move_column(width_half).write()
+        CLASS().move_down().move_column(width_half).write()
         for _ in range(width_half):
-            Control(' ').write().delay(chardelay)
+            CLASS(' ').write().delay(chardelay)
             sleep(chardelay)
-        Control().move_down().write()
+        CLASS().move_down().write()
 
     # Move to the end.
-    Control().move_down(height + 1).move_column(width).write()
+    CLASS().move_down(height + 1).move_column(width).write()
     print('\nFinished with move functions.\n')
 
 
 def run_print(delay=0.05):
     """ This is a test of the print_* functions. """
-    Control(
+    CLASS(
         C('This is a test of colr.control.print_* functions.\n').rainbow()
     ).write()
     sleep(0.5)
@@ -201,15 +210,15 @@ def run_print(delay=0.05):
         '...but you get to see some text animations.',
         delay=delay,
     )
-    Control(C('\nI\'m just gonna put this: ', 'cyan')).write(delay=delay)
+    CLASS(C('\nI\'m just gonna put this: ', 'cyan')).write(delay=delay)
     for val in (C('here', 'red'), C('there', 'green'), C('nowhere', 'blue')):
         sleep(delay)
         print_inplace(val, delay=delay)
-    Control().move_column(1).write()
+    CLASS().move_column(1).write()
     for col in range(len('I\'m just gonna put this: nowhere')):
-        Control(C('X', random.randint(0, 255))).write().delay(delay)
+        CLASS(C('X', random.randint(0, 255))).write().delay(delay)
 
-    print(Control().erase_line())
+    print(CLASS().erase_line())
     print('\nFinished with print functions.\n')
 
 
@@ -220,14 +229,14 @@ def run_scroll(delay=0.05):
     height_dbl = height * 2
     start_colr = 255 - height_dbl
     for i in range(height):
-        Control(
+        CLASS(
             C('Scrolled to {} lines.'.format((i * 2) + 1), start_colr + i)
         ).scroll_up(2).move_column(1).write()
         sleep(linedelay)
     sleep(0.5)
-    Control().scroll_down(1).repeat(height_dbl).write()
+    CLASS().scroll_down(1).repeat(height_dbl).write()
     for i in range(height_dbl):
-        Control(
+        CLASS(
             C('Scrolled down, overwriting {}.'.format(i + 1), start_colr + i)
         ).write(end='\n')
         sleep(linedelay)
