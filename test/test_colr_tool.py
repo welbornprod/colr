@@ -15,6 +15,11 @@ import random
 import sys
 import unittest
 
+from outputcatcher import (
+    StdErrCatcher,
+    StdOutCatcher,
+)
+
 from colr import (
     Colr,
     hex2rgb,
@@ -147,9 +152,18 @@ class ColrToolTests(ColrTestCase):
         """ Make a copy of self.argd and update it with values from argd.
             Returns the updated copy.
         """
-        d = self.argd.copy()
+        d = {k: v for k, v in self.argd.items()}
         d.update(argd)
         return d
+
+    def run_main_output(self, argd, should_fail=False):
+        """ Run main() with the given argd, and return the
+            exit code and output (exit_code, stdout, stderr).
+        """
+        with StdErrCatcher() as stderr:
+            with StdOutCatcher() as stdout:
+                ret = self.run_main_test(argd, should_fail=should_fail)
+                return ret, stdout.output, stderr.output
 
     def run_main_test(self, argd, should_fail=False):
         """ Run main() with the given argd, and fail on any errors. """
@@ -167,6 +181,26 @@ class ColrToolTests(ColrTestCase):
                 )
             )
         return ret
+
+    def test_auto_disable(self):
+        """ colr tool should auto disable when asked. """
+        argd = {'TEXT': 'Hello', 'FORE': 'red', '--auto-disable': True}
+        ret, stdout, stderr = self.run_main_output(argd, should_fail=False)
+        self.assertEqual(
+            ret,
+            0,
+            msg='main() with auto-disable returned a non-zero status code.',
+        )
+        self.assertEqual(
+            stderr,
+            '',
+            msg='main() printed to stderr with valid args!',
+        )
+        self.assertEqual(
+            stdout,
+            '\x1b[31mHello\x1b[0m\n',
+            msg='main() auto-disabled colors for stdout.'
+        )
 
     def test_basic_colors(self):
         """ colr tool should recognize basic colors. """
@@ -187,6 +221,14 @@ class ColrToolTests(ColrTestCase):
             argd.update(argset)
             with self.assertRaises(InvalidColr):
                 self.run_main_test(argd, should_fail=True)
+
+    def test_debug_deps(self):
+        """ colr tool should load debug dependencies. """
+        argd = {'TEXT': 'Hello', '--debug': True}
+        self.assertEqual(
+            0,
+            self.run_main_test(argd, should_fail=False),
+        )
 
     def test_extended_colors(self):
         """ colr tool should recognize extended colors. """
@@ -255,6 +297,15 @@ class ColrToolTests(ColrTestCase):
             argd.update(argset)
             with self.assertRaises(InvalidColr):
                 self.run_main_test(argd, should_fail=True)
+
+    def test_list_names(self):
+        """ colr tool should list names with --names. """
+        argd = {'--names': True}
+        self.assertEqual(
+            self.run_main_test(argd, should_fail=False),
+            0,
+            msg='Failed to list names.'
+        )
 
     def test_rgb_colors(self):
         """ colr tool should recognize rgb colors. """
