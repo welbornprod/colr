@@ -36,8 +36,6 @@ from .colr import (  # noqa
     auto_disable,
     closing_code,
     codeformat,
-    codes,
-    codes_reverse,
     color,
     disable,
     disabled,
@@ -62,6 +60,13 @@ from .colr import (  # noqa
     name_data,
     rgbbackformat,
     rgbforeformat,
+)
+
+from .codes import (
+    code_nums,
+    code_nums_reverse,
+    codes,
+    codes_reverse,
 )
 
 from .controls import (  # noqa
@@ -127,6 +132,8 @@ __all__ = [
     'auto_disable',
     'closing_code',
     'codeformat',
+    'code_nums',
+    'code_nums_reverse',
     'codes',
     'codes_reverse',
     'color',

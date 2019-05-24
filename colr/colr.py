@@ -63,6 +63,8 @@ from .codes import (
     _stylenums,
     basic_names,
     codeformat,
+    code_nums,
+    code_nums_reverse,
     codes,
     codes_reverse,
     extbackformat,
@@ -88,6 +90,8 @@ __all__ = [
     'auto_disable',
     'closing_code',
     'codeformat',
+    'code_nums',
+    'code_nums_reverse',
     'codes',
     'codes_reverse',
     'color',
@@ -152,7 +156,11 @@ def auto_disable(
                        Objects must have a isatty() method.
     """
     if enabled:
-        if not all(getattr(f, 'isatty', lambda: False)() for f in fds):
+        allttys = all(
+            getattr(f, 'isatty', lambda: False)()
+            for f in cast(Sequence[IO], fds)
+        )
+        if not allttys:
             disable()
     else:
         enable()
@@ -422,7 +430,7 @@ def get_known_name(s: str) -> Optional[Tuple[str, ColorArg]]:
         # Extended fore.
         name = codes_reverse['fore'].get(s, None)
         if name is None:
-            num = get_code_num(s)
+            num = cast(int, get_code_num(s))
             return ('extended fore', num)
         else:
             return ('extended fore', name)
@@ -430,7 +438,7 @@ def get_known_name(s: str) -> Optional[Tuple[str, ColorArg]]:
         # Extended back.
         name = codes_reverse['back'].get(s, None)
         if name is None:
-            num = get_code_num(s)
+            num = cast(int, get_code_num(s))
             return ('extended back', num)
         else:
             return ('extended back', name)
@@ -446,7 +454,7 @@ def get_known_name(s: str) -> Optional[Tuple[str, ColorArg]]:
             return ('rgb back', vals)
     elif s.startswith('\033['):
         # Fore, back, style.
-        number = get_code_num(s)
+        number = cast(int, get_code_num(s))
         # Get code type based on number.
         if (number <= 7) or (number == 22):
             codetype = 'style'
@@ -522,7 +530,7 @@ def parse_colr_arg(
                  Example: "1", "255", "black", "25,25,25"
     """
     if not s:
-        return default
+        return cast(ColorArg, default)
 
     val = s.strip().lower()
     try:
@@ -2107,6 +2115,7 @@ class InvalidStyle(InvalidColr):
             ),
             value=Colr(repr(self.value), **value_args)
         ))
+
 
 # Shortcuts.
 color = Colr().color
