@@ -463,7 +463,8 @@ def translate(usercodes, rgb_mode=False):
         code = code.strip().lower()
         if code.isalpha() and (code in codes['fore']):
             # Basic color name.
-            yield translate_basic(code)
+            name = code
+            colorcode = ColorCode(name, rgb_mode=rgb_mode)
         else:
             if ',' in code:
                 try:
@@ -473,10 +474,10 @@ def translate(usercodes, rgb_mode=False):
                 code = (r, g, b)
 
             colorcode = ColorCode(code, rgb_mode=rgb_mode)
-
-            if disabled():
-                yield str(colorcode)
-            yield colorcode.example()
+            name = None
+        if disabled():
+            yield str(colorcode)
+        yield colorcode.example()
 
 
 def translate_basic(usercode):

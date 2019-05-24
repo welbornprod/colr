@@ -58,6 +58,18 @@ from .base import (
     strip_codes,
 )
 
+from .codes import (
+    _stylemap,
+    _stylenums,
+    basic_names,
+    codeformat,
+    codes,
+    codes_reverse,
+    extbackformat,
+    extforeformat,
+    rgbbackformat,
+    rgbforeformat,
+)
 from .trans import (
     ColorCode,
     hex2rgb,
@@ -66,10 +78,6 @@ from .trans import (
 )
 from .name_data import names as name_data
 
-# Types for the type checker.
-CodeFormatArg = Union[str, int]
-CodeFormatFunc = Callable[[CodeFormatArg], str]
-CodeFormatRgbFunc = Callable[[int, int, int], str]
 # Acceptable fore/back args.
 ColorArg = Union[str, int, Tuple[int, int, int]]
 # Acceptable format_* function args.
@@ -127,97 +135,6 @@ if use_colorama:
         _disabled = True
     else:
         colorama_init()
-
-
-# Names and corresponding base code number
-_namemap = (
-    ('black', 0),
-    ('red', 1),
-    ('green', 2),
-    ('yellow', 3),
-    ('blue', 4),
-    ('magenta', 5),
-    ('cyan', 6),
-    ('white', 7)
-)  # type: Tuple[Tuple[str, int], ...]
-
-# Public list of names.
-basic_names = tuple(
-    t[0] for t in _namemap
-)  # type: Tuple[str, ...]
-
-# Map of base code -> style name/alias.
-_stylemap = (
-    ('0', ('0', 'reset_all',)),
-    ('1', ('1', 'b', 'bright', 'bold')),
-    ('2', ('2', 'd', 'dim')),
-    ('3', ('3', 'i', 'italic')),
-    ('4', ('4', 'u', 'underline', 'underlined')),
-    ('5', ('5', 'f', 'flash')),
-    ('7', ('7', 'h', 'highlight', 'hilight', 'hilite', 'reverse')),
-    ('22', ('22', 'n', 'normal', 'none'))
-)  # type: Tuple[Tuple[str, Tuple[str, ...]], ...]
-# A tuple of valid style numbers.
-_stylenums = tuple(t[0] for t in _stylemap)  # type: Tuple[str, ...]
-
-# Build a module-level map of fore, back, and style names to escape code.
-codeformat = '\033[{}m'.format  # type: CodeFormatFunc
-extforeformat = '\033[38;5;{}m'.format  # type: CodeFormatFunc
-extbackformat = '\033[48;5;{}m'.format  # type: CodeFormatFunc
-rgbforeformat = '\033[38;2;{};{};{}m'.format  # type: CodeFormatRgbFunc
-rgbbackformat = '\033[48;2;{};{};{}m'.format  # type: CodeFormatRgbFunc
-
-
-def _build_codes() -> Dict[str, Dict[str, str]]:
-    """ Build code map, encapsulated to reduce module-level globals. """
-    built = {
-        'fore': {},
-        'back': {},
-        'style': {},
-    }  # type: Dict[str, Dict[str, str]]
-
-    # Set codes for forecolors (30-37) and backcolors (40-47)
-    # Names are given to some of the 256-color variants as 'light' colors.
-    for name, number in _namemap:
-        # Not using format_* functions here, no validation needed.
-        built['fore'][name] = codeformat(30 + number)
-        built['back'][name] = codeformat(40 + number)
-        litename = 'light{}'.format(name)  # type: str
-        built['fore'][litename] = codeformat(90 + number)
-        built['back'][litename] = codeformat(100 + number)
-
-    # Set reset codes for fore/back.
-    built['fore']['reset'] = codeformat(39)
-    built['back']['reset'] = codeformat(49)
-
-    # Set style codes.
-    for code, names in _stylemap:
-        for alias in names:
-            built['style'][alias] = codeformat(code)
-
-    # Extended (256 color codes)
-    for i in range(256):
-        built['fore'][str(i)] = extforeformat(i)
-        built['back'][str(i)] = extbackformat(i)
-
-    return built
-
-
-def _build_codes_reverse(
-        codes: Dict[str, Dict[str, str]]) -> Dict[str, Dict[str, str]]:
-    """ Build a reverse escape-code to name map, based on an existing
-        name to escape-code map.
-    """
-    built = {}  # type: Dict[str, Dict[str, str]]
-    for codetype, codemap in codes.items():
-        for name, escapecode in codemap.items():
-            # Skip shorcut aliases to avoid overwriting long names.
-            if len(name) < 2:
-                continue
-            if built.get(codetype, None) is None:
-                built[codetype] = {}
-            built[codetype][escapecode] = name
-    return built
 
 
 def auto_disable(
@@ -1951,7 +1868,7 @@ class InvalidColr(InvalidArg):
         ('name', 'white/black/etc.'),
         ('rgb', '0-255, 0-255, 0-255'),
         ('value', '0-255'),
-    )
+    )  # type: Tuple[Tuple[str, ...], ...]
     default_label = 'Expecting colr name/value:\n    {types}'.format(
         types=',\n    '.join(
             '{lbl:<5} ({val})'.format(lbl=l, val=v)
@@ -1997,7 +1914,7 @@ class InvalidFormatColr(InvalidColr):
         ('name', 'white/black/etc.'),
         ('rgb', '0-255; 0-255; 0-255'),
         ('value', '0-255'),
-    )
+    )  # type: Tuple[Tuple[str, ...], ...]
     default_msg = 'Bad format spec. color name/value.'
     default_label = (
         '{{msg}} Expecting:\n    {types}'.format(
@@ -2190,11 +2107,6 @@ class InvalidStyle(InvalidColr):
             ),
             value=Colr(repr(self.value), **value_args)
         ))
-
-
-# Raw code map, available to users.
-codes = _build_codes()
-codes_reverse = _build_codes_reverse(codes)
 
 # Shortcuts.
 color = Colr().color

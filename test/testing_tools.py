@@ -4,6 +4,7 @@
     -Christopher Welborn 2-27-17
 """
 import inspect
+import json
 import unittest
 from contextlib import suppress
 from io import (
@@ -19,7 +20,17 @@ from typing import (
     no_type_check,
 )
 
-from colr import Colr
+from outputcatcher import (
+    StdErrCatcher,
+    StdOutCatcher,
+)
+
+from colr import (
+    Colr,
+    InvalidColr,
+    InvalidStyle,
+)
+from colr.__main__ import main
 
 
 class _NotSet(object):
@@ -488,6 +499,74 @@ class ColrTestCase(unittest.TestCase):
                 raise ValueError('Must supply `val` if not using `func`.')
             val = func(*(args or []), **(kwargs or {}))
         return val
+
+
+class ColrToolTestCase(ColrTestCase):
+    def assertMain(
+            self, argd, stdout=None, stderr=None, should_fail=False,
+            msg=None):
+        ret, out, err = self.run_main_output(
+            argd,
+            should_fail=should_fail,
+        )
+        # Check return code.
+        if should_fail:
+            self.assertGreater(
+                ret,
+                0,
+                msg=msg or 'main() return a zero exit status.',
+            )
+        else:
+            self.assertEqual(
+                ret,
+                0,
+                msg=msg or 'main() returned a non-zero exit status.',
+            )
+        # Check expected stderr output.
+        self.assertEqual(
+            err,
+            stderr or '',
+            msg=msg or 'main() printed something to stderr.',
+        )
+        # Check expected stdout output, or that there was some output at least.
+        if stdout is None:
+            self.assertGreater(
+                len(out),
+                0,
+                msg=msg or 'main() did not produce any stdout output.',
+            )
+        else:
+            self.assertEqual(
+                out,
+                stdout,
+                msg=msg or 'Output from main() did not match.',
+            )
+
+    def run_main_output(self, argd, should_fail=False):
+        """ Run main() with the given argd, and return the
+            exit code and output (exit_code, stdout, stderr).
+        """
+        with StdErrCatcher() as stderr:
+            with StdOutCatcher() as stdout:
+                ret = self.run_main_test(argd, should_fail=should_fail)
+                return ret, stdout.output, stderr.output
+
+    def run_main_test(self, argd, should_fail=False):
+        """ Run main() with the given argd, and fail on any errors. """
+        argd = self.make_argd(argd)
+        try:
+            ret = main(argd)
+        except (InvalidColr, InvalidStyle) as ex:
+            if should_fail:
+                raise
+            # This should not have happened. Show detailed arg/exc info.
+            self.fail(
+                'Colr tool failed to run:\n{}\n    argd: {}'.format(
+                    ex,
+                    json.dumps(argd, sort_keys=True, indent=4)
+                )
+            )
+        return ret
 
 
 class TestFileBytes(BytesIO):
