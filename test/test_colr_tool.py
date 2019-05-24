@@ -10,15 +10,9 @@
     -Christopher Welborn 12-09-2015
 """
 
-import json
 import random
 import sys
 import unittest
-
-from outputcatcher import (
-    StdErrCatcher,
-    StdOutCatcher,
-)
 
 from colr import (
     Colr,
@@ -31,10 +25,9 @@ from colr import (
 from colr.__main__ import (
     __version__,
     get_colr,
-    main
 )
 
-from .testing_tools import ColrTestCase
+from .testing_tools import ColrToolTestCase
 
 r = random.SystemRandom()
 
@@ -42,7 +35,7 @@ r = random.SystemRandom()
 name_data_names = list(name_data)
 
 
-class ColrToolTests(ColrTestCase):
+class ColrToolTests(ColrToolTestCase):
     def setUp(self):
         # Default argd, when no flags are given.
         self.argd = {
@@ -156,50 +149,13 @@ class ColrToolTests(ColrTestCase):
         d.update(argd)
         return d
 
-    def run_main_output(self, argd, should_fail=False):
-        """ Run main() with the given argd, and return the
-            exit code and output (exit_code, stdout, stderr).
-        """
-        with StdErrCatcher() as stderr:
-            with StdOutCatcher() as stdout:
-                ret = self.run_main_test(argd, should_fail=should_fail)
-                return ret, stdout.output, stderr.output
-
-    def run_main_test(self, argd, should_fail=False):
-        """ Run main() with the given argd, and fail on any errors. """
-        argd = self.make_argd(argd)
-        try:
-            ret = main(argd)
-        except (InvalidColr, InvalidStyle) as ex:
-            if should_fail:
-                raise
-            # This should not have happened. Show detailed arg/exc info.
-            self.fail(
-                'Colr tool failed to run:\n{}\n    argd: {}'.format(
-                    ex,
-                    json.dumps(argd, sort_keys=True, indent=4)
-                )
-            )
-        return ret
-
     def test_auto_disable(self):
         """ colr tool should auto disable when asked. """
         argd = {'TEXT': 'Hello', 'FORE': 'red', '--auto-disable': True}
-        ret, stdout, stderr = self.run_main_output(argd, should_fail=False)
-        self.assertEqual(
-            ret,
-            0,
-            msg='main() with auto-disable returned a non-zero status code.',
-        )
-        self.assertEqual(
-            stderr,
-            '',
-            msg='main() printed to stderr with valid args!',
-        )
-        self.assertEqual(
-            stdout,
-            '\x1b[31mHello\x1b[0m\n',
-            msg='main() auto-disabled colors for stdout.'
+        self.assertMain(
+            argd,
+            stdout='\x1b[31mHello\x1b[0m\n',
+            msg='main() with --auto-disable failed.'
         )
 
     def test_basic_colors(self):
@@ -208,10 +164,7 @@ class ColrToolTests(ColrTestCase):
         for _ in range(10):
             argd['FORE'] = r.choice(self.valid_basic_vals)
             argd['BACK'] = r.choice(self.valid_basic_vals)
-            self.assertEqual(
-                0,
-                self.run_main_test(argd, should_fail=False)
-            )
+            self.assertMain(argd, msg='main() failed with valid args.')
         # Invalid color names should raise a InvalidColr.
         badargsets = (
             {'FORE': 'XXX', 'BACK': r.choice(self.valid_basic_vals)},
@@ -225,10 +178,7 @@ class ColrToolTests(ColrTestCase):
     def test_debug_deps(self):
         """ colr tool should load debug dependencies. """
         argd = {'TEXT': 'Hello', '--debug': True}
-        self.assertEqual(
-            0,
-            self.run_main_test(argd, should_fail=False),
-        )
+        self.assertMain(argd, msg='main() with --debug failed.')
 
     def test_extended_colors(self):
         """ colr tool should recognize extended colors. """
@@ -236,10 +186,7 @@ class ColrToolTests(ColrTestCase):
         for _ in range(10):
             argd['FORE'] = r.choice(self.valid_ext_vals)
             argd['BACK'] = r.choice(self.valid_ext_vals)
-            self.assertEqual(
-                0,
-                self.run_main_test(argd, should_fail=False)
-            )
+            self.assertMain(argd, msg='main() failed on extended colors.')
         # Invalid color values should raise a InvalidColr.
         badargsets = (
             {'FORE': '1000', 'BACK': r.choice(self.valid_ext_vals)},
@@ -256,10 +203,7 @@ class ColrToolTests(ColrTestCase):
         for _ in range(10):
             argd['FORE'] = r.choice(self.valid_hex_vals)
             argd['BACK'] = r.choice(self.valid_hex_vals)
-            self.assertEqual(
-                0,
-                self.run_main_test(argd, should_fail=False)
-            )
+            self.assertMain(argd, msg='main() failed on hex colors.')
 
         # Without -T, close matches should be used.
         argd = {'TEXT': 'Hello World', '--truecolor': False}
@@ -301,11 +245,7 @@ class ColrToolTests(ColrTestCase):
     def test_list_names(self):
         """ colr tool should list names with --names. """
         argd = {'--names': True}
-        self.assertEqual(
-            self.run_main_test(argd, should_fail=False),
-            0,
-            msg='Failed to list names.'
-        )
+        self.assertMain(argd, msg='main() failed with --names')
 
     def test_rgb_colors(self):
         """ colr tool should recognize rgb colors. """
@@ -334,10 +274,7 @@ class ColrToolTests(ColrTestCase):
         argd = {'TEXT': 'Hello World', 'FORE': '235', 'STYLE': 'normal'}
         for _ in range(10):
             argd['STYLE'] = r.choice(self.valid_style_vals)
-            self.assertEqual(
-                0,
-                self.run_main_test(argd, should_fail=False)
-            )
+            self.assertMain(argd, msg='main() failed with valid style arg.')
         # Invalid style values should raise a InvalidStyle.
         badargsets = (
             {'STYLE': 'dimmer'},
