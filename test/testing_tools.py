@@ -5,6 +5,7 @@
 """
 import inspect
 import json
+import sys
 import unittest
 from contextlib import suppress
 from io import (
@@ -20,17 +21,16 @@ from typing import (
     no_type_check,
 )
 
-from outputcatcher import (
-    StdErrCatcher,
-    StdOutCatcher,
-)
 
 from colr import (
     Colr,
     InvalidColr,
     InvalidStyle,
 )
-from colr.__main__ import main
+from colr.__main__ import (
+    entry_point,
+    main,
+)
 
 
 class _NotSet(object):
@@ -502,6 +502,114 @@ class ColrTestCase(unittest.TestCase):
 
 
 class ColrToolTestCase(ColrTestCase):
+    def assertEntry(
+            self, argd, stdout=None, stderr=None, should_fail=False,
+            msg=None):
+        ret, out, err = self.run_entry_output(
+            argd,
+            should_fail=should_fail,
+        )
+        # Check return code.
+        if should_fail:
+            self.assertGreater(
+                ret,
+                0,
+                msg=msg or 'entry_point() return a zero exit status.',
+            )
+        else:
+            try:
+                self.assertEqual(
+                    ret,
+                    0,
+                    msg=msg or 'entry_point() returned a non-zero exit status.',
+                )
+            except self.failureException as ex:
+                if err:
+                    msg = '\n'.join((
+                        str(ex),
+                        '\nStderr:',
+                        err,
+                    ))
+                    raise self.failureException(msg) from ex
+                else:
+                    raise
+
+        # Check expected stderr output.
+        if should_fail and (stderr is not None):
+            self.assertEqual(
+                err,
+                stderr,
+                msg=msg or 'entry_point() printed something to stderr.',
+            )
+        elif not should_fail:
+            self.assertEqual(
+                err,
+                stderr or '',
+                msg=msg or 'entry_point() printed something to stderr.',
+            )
+        # Check expected stdout output, or that there was some output at least.
+        if should_fail and (stdout is not None):
+            self.assertEqual(
+                out,
+                stdout,
+                msg=msg or 'Output from entry_point() did not match.',
+            )
+        elif not should_fail:
+            self.assertGreater(
+                len(out),
+                0,
+                msg=msg or 'entry_point() did not produce any stdout output.',
+            )
+
+    def assertEntryIn(
+            self, argd, stdout=None, stderr=None, should_fail=False,
+            msg=None):
+        """ Assert that entry_point runs, and stdout/stderr contain the strings
+            given (`stdout` and `stderr`).
+        """
+        ret, out, err = self.run_entry_output(
+            argd,
+            should_fail=should_fail,
+        )
+        # Check return code.
+        if should_fail:
+            self.assertGreater(
+                ret,
+                0,
+                msg='entry_point() return a zero exit status.',
+            )
+        else:
+            try:
+                self.assertEqual(
+                    ret,
+                    0,
+                    msg='entry_point() returned a non-zero exit status.',
+                )
+            except self.failureException as ex:
+                if err:
+                    msg = '\n'.join((
+                        str(ex),
+                        '\nStdErr:',
+                        err,
+                    ))
+                    raise self.failureException(msg) from ex
+                else:
+                    raise
+        if stderr is not None:
+            # Check expected stderr output.
+            self.assertIn(
+                stderr,
+                err,
+                msg=msg or 'entry_point() stderr did not contain the string.',
+            )
+        # Check expected stdout output, or that there was some output at least.
+        if stdout is not None:
+            self.assertIn(
+                stdout,
+                out,
+                msg=msg or 'entry_point() stdout did not contain the string.',
+            )
+
     def assertMain(
             self, argd, stdout=None, stderr=None, should_fail=False,
             msg=None):
@@ -517,30 +625,134 @@ class ColrToolTestCase(ColrTestCase):
                 msg=msg or 'main() return a zero exit status.',
             )
         else:
-            self.assertEqual(
-                ret,
-                0,
-                msg=msg or 'main() returned a non-zero exit status.',
-            )
+            try:
+                self.assertEqual(
+                    ret,
+                    0,
+                    msg=msg or 'main() returned a non-zero exit status.',
+                )
+            except self.failureException as ex:
+                if err:
+                    msg = '\n'.join((
+                        str(ex),
+                        '\nStderr:',
+                        err,
+                    ))
+                    raise self.failureException(msg) from ex
+                else:
+                    raise
+
         # Check expected stderr output.
-        self.assertEqual(
-            err,
-            stderr or '',
-            msg=msg or 'main() printed something to stderr.',
-        )
-        # Check expected stdout output, or that there was some output at least.
-        if stdout is None:
-            self.assertGreater(
-                len(out),
-                0,
-                msg=msg or 'main() did not produce any stdout output.',
+        if should_fail and (stderr is not None):
+            self.assertEqual(
+                err,
+                stderr,
+                msg=msg or 'main() printed something to stderr.',
             )
-        else:
+        elif not should_fail:
+            self.assertEqual(
+                err,
+                stderr or '',
+                msg=msg or 'main() printed something to stderr.',
+            )
+        # Check expected stdout output, or that there was some output at least.
+        if should_fail and (stdout is not None):
             self.assertEqual(
                 out,
                 stdout,
                 msg=msg or 'Output from main() did not match.',
             )
+        elif not should_fail:
+            self.assertGreater(
+                len(out),
+                0,
+                msg=msg or 'main() did not produce any stdout output.',
+            )
+
+    def assertMainIn(
+            self, argd, stdout=None, stderr=None, should_fail=False,
+            msg=None):
+        """ Assert that main runs, and stdout/stderr contain the strings
+            given (`stdout` and `stderr`).
+        """
+        ret, out, err = self.run_main_output(
+            argd,
+            should_fail=should_fail,
+        )
+        # Check return code.
+        if should_fail:
+            self.assertGreater(
+                ret,
+                0,
+                msg='main() return a zero exit status.',
+            )
+        else:
+            try:
+                self.assertEqual(
+                    ret,
+                    0,
+                    msg='main() returned a non-zero exit status.',
+                )
+            except self.failureException as ex:
+                if err:
+                    msg = '\n'.join((
+                        str(ex),
+                        '\nStdErr:',
+                        err,
+                    ))
+                    raise self.failureException(msg) from ex
+                else:
+                    raise
+        if stderr is not None:
+            # Check expected stderr output.
+            self.assertIn(
+                stderr,
+                err,
+                msg=msg or 'main() stderr did not contain the string.',
+            )
+        # Check expected stdout output, or that there was some output at least.
+        if stdout is not None:
+            self.assertIn(
+                stdout,
+                out,
+                msg=msg or 'main() stdout did not contain the string.',
+            )
+
+    def make_argd(self, argd):
+        """ Make a copy of self.argd and update it with values from argd.
+            Returns the updated copy.
+        """
+        d = {k: v for k, v in self.argd.items()}
+        d.update(argd)
+        return d
+
+    def run_entry_output(self, argd, should_fail=False):
+        """ Run entry_point() with the given argd, and return the
+            exit code and output (exit_code, stdout, stderr).
+        """
+        with StdErrCatcher() as stderr:
+            with StdOutCatcher() as stdout:
+                ret = self.run_entry_test(argd, should_fail=should_fail)
+                return ret, stdout.output, stderr.output
+
+    def run_entry_test(self, argd, should_fail=False):
+        """ Run entry_point() with the given argd, and fail on any errors. """
+        argd = self.make_argd(argd)
+        try:
+            entry_point(argd)
+        except (InvalidColr, InvalidStyle) as ex:
+            if should_fail:
+                raise
+            # This should not have happened. Show detailed arg/exc info.
+            self.fail(
+                'Colr tool failed to run:\n{}\n    argd: {}'.format(
+                    ex,
+                    json.dumps(argd, sort_keys=True, indent=4)
+                )
+            )
+        except SystemExit as ex:
+            return ex.code
+        self.fail('entry_point() did not exit cleanly.')
 
     def run_main_output(self, argd, should_fail=False):
         """ Run main() with the given argd, and return the
@@ -567,6 +779,94 @@ class ColrToolTestCase(ColrTestCase):
                 )
             )
         return ret
+
+
+class StdOutCatcher(object):
+    """ Catches stdout for code inside the 'with' block.
+
+        Usage:
+            with StdOutCatcher(escaped=True, max_length=160) as fakestdout:
+                # stdout is stored in fakestdout.output
+                print('okay')
+            # stdout is back to normal
+            # retrieve the captured output..
+            print('output was: {}'.format(fakestdout.output))
+    """
+    def __init__(self, tty=True, max_length=0):
+        self.tty = tty
+        # Maximum length before trimming output
+        self.max_length = max_length
+        # Output
+        self.output = ''
+        self.length = 0
+        self.max_exceeded = False
+
+    def __enter__(self):
+        # Replace fileobj with self, fileobj.write() will be self.write()
+        sys.stdout = self
+        return self
+
+    def __exit__(self, type, value, traceback):
+        # Fix stdout.
+        sys.stdout = sys.__stdout__
+        return False
+
+    def flush(self):
+        """ Doesn't do anything, but it's here for compatibility. """
+        return None
+
+    def isatty(self):
+        return self.tty
+
+    @property
+    def name(self):
+        return getattr(
+            sys.stdout,
+            'name',
+            getattr(sys.stdout, '__name__', type(sys.stdout).__name__)
+        )
+
+    def write(self, s):
+        if not isinstance(s, str):
+            raise TypeError('write() expects a str, got: {}'.format(
+                type(s).__name__
+            ))
+        if (not s) or self.max_exceeded:
+            # Nothing to write, or max-length was already exceeded.
+            return 0
+
+        # Save output
+        self.output = ''.join((
+            self.output,
+            s
+        ))
+        # Trim and block the next call if we are already at max_length.
+        if (self.max_length > 0) and len(self.output) >= self.max_length:
+            self.output = self.output[:self.max_length]
+            self.max_exceeded = True
+        # Output length may have been trimmed.
+        self.length = len(self.output)
+        return len(s)
+
+
+class StdErrCatcher(StdOutCatcher):
+    def __enter__(self):
+        # Replace stderr with self, stderr.write() will be self.write()
+        sys.stderr = self
+        return self
+
+    def __exit__(self, type, value, traceback):
+        # Fix stderr.
+        sys.stderr = sys.__stderr__
+        return False
+
+    @property
+    def name(self):
+        return getattr(
+            sys.stderr,
+            'name',
+            getattr(sys.stderr, '__name__', type(sys.stderr).__name__)
+        )
 
 
 class TestFileBytes(BytesIO):
