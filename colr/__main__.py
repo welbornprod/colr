@@ -22,12 +22,10 @@ from .base import (
 )
 from .colr import (
     auto_disable,
-    codeformat,
     codes,
     Colr as C,
     disabled,
     get_all_names,
-    get_code_num,
     get_known_codes,
     get_terminal_size,
     in_range,
@@ -212,21 +210,8 @@ def main(argd=None):
 
     # Center, ljust, rjust, or not.
     clr = justify(clr, argd)
-    if clr:
-        print(str(clr), file=fd, end=end)
-        return 0
-    # Error while building Colr.
-    return 1
-
-
-def debug(*args, **kwargs):
-    """ Just prints to stderr, unless printdebug is installed. Then it
-        will be replaced in `main()` by `printdebug.debug`.
-    """
-    if kwargs.get('file', None) is None:
-        kwargs['file'] = sys.stderr
-    msg = kwargs.get('sep', ' ').join(str(a) for a in args)
-    print('debug: {}'.format(msg), **kwargs)
+    print(str(clr), file=fd, end=end)
+    return 0
 
 
 def dict_pop_or(d, key, default=None):
@@ -254,7 +239,7 @@ def get_colr(txt, argd):
         # Build a gradient from user args.
         return C(txt).gradient(
             name=argd['--gradient'],
-            spread=try_int(argd['--spread'], 1, minimum=0),
+            spread=try_int(argd['--spread'], default=1, minimum=0),
             fore=fore,
             back=back,
             style=style,
@@ -395,8 +380,9 @@ def load_debug_deps():
     try:
         from printdebug import DebugColrPrinter
     except ImportError:
-        return None
-    debug = DebugColrPrinter().debug
+        pass
+    else:
+        debug = DebugColrPrinter().debug
 
 
 def noop(*args, **kwargs):
@@ -463,7 +449,8 @@ def translate(usercodes, rgb_mode=False):
         code = code.strip().lower()
         if code.isalpha() and (code in codes['fore']):
             # Basic color name.
-            yield translate_basic(code)
+            name = code
+            colorcode = ColorCode(name, rgb_mode=rgb_mode)
         else:
             if ',' in code:
                 try:
@@ -473,24 +460,10 @@ def translate(usercodes, rgb_mode=False):
                 code = (r, g, b)
 
             colorcode = ColorCode(code, rgb_mode=rgb_mode)
-
-            if disabled():
-                yield str(colorcode)
-            yield colorcode.example()
-
-
-def translate_basic(usercode):
-    """ Translate a basic color name to color with explanation. """
-    codenum = get_code_num(codes['fore'][usercode])
-    colorcode = codeformat(codenum)
-    msg = 'Name: {:>10}, Number: {:>3}, EscapeCode: {!r}'.format(
-        usercode,
-        codenum,
-        colorcode
-    )
-    if disabled():
-        return msg
-    return str(C(msg, fore=usercode))
+            name = None
+        if disabled():
+            yield str(colorcode)
+        yield colorcode.example()
 
 
 def try_float(s, default=None, minimum=None):
@@ -554,14 +527,16 @@ class InvalidRgb(InvalidArg):
     default_label = 'Invalid rgb value'
 
 
-def entry_point():
+def entry_point(argd=None):
     """ An entry point for setuptools. This is required because
         `if __name__ == '__main__'` is not fired when the entry point
         is 'main()'. This just wraps the old behavior in a function so
         it can be called from setuptools.
     """
+    # `argd` is for testing purposes only.
+    # docopt supplies the real `argd` in main().
     try:
-        mainret = main()
+        mainret = main(argd=argd)
     except (EOFError, KeyboardInterrupt):
         print_err('\nUser cancelled.\n')
         mainret = 2

@@ -41,7 +41,18 @@ Resources:
 """
 import re
 from types import GeneratorType
-from typing import cast, Any, Optional, Tuple, Union
+from typing import (
+    Any,
+    Optional,
+    Tuple,
+    Union,
+    cast,
+)
+from .codes import (
+    code_nums,
+    code_nums_reverse,
+)
+from .name_data import names as name_data
 
 # Custom types.
 Numeric = Union[int, str]
@@ -454,13 +465,13 @@ def rgb2termhex(r: int, g: int, b: int) -> str:
     return rgb2hex(*res)
 
 
-def term2hex(code: Numeric, default: Optional[str] = None) -> str:
+def term2hex(code: Numeric, default: Optional[str] = None) -> Optional[str]:
     """ Convenience function for term2hex_map.get(code, None).
         Accepts strs or ints in the form of: 1, 01, 123.
         Returns `default` if the code is not found.
     """
     try:
-        val = term2hex_map.get('{:02}'.format(int(code), default))
+        val = term2hex_map.get('{:02}'.format(int(code)), default)
     except ValueError:
         raise ValueError(
             'Expecting an int or number string, got: {} ({})'.format(
@@ -471,7 +482,7 @@ def term2hex(code: Numeric, default: Optional[str] = None) -> str:
 
 def term2rgb(code: Numeric) -> RGB:
     """ Convert a terminal code to an rgb value. """
-    return hex2rgb(term2hex(code))
+    return hex2rgb(term2hex(code) or '')
 
 
 class ColorCode(object):
@@ -483,16 +494,17 @@ class ColorCode(object):
             hexval : Nearest matching hex value.
             rgb    : Tuple of nearest matching (Red, Green, Blue) values.
     """
-    __slots__ = ('code', 'hexval', 'rgb', 'rgb_mode')
+    __slots__ = ('code', 'hexval', 'rgb', 'rgb_mode', 'name')
 
     def __init__(
             self,
             code: Optional[Any] = None,
             rgb_mode: Optional[bool] = False) -> None:
         self.rgb = (0, 0, 0)  # type: RGB
-        self.hexval = None  # type: str
-        self.code = None  # type: str
-        self.rgb_mode = rgb_mode  # type: bool
+        self.hexval = None  # type: Optional[str]
+        self.code = None  # type: Optional[str]
+        self.name = None  # type: Optional[str]
+        self.rgb_mode = rgb_mode  # type: Optional[bool]
         # Init tries to be smart about converting code types.
         typeerrmsg = 'Expecting hex, term-code, or rgb. Got: {}'.format(
             getattr(code, '__name__', type(code).__name__)
@@ -505,20 +517,24 @@ class ColorCode(object):
                 raise TypeError(typeerrmsg)
             self._init_rgb(r, g, b)
         elif isinstance(code, str):
-            try:
-                # Try hex str.
-                rgb = hex2rgb(code)
-                self._init_rgb(*rgb)
-            except (TypeError, ValueError):
-                # Int as str.
+            code = code.lower().strip()
+            if (code in code_nums['fore']) or (code in name_data):
+                self._init_name(code)
+            else:
                 try:
-                    termcode = int(code)
+                    # Try hex str.
+                    rgb = hex2rgb(code)
+                    self._init_rgb(*rgb)
                 except (TypeError, ValueError):
-                    # Must be hex value.
-                    self._init_hex(code)
-                else:
-                    # Term code was passed by str.
-                    self._init_code(termcode)
+                    # Int as str.
+                    try:
+                        termcode = int(code)
+                    except (TypeError, ValueError):
+                        # Must be hex value.
+                        self._init_hex(code)
+                    else:
+                        # Term code was passed by str.
+                        self._init_code(termcode)
         elif isinstance(code, int):
             # Term code was passed.
             self._init_code(code)
@@ -542,7 +558,8 @@ class ColorCode(object):
         if -1 < code < 256:
             self.code = '{:02}'.format(code)
             self.hexval = term2hex(code)
-            self.rgb = hex2rgb(self.hexval)
+            self.rgb = hex2rgb(self.hexval or '')
+            self.name = self.get_name_by_code(self.code)
         else:
             raise ValueError(' '.join((
                 'Code must be in the range 0-255, inclusive.',
@@ -554,6 +571,22 @@ class ColorCode(object):
         self.hexval = hex2termhex(fix_hex(hexval))
         self.code = hex2term(self.hexval)
         self.rgb = hex2rgb(self.hexval)
+        self.name = self.get_name_by_code(self.code)
+
+    def _init_name(self, name: str) -> None:
+        """ Initialize from a known name. """
+        if name.isalpha() and (name in code_nums['fore']):
+            self.code = '{:>02}'.format(code_nums['fore'][name] - 30)
+            self.hexval = term2hex(self.code)
+            self.rgb = hex2rgb(self.hexval or '')
+            self.name = name
+        elif name in name_data:
+            self.code = name_data[name]['code']
+            self.hexval = name_data[name]['hexval']
+            self.rgb = name_data[name]['rgb']
+            self.name = name
+        else:
+            raise ValueError('Not a known color name: {}'.format(name))
 
     def _init_rgb(self, r: int, g: int, b: int) -> None:
         """ Initialize from red, green, blue args. """
@@ -565,6 +598,7 @@ class ColorCode(object):
             self.hexval = rgb2termhex(r, g, b)
 
         self.code = hex2term(self.hexval)
+        self.name = self.get_name_by_code(self.code)
 
     def example(self) -> str:
         """ Same as str(self), except the color codes are actually used. """
@@ -572,7 +606,11 @@ class ColorCode(object):
             colorcode = '\033[38;2;{};{};{}m'.format(*self.rgb)
         else:
             colorcode = '\033[38;5;{}m'.format(self.code)
-        return '{code}{s}\033[0m'.format(code=colorcode, s=self)
+        return '{code}{s}{name}\033[0m'.format(
+            code=colorcode,
+            name=', Name: {}'.format(self.name) if self.name else '',
+            s=self,
+        )
 
     @classmethod
     def from_code(cls, code: int) -> 'ColorCode':
@@ -589,11 +627,37 @@ class ColorCode(object):
         return c
 
     @classmethod
+    def from_name(cls, name: str) -> 'ColorCode':
+        """ Return a ColorCode from a known name. """
+        c = cls()
+        c._init_name(name)
+        return c
+
+    @classmethod
     def from_rgb(cls, r: int, g: int, b: int) -> 'ColorCode':
         """ Return a ColorCode from a RGB tuple. """
         c = cls()
         c._init_rgb(r, g, b)
         return c
+
+    @staticmethod
+    def get_name_by_code(code: str) -> Optional[str]:
+        coden = int(code)
+        # Test basic fore code (30-37, 90-97).
+        if coden < 8:
+            coden += 30
+            name = code_nums_reverse['fore'].get(coden, None)
+            if name is not None:
+                return name
+        # Test extended code.
+        name = code_nums_reverse['fore_ext'].get(coden, None)
+        if name is not None:
+            return name
+
+        for name, nameinfo in name_data.items():
+            if str(nameinfo['code']) == code:
+                return name
+        return None
 
     def to_dict(self) -> dict:
         """ Return a dict of code, hexval, and rgb values. """
