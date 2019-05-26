@@ -165,7 +165,7 @@ class BarSetTests(ColrTestCase):
             fset = BarSet(('1', '2', '3'))
             try:
                 newfset = fset + other
-            except TypeError as ex:
+            except TypeError:
                 self.fail(
                     'BarSet + {} should not raise a TypeError.'.format(
                         othername
@@ -400,7 +400,7 @@ class FrameSetTests(ColrTestCase):
             fset = FrameSet(('1', '2', '3'))
             try:
                 newfset = fset + other
-            except TypeError as ex:
+            except TypeError:
                 self.fail(
                     'FrameSet + {} should not raise a TypeError.'.format(
                         othername
