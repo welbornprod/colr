@@ -2,7 +2,7 @@
 
 # A shortcut to python3 -c "from colr import Colr; SNIPPET"
 # -Christopher Welborn 02-27-2017
-appname="run_snippet"
+appname="Colr Snippet Runner"
 appversion="0.0.1"
 apppath="$(readlink -f "${BASH_SOURCE[0]}")"
 appscript="${apppath##*/}"
