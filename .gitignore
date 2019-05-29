@@ -16,3 +16,4 @@ use-docoptng.sh
 coverage_html
 benchmarks.json
 test/last_snippet.py
+*.swp
