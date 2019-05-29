@@ -1,12 +1,14 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # A shortcut to python3 -c "from colr import Colr; SNIPPET"
 # -Christopher Welborn 02-27-2017
-appname="Colr Snippet Runner"
-appversion="0.0.1"
+appname="Colr - Snippet Runner"
+appversion="0.0.2"
 apppath="$(readlink -f "${BASH_SOURCE[0]}")"
 appscript="${apppath##*/}"
 appdir="${apppath%/*}"
+
+snippet_file="${appdir}/last_snippet.py"
 
 function debug {
     # Print to stderr, only if debug_mode is set.
@@ -38,6 +40,7 @@ function print_usage {
 
     Usage:
         $appscript -h | -v
+        $appscript [-D] (-e | -E | -l)
         $appscript [-D] [-p] [SNIPPET...]
 
     Options:
@@ -46,7 +49,13 @@ function print_usage {
                         with newlines.
                         Default: stdin
         -D,--debug    : Print some debugging info while running.
+        -E,--edit     : Same as -e, but start with the last snippet you
+                        saved with the editor.
+        -e,--editor   : Edit a snippet using ${EDITOR:an editor} and
+                        then run the snippet.
         -h,--help     : Show this message.
+        -l,--last     : Re-run the last snippet you edited with -e or -E.
+                        Only works if $snippet_file exists.
         -p,--print    : Wrap all arguments in a \`print()\` call.
         -v,--version  : Show $appname version and exit.
     "
@@ -54,6 +63,9 @@ function print_usage {
 
 declare -a snippets
 debug_mode=0
+do_editor=0
+do_last_snippet=0
+do_load_snippet=0
 do_print=0
 
 for arg; do
@@ -61,9 +73,19 @@ for arg; do
         "-D" | "--debug")
             debug_mode=1
             ;;
+        "-E" | "--edit")
+            do_editor=1
+            do_load_snippet=1
+            ;;
+        "-e" | "--editor")
+            do_editor=1
+            ;;
         "-h" | "--help")
             print_usage ""
             exit 0
+            ;;
+        "-l" | "--last")
+            do_last_snippet=1
             ;;
         "-p" | "--print")
             do_print=1
@@ -89,10 +111,14 @@ import traceback
 # Do as I say, not as I do. I'm only doing this so I don't have to update
 # this shell script every time I add a new class/function.
 # This will import everything from \`colr.__init__\`'s module-level scope.
+# That includes Colr, Control, ColrControl, and everything else important
+# (ProgressBar, StaticProgress, etc.)
 import colr
 from colr import *
+# Shorter aliases to commonly used classes.
 C = Colr
-
+Ct = Control
+Cc = ColrControl
 "
 # Use prettier InvalidColr exceptions if not in debug mode.
 errhandler="
@@ -109,11 +135,47 @@ def handle_err(typ, ex, tb):
 # Wrap args in print if wanted.
 argfmt="%s\n"
 ((do_print)) && argfmt="print(\n    %s\n)\n"
+
+# Using an editor to create the snippets?
+if ((do_editor)); then
+    [[ -n "$EDITOR" ]] || fail "\$EDITOR variable not set, set it to use an editor."
+    if ((do_load_snippet)) && [[ -e "$snippet_file" ]]; then
+        filepath=$snippet_file
+    else
+        filepath="$(mktemp --tmpdir --suffix='.py' colr.snippet.XXXXXXXXXX)" || {
+            fail "Cannot create a temporary file to use with $EDITOR."
+        }
+    fi
+    # Open the temp file using an editor.
+    $EDITOR "$filepath" || {
+        fail "Cancelled snippet entry, $EDITOR returned non-zero exit code."
+    }
+    # Read the temp file into the snippets array.
+    # NOT mapping lines to the array, because it would treat each line
+    # as a separate snippet, and we don't want that.
+    content="$(< "$filepath")"
+    [[ -n "$content" ]] || {
+        fail "Cancelled snippet entry, no snippet to run."
+    }
+    snippets+=("$content")
+    # Save snippet for next time.
+    printf "%s" "$content" > "$snippet_file"
+elif ((do_last_snippet)); then
+    # Just use the last snippet, without editing.
+    [[ -e "$snippet_file" ]] || fail "Missing last snippet file: $snippet_file"
+    content="$(< "$snippet_file")"
+    [[ -n "$content" ]] || fail "Snippet file is empty: $snippet_file"
+    snippets+=("$content")
+fi
+
+# No snippets? Try stdin.
 ((${#snippets[@]})) || {
     debug "Reading snippets from stdin."
     { [[ -t 0 ]] && [[ -t 1 ]]; } && echo "Reading from stdin until EOF (Ctrl + D)."
     mapfile snippets
 }
+
+# Run snippets.
 if ((${#snippets[@]})); then
     # shellcheck disable=SC2059
     # ..I am using a variable printf argument on purpose.
