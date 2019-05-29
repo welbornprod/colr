@@ -503,8 +503,13 @@ class Control(ChainedBase):
         return self.chained(text)
 
 
+# Method aliases
 # Alias for move_pos, because they both deal with cursor positions.
 Control.pos_set = Control.move_pos  # type: ignore
+# Shorter aliases for some move methods.
+Control.move_fwd = Control.move_forward
+Control.move_return = Control.move_carriage_return
+Control.move_ret = Control.move_carriage_return
 
 
 if __name__ == '__main__':
