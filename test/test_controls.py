@@ -92,6 +92,62 @@ class ControlTests(ColrTestCase):
         b = bytes(Control(s))
         self.assertEqual(a, b, msg='Encoded Control is not the same.')
 
+    def test_delay(self):
+        """ delay() should be callable. """
+        c = Control().delay(0.005)
+        self.assertIsInstance(
+            c,
+            Control,
+            msg='Control.delay() returned a non-Control instance. Impossible.'
+        )
+
+    def test_escape_code_methods(self):
+        """ methods appending escape codes should be callable without error. """
+        c = (
+            Control()
+            .cursor_hide()
+            .cursor_show()
+            .erase_display()
+            .erase_line()
+            .move_back()
+            .move_column()
+            .move_down()
+            .move_forward()
+            .move_next()
+            .move_pos()
+            .move_prev()
+            .move_return()
+            .move_up()
+            .pos_restore()
+            .pos_save()
+            .scroll_down()
+            .scroll_up()
+        )
+        codes = (
+            cursor.hide(),
+            cursor.show(),
+            erase.display(),
+            erase.line(),
+            move.back(),
+            move.column(),
+            move.down(),
+            move.forward(),
+            move.next(),
+            move.pos(),
+            move.prev(),
+            move.carriage_return(),
+            move.up(),
+            position.restore(),
+            position.save(),
+            scroll.down(),
+            scroll.up(),
+        )
+        self.assertEqual(
+            str(c),
+            ''.join(str(x) for x in codes),
+            msg='Failed to create escape codes from methods.'
+        )
+
     def test_hash(self):
         """ hash(Control()) should return a unique hash for self.data. """
         a, b = hash(Control().move_down()), hash(Control().move_down())
@@ -111,6 +167,22 @@ class ControlTests(ColrTestCase):
             args=[a],
             otherargs=[b],
             msg='Hash values should not match.',
+        )
+
+    def test_last_code(self):
+        """ last_code() should return the last escape code appended. """
+        c = Control('datadata').move_up()
+        self.assertEqual(
+            c.last_code(),
+            str(move.up()),
+            msg='Failed to return last escape code.'
+        )
+
+        blank = Control()
+        self.assertEqual(
+            blank.last_code(),
+            '',
+            msg='Empty Control should not have a last code.'
         )
 
     @unittest.skipUnless(False, 'No way to test the actual escape codes.')
@@ -136,6 +208,10 @@ class ControlTests(ColrTestCase):
             msg='Control.repeat produced an unexpected result.',
         )
 
+        # Non-integer count should raise.
+        with self.assertRaises(TypeError):
+            Control().repeat(count='BAD')
+
     def test_repeat_all(self):
         """ Control.repeat() should be like str(Control()) * count. """
         count = 3
@@ -152,23 +228,24 @@ class ControlTests(ColrTestCase):
             msg='Control.repeat_all produced an unexpected result.',
         )
 
+        # Non-integer count should raise.
+        with self.assertRaises(TypeError):
+            Control().repeat_all(count='BAD')
+
 
 class ControlsModuleTests(ColrTestCase):
     """ Tests for module-level functions in colr/controls.py. """
-    def test_ensure_tty(self):
-        """ ensure_tty() should raise when needed. """
-        f = TestFile()
-        with self.assertRaises(TypeError):
-            ensure_tty(file=f)
-
-        fake = TestFile(tty=True)
-        try:
-            ensure_tty(fake)
-        except TypeError as ex:
-            self.fail('Shouldn\'t raise for tty.\n{}'.format(ex))
 
     def test_cursor_hide(self):
         """ cursor_hide should write to file. """
+        # You may be thinking that tests like these don't do anything.
+        # These are genuine regression tests that have already found
+        # 3 or 4 bugs hiding deep in code that just doesn't get called
+        # all that often. It's also testing the TestFile itself.
+        # Also, any breaking function signature changes will show up in these
+        # tests.
+        # If you find a way to test the effect of escape codes on the terminal
+        # please let me know, but until then this is what we have.
         f = TestFile()
         cursor_hide(file=f)
         self.assertEqual(
@@ -186,6 +263,24 @@ class ControlsModuleTests(ColrTestCase):
             str(cursor.show()),
             msg='cursor_show failed to write to file.',
         )
+
+    def test_ensure_tty(self):
+        """ ensure_tty() should raise when needed. """
+        f = TestFile()
+        with self.assertRaises(TypeError):
+            ensure_tty(file=f)
+
+        # No isatty() method at all.
+        notafile = object()
+        with self.assertRaises(TypeError):
+            ensure_tty(file=notafile)
+
+        # Shouldn't raise for `f.isatty() == True`.
+        fake = TestFile(tty=True)
+        try:
+            ensure_tty(fake)
+        except TypeError as ex:
+            self.fail('Shouldn\'t raise for tty.\n{}'.format(ex))
 
     def test_erase_display(self):
         """ erase_display should write to file. """
@@ -295,6 +390,103 @@ class ControlsModuleTests(ColrTestCase):
             str(f),
             str(move.up()),
             msg='move_up failed to write to file.'
+        )
+
+    def test_pos_restore(self):
+        """ pos_restore should write to file. """
+        f = TestFile()
+        pos_restore(file=f)
+        self.assertEqual(
+            str(f),
+            str(position.restore()),
+            msg='pos_restore failed to write to file.'
+        )
+
+    def test_pos_save(self):
+        """ pos_save should write to file. """
+        f = TestFile()
+        pos_save(file=f)
+        self.assertEqual(
+            str(f),
+            str(position.save()),
+            msg='pos_save failed to write to file.'
+        )
+
+    def test_print_inplace(self):
+        """ print_inplace should write to file. """
+        f = TestFile()
+        print_inplace('test', file=f)
+        self.assertEqual(
+            str(f),
+            ''.join((str(position.save()), 'test', str(position.restore()))),
+            msg='print_inplace failed to write to file.'
+        )
+        # Delay has some extra logic involved.
+        print_inplace('this', file=f, delay=0.005)
+        self.assertEqual(
+            str(f),
+            ''.join((str(position.save()), 'this', str(position.restore()))),
+            msg='print_inplace failed to write to file with delay.'
+        )
+
+        # With end char
+        print_inplace('this', file=f, delay=0.005, end='X')
+        self.assertEqual(
+            str(f),
+            ''.join((str(position.save()), 'thisX', str(position.restore()),)),
+            msg='print_inplace failed to write to file with delay and end.'
+        )
+
+    def test_print_flush(self):
+        """ print_flush should write to file. """
+        f = TestFile()
+        # At the very least, this shouldn't raise any errors.
+        # It's just a wrapper around print() and kwargs['file'].flush().
+        print_flush('', file=f)
+
+    def test_print_overwrite(self):
+        """ print_overwrite should write to file. """
+        f = TestFile()
+        print_overwrite('test', file=f)
+        self.assertEqual(
+            str(f),
+            ''.join((str(erase.line()), str(move.column()), 'test')),
+            msg='print_overwrite failed to write to file.'
+        )
+        # Delay has some extra logic.
+        print_overwrite('test', file=f, delay=0.005)
+        self.assertEqual(
+            str(f),
+            ''.join((str(erase.line()), str(move.column()), 'test')),
+            msg='print_overwrite failed to write to file with delay.'
+        )
+
+        # With end char.
+        print_overwrite('test', file=f, delay=0.005, end='X')
+        self.assertEqual(
+            str(f),
+            ''.join((str(erase.line()), str(move.column()), 'test', 'X')),
+            msg='print_overwrite failed to write to file with delay and end.'
+        )
+
+    def test_scroll_down(self):
+        """ scroll_down should write to file. """
+        f = TestFile()
+        scroll_down(file=f)
+        self.assertEqual(
+            str(f),
+            str(scroll.down()),
+            msg='scroll_down failed to write to file.'
+        )
+
+    def test_scroll_up(self):
+        """ scroll_up should write to file. """
+        f = TestFile()
+        scroll_up(file=f)
+        self.assertEqual(
+            str(f),
+            str(scroll.up()),
+            msg='scroll_up failed to write to file.'
         )
 
 
