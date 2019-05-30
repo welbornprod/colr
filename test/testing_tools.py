@@ -52,7 +52,7 @@ def _equality_msg(op, a, b, msg=None):
     fmta = str(Colr(repr(a), 'yellow'))
     try:
         if repr(a) != str(a):
-            fmta = '{} ({})'.format(fmta, a)
+            fmta = '{} ({}) {}'.format(fmta, a, type(a).__name__)
     except TypeError as ex:
         # str() returned non-string type. Catch it now, instead of pushing
         # to PyPi.
@@ -65,7 +65,7 @@ def _equality_msg(op, a, b, msg=None):
     fmtb = str(Colr(repr(b), 'green'))
     try:
         if repr(b) != str(b):
-            fmtb = '{} ({})'.format(fmtb, b)
+            fmtb = '{} ({}) {}'.format(fmtb, b, type(b).__name__)
     except TypeError as ex:
         # str() returned non-string type. Catch it now, instead of pushing
         # to PyPi.
@@ -873,6 +873,11 @@ class TestFileBytes(BytesIO):
     """ A file object that deletes it's content every time you call
         str(TestFileBytes).
     """
+    def __init__(self, data=None, tty=False):
+        self.tty = tty
+        if data:
+            self.write(data)
+
     def __bytes__(self):
         self.seek(0)
         s = self.read()
@@ -883,26 +888,43 @@ class TestFileBytes(BytesIO):
     def __str__(self):
         return repr(bytes(self))
 
+    def isatty(self):
+        return self.tty
+
 
 class TestFile(StringIO):
     """ A file object that deletes it's content every time you call
         str(TestFile).
     """
-    def __init__(self):
-        self.buffer = TestFileBytes()
+    def __init__(self, data=None, tty=False):
+        self.tty = tty
+        super().__init__()
+        self.buffer = TestFileBytes(data=data, tty=tty)
 
     def __str__(self):
-        self.seek(0)
+        try:
+            self.seek(0)
+        except ValueError as ex:
+            if 'uninitialized' not in str(ex).lower():
+                raise
         s = self.read()
         self.truncate(0)
         self.seek(0)
         return s
 
+    def isatty(self):
+        return self.tty
+
     def write(self, s):
         try:
-            super().write(s)
+            data = s.decode()
+        except AttributeError:
+            data = s
+
+        try:
+            super().write(data)
         except ValueError as ex:
             # I/O operation on uninitialized object?
             if 'uninitialized' not in str(ex).lower():
                 raise
-        self.buffer.write(s.encode() if hasattr(s, 'encode') else s)
+        self.buffer.write(data.encode())

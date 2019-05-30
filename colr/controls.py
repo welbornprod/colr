@@ -183,7 +183,7 @@ def move_pos(line=1, column=1, file=sys.stdout):
         or
         Esc[<line>;<column>f
     """
-    move.pos(line=line, col=column).write(file=file)
+    move.pos(line=line, column=column).write(file=file)
 
 
 def move_prev(lines=1, file=sys.stdout):
