@@ -183,7 +183,7 @@ def move_pos(line=1, column=1, file=sys.stdout):
         or
         Esc[<line>;<column>f
     """
-    move.pos(line=line, col=column).write(file=file)
+    move.pos(line=line, column=column).write(file=file)
 
 
 def move_prev(lines=1, file=sys.stdout):
@@ -293,7 +293,7 @@ def print_overwrite(*args, **kwargs):
     delay = None
     with suppress(KeyError):
         delay = kwargs.pop('delay')
-    erase_line()
+    erase_line(file=kwargs['file'])
     # Move to the beginning of the line.
     move_column(1, file=kwargs['file'])
     if delay is None:
@@ -385,10 +385,11 @@ class Control(ChainedBase):
         """ Return the last escape code in `self.data`.
             If no escape codes are found, '' is returned.
         """
-        codes = self.data.split(escape_sequence)
-        if not codes:
+        if escape_sequence not in self.data:
             return ''
-        return ''.join((escape_sequence, codes[-1]))
+        codes = self.data.split(escape_sequence)
+        lastcode = codes[-1]
+        return ''.join((escape_sequence, lastcode)) if lastcode else ''
 
     def move_back(self, columns=1):
         """ Move the cursor back a number of columns.
@@ -503,17 +504,24 @@ class Control(ChainedBase):
         return self.chained(text)
 
 
+# Method aliases
 # Alias for move_pos, because they both deal with cursor positions.
 Control.pos_set = Control.move_pos  # type: ignore
+# Shorter aliases for some move methods.
+Control.move_fwd = Control.move_forward
+Control.move_return = Control.move_carriage_return
+Control.move_ret = Control.move_carriage_return
 
 
 if __name__ == '__main__':
+    # There are no tests for these two statements, but they have been tested
+    # manually for a basic sanity-check.
     print(
         '\n'.join((
             'This file is not meant to run from the command line.',
             'If you\'ve cloned the repo you can run:',
             '    ./test/run_controls.py',
-            'It will show some example for Colr.controls.',
+            'It will show some examples for Colr.controls.',
         )),
         file=sys.stderr
     )
