@@ -1,3 +1,4 @@
+v0.8.9 05/30/19 -- ColrControl, bugs fixed, and more test coverage.
 v0.8.7 04/06/19 -- Basic support for docopt-ng.
 v0.8.6 03/31/19 -- Doc/test updates.
 v0.8.5 01/31/19 -- Add append, prepend, indent, and copy methods.
