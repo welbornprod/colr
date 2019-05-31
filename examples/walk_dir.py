@@ -52,7 +52,9 @@ colr_auto_disable()
 
 USAGESTR = """{versionstr}
 
-    Example usage for Colr.
+    Example program using Colr v. {colrver}.
+    Walks a directory, printing each one along the way, using either
+    a colr.AnimatedProgress or a colr.ProgressBar.
 
     Usage:
         {script} -h | -v
