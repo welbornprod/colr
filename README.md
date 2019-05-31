@@ -149,9 +149,10 @@ Documentation for the `colr` API can be found in the GitHub repo
 ([github.com/welbornprod/colr](https://github.com/welbornprod/colr)):
 
 Module/Object | Description
---- | ---
+------------------------------------- | --------------------------------------
 [colr.Colr](https://github.com/welbornprod/colr/blob/dev/docs/colr.Colr.md) | Methods for the `Colr` object, to colorize text.
-[colr.controls](https://github.com/welbornprod/colr/blob/dev/docs/colr.controls.md) | Functions and classes to control the cursor/screen.
+[colr.Control](https://github.com/welbornprod/colr/blob/dev/docs/colr.controls.md) | Functions, classes, and methods for the `Control` object, to control the cursor/screen.
+colr.ColrControl | `Colr` and `Control` merged into one class. See `colr.Colr` and `colr.Control`.
 [colr.progress](https://github.com/welbornprod/colr/blob/dev/docs/colr.progress.md) | Progress updates, bars, or spinners.
 [colr.trans](https://github.com/welbornprod/colr/blob/dev/docs/colr.trans.md) | Color code translation/detection.
 
