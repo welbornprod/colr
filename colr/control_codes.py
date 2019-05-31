@@ -148,14 +148,14 @@ class EscapeCode(object):
     """ Responsible for creating a full escape code sequence, with helper
         methods for the resulting string.
     """
-    def __init__(self, code):
+    def __init__(self, code, nowrap=False):
         """ Initialize an escape code. """
         if not code:
             raise ValueError(
                 'Empty/falsey code is not allowed. Got: {!r}'.format(code)
             )
         codestr = str(code)
-        if codestr.startswith(escape_sequence):
+        if nowrap or codestr.startswith(escape_sequence):
             # Already an escape sequence.
             self.code = codestr
         else:
@@ -203,7 +203,7 @@ class MoveCodes(object):
         """ Move the cursor to the beginning of the line, using \\r.
             This should act just like `move_column(1)`.
         """
-        return '\r'
+        return EscapeCode('\r', nowrap=True)
 
     @staticmethod
     def column(column=1):

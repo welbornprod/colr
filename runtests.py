@@ -27,7 +27,7 @@ colr_auto_disable()
 APPNAME = 'Colr'
 APPVERSION = colr_version
 NAME = '{} Test Runner'.format(APPNAME)
-VERSION = '0.1.0'
+VERSION = '0.2.0'
 VERSIONSTR = '{} v. {}'.format(NAME, VERSION)
 SCRIPT = os.path.split(os.path.abspath(sys.argv[0]))[1]
 SCRIPTDIR = os.path.abspath(sys.path[0])
@@ -37,6 +37,7 @@ USAGESTR = """{versionstr}
 
     Usage:
         {script} -h | -v
+        {script} (-C | -c)
         {script} [-d] [-s] [-r | -R]
         {script} [-d] [-s] [-r | -R] TESTS...
         {script} (-l | -L) [PATTERN...]
@@ -44,6 +45,8 @@ USAGESTR = """{versionstr}
     Options:
         PATTERN              : Regex/text pattern to match against test names.
         TESTS                : Test names for `green`.
+        -C,--view-browser    : Shortcut to open the html coverage report
+        -c,--view-coverage   : View coverage report in the console.
         -d,--dryrun          : Just show test names.
         -h,--help            : Show this help message.
         -L,--listall         : List all test names with their full name.
@@ -51,8 +54,11 @@ USAGESTR = """{versionstr}
         -r,--run-coverage    : Run coverage.
         -R,--quiet-coverage  : Run coverage without stdout output.
         -s,--stdout          : Allow stdout (removes -q from green args).
+                               in google-chrome.
         -v,--version         : Show version.
 """.format(script=SCRIPT, versionstr=VERSIONSTR)
+
+COVERAGE_DIR = os.path.join(SCRIPTDIR, 'coverage_html')
 
 
 def main(argd):
@@ -66,20 +72,32 @@ def main(argd):
         ]
 
         return list_tests(full=argd['--listall'], patterns=userpats)
+    elif argd['--view-browser']:
+        return view_coverage_browser()
+    elif argd['--view-coverage']:
+        return view_coverage()
+
     green_args = parse_test_names(argd['TESTS']) or ['test']
     if argd['--dryrun']:
         return print_test_names(green_args)
     cmd = [green_exe, '-vv']
     if not argd['--stdout']:
         cmd.append('-q')
-    if argd['--run-coverage']:
-        cmd.append('-r')
-    elif argd['--quiet-coverage']:
+    if argd['--run-coverage'] or argd['--quiet-coverage']:
         cmd.append('-R')
+
     cmd.extend(green_args)
     print_header(cmd)
 
-    return subprocess.run(cmd).returncode
+    exitcode = subprocess.run(cmd).returncode
+    if exitcode:
+        return exitcode
+    # Success.
+    if argd['--run-coverage'] or argd['--quiet-coverage']:
+        # Create coverage report.
+        return run_coverage(quiet=argd['--quiet-coverage'])
+
+    return exitcode
 
 
 def filter_test_info(patterns, test_info):
@@ -159,7 +177,7 @@ def get_test_files(package='test'):
         files = [s for s in os.listdir(package) if s.startswith('test_')]
     except EnvironmentError as ex:
         raise EnvironmentError(
-            'Unable to list "test" dir: {}'.format(os.getcwd())
+            'Unable to list "test" dir: {}\n{}'.format(os.getcwd(), ex)
         )
     return [os.path.splitext(s)[0] for s in files]
 
@@ -289,10 +307,27 @@ def pats_search(patterns, s):
 
 
 def print_err(*args, **kwargs):
-    """ A wrapper for print() that uses stderr by default. """
+    """ A wrapper for print() that uses stderr by default.
+        Colorizes messages, unless a Colr itself is passed in.
+    """
     if kwargs.get('file', None) is None:
         kwargs['file'] = sys.stderr
-    print(*args, **kwargs)
+
+    # Use color if the file is a tty.
+    if kwargs['file'].isatty():
+        # Keep any Colr args passed, convert strs into Colrs.
+        msg = kwargs.get('sep', ' ').join(
+            str(a) if isinstance(a, C) else str(C(a, 'red'))
+            for a in args
+        )
+    else:
+        # The file is not a tty anyway, no escape codes.
+        msg = kwargs.get('sep', ' ').join(
+            str(a.stripped() if isinstance(a, C) else a)
+            for a in args
+        )
+
+    print(msg, **kwargs)
 
 
 def print_header(cmd):
@@ -346,6 +381,28 @@ def print_test_names(names):
     return 0 if names else 1
 
 
+def run_coverage(quiet=False):
+    """ Run coverage, and return an exit status code. """
+    print(C(': ').join(
+        C('Creating coverage report in', 'cyan'),
+        C(COVERAGE_DIR, 'blue', style='bright'),
+    ))
+    covcmd = [
+        'coverage',
+        'html',
+        '--directory',
+        COVERAGE_DIR,
+        '--title',
+        'Coverage for Colr v. {}'.format(colr_version),
+    ]
+    exitcode = subprocess.run(covcmd).returncode
+    if exitcode:
+        return exitcode
+    if quiet:
+        return exitcode
+    return view_coverage()
+
+
 def try_repat(s, default=None):
     """ Try compiling a regex pattern.
         If `s` is Falsey, `default` is returned.
@@ -359,6 +416,92 @@ def try_repat(s, default=None):
     except re.error as ex:
         raise InvalidArg('Invalid pattern: {}\n{}'.format(s, ex))
     return p
+
+
+def view_coverage():
+    """ Print the coverage report to the console. """
+    coverage_file = os.path.join(SCRIPTDIR, '.coverage')
+    if not os.path.exists(coverage_file):
+        raise InvalidArg('No coverage file found, run coverage: {}'.format(
+            coverage_file,
+        ))
+    # Show console report.
+    print(C('').join(C('\nCoverage Report', 'cyan'), ':'))
+
+    covreportcmd = [
+        'coverage',
+        'report',
+    ]
+    try:
+        output = subprocess.check_output(
+            covreportcmd,
+            stderr=subprocess.STDOUT,
+        ).decode()
+    except subprocess.CalledProcessError:
+        return 1
+    if not output.startswith('Name'):
+        print_err(output)
+        return 1
+
+    divline = C('-' * 45, 'dimgrey')
+    for line in output.splitlines():
+        if line.startswith('--'):
+            # Divider line.
+            print(divline)
+            continue
+        name, statements, miss, cover = line.split()
+        namefmt = C(name).ljust(25)
+        statementsfmt = C(statements, (46, 137, 255)).rjust(5)
+        try:
+            miss = int(miss)
+            if miss == 0:
+                missfmt = C(miss, 'lightgreen', style='bright').rjust(6)
+            else:
+                missfmt = C(miss, 'red').rjust(6)
+        except ValueError:
+            # Actual 'Miss' header.
+            missfmt = C(miss, 'red').rjust(6)
+        try:
+            cover = int(cover.rstrip('%'))
+            if cover == 100:
+                covercolr = {'fore': 'lightgreen', 'style': 'bright'}
+            elif cover > 49:
+                covercolr = {'fore': 'green'}
+            else:
+                covercolr = {'fore': 'red'}
+            coverfmt = C('{}%'.format(cover), **covercolr).rjust(6)
+        except ValueError:
+            # Actual 'Cover' header.
+            coverfmt = C(cover, 'green').rjust(6)
+        print(C(' ').join(namefmt, statementsfmt, missfmt, coverfmt))
+    return 0
+
+
+def view_coverage_browser():
+    """ Open the html coverage report in google-chrome. """
+    indexfile = os.path.join(COVERAGE_DIR, 'index.html')
+    if not os.path.exists(indexfile):
+        print_err(C(': ').join(
+            C('Missing coverage report file', 'red'),
+            C(indexfile, 'blue'),
+        ))
+        print_err(C(' ').join(
+            C('Run', 'red'),
+            C('./runtests.py -R', 'blue').join('`', '`'),
+            C('to generate it.', 'red'),
+        ))
+        return 1
+
+    cmd = ['google-chrome', indexfile]
+    print(C(': ').join(
+        C('Running', 'cyan'),
+        C(' ').join(
+            C(cmd[0], 'blue', style='bright'),
+            C(' '.join(cmd[1:]), 'blue'),
+        ),
+    ))
+    subprocess.Popen(cmd)
+    return 0
 
 
 class InvalidArg(ValueError):

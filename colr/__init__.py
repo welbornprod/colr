@@ -36,8 +36,6 @@ from .colr import (  # noqa
     auto_disable,
     closing_code,
     codeformat,
-    codes,
-    codes_reverse,
     color,
     disable,
     disabled,
@@ -64,9 +62,20 @@ from .colr import (  # noqa
     rgbforeformat,
 )
 
+from .codes import (
+    code_nums,
+    code_nums_reverse,
+    codes,
+    codes_reverse,
+)
+
 from .controls import (  # noqa
     Control,
     EraseMethod,
+)
+
+from .colrcontrol import (
+    ColrControl,
 )
 
 from .progress import (
@@ -85,7 +94,7 @@ from .progress_frames import (
 )
 
 try:
-    from .colr_docopt import (
+    from .colr_docopt import (  # noqa
         docopt,
         docopt_file,
         docopt_version,
@@ -109,6 +118,10 @@ from .trans import (
     term2rgb
 )
 
+from .preset import (
+    Preset,
+)
+
 __all__ = [
     # base classes/functions made available.
     '__version__',
@@ -119,6 +132,8 @@ __all__ = [
     'auto_disable',
     'closing_code',
     'codeformat',
+    'code_nums',
+    'code_nums_reverse',
     'codes',
     'codes_reverse',
     'color',
@@ -149,6 +164,8 @@ __all__ = [
     # controls functions/classes made available.
     'Control',
     'EraseMethod',
+    # colrcontrol classes made available.
+    'ColrControl',
     # progress functions/classes made available.
     'AnimatedProgress',
     'ProgressBar',
@@ -172,8 +189,11 @@ __all__ = [
     'rgb2termhex',
     'term2hex',
     'term2hex_map',
-    'term2rgb'
+    'term2rgb',
+    # Preset stuff made available.
+    'Preset',
 ]
+
 if has_docopt:
     __all__.append('docopt')
     __all__.append('docopt_version')

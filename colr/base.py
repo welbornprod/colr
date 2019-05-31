@@ -114,8 +114,6 @@ def get_indices(s: Union[str, 'ChainedBase']) -> Dict[int, str]:
         indices.update({i: s[i] for i in range(startlen, codeindex)})
         indices[codeindex] = code
 
-    if not indices:
-        return {i: c for i, c in enumerate(s)}
     lastindex = max(indices, key=int)
     lastitem = indices[lastindex]
     start = lastindex + len(lastitem)
@@ -155,8 +153,8 @@ class ChainedBase(Sequence):
         methods.
     """
 
-    def __init__(self, text):
-        self.data = text
+    def __init__(self, text=None):
+        self.data = str('' if text is None else text)
 
     def __add__(self, other):
         """ Allow the old string concat methods through addition. """
@@ -202,6 +200,7 @@ class ChainedBase(Sequence):
             `help('FORMATTING')`.
         """
         if not fmt:
+            # TODO: Is this even possible?
             return str(self)
         methodmap = {
             '<': self.ljust,
@@ -221,9 +220,15 @@ class ChainedBase(Sequence):
                     'Invalid width for format specifier: {}'.format(width)
                 )
             return str(methodmap[align](widthval, fillchar=char))
-
-        # Fallback to plain str modifier.
-        return str(self).__format__(fmt)
+        # No alignment char, default to ljust ('<').
+        try:
+            width = int(fmt)
+        except ValueError:
+            raise ValueError(
+                'Expecting standard str format spec, got: {!r}'.format(fmt)
+            )
+        else:
+            return str(methodmap['<'](width, fillchar=' '))
 
     def __getitem__(self, key):
         """ Allow subscripting self.data. This will ignore any escape codes,
@@ -231,33 +236,60 @@ class ChainedBase(Sequence):
             Returns another ChainedBase instance.
         """
         length = len(self.stripped())
+        lastindex = length - 1
         if isinstance(key, slice):
+            # Get slice values for non-escape code data.
+            # Adjusts actual start/stop for actual length.
             start, stop, step = key.indices(length)
         elif isinstance(key, int):
-            if key > length:
+            if key > lastindex:
                 raise IndexError(
                     'Index out of bounds for plain text, too large.'
                 )
             elif key < 0:
+                # Negative index (length + key).
                 key = length + key
                 if key < 0:
                     raise IndexError(
                         'Index out of bounds for plain text, too small.'
                     )
+            # Single element slice.
             start, stop, step = key, key + 1, 1
         else:
-            raise TypeError('Indices must be integers.')
+            raise TypeError('Indices must be integers/slices.')
 
-        pos = -1
+        if (start == lastindex) and (stop == lastindex):
+            # A slice like [::n]
+            if step < 0:
+                # A negative step of everything.
+                start += 1
+                stop = 0
+            else:
+                # A positive step of everything.
+                start = 0
+                stop += 1
+
+        if step > 0:
+            pos = -1
+        else:
+            pos = start + 1
         codeparts = []
         parts = []
-        found_char = False
+
+        def is_out_of_bounds():
+            """ Tracks string position and returns True if it has went past
+                the bounds.
+            """
+            if (start <= stop) and (pos >= stop):
+                # Positive step.
+                return True
+            elif (start >= stop) and (pos <= stop):
+                # Negative step.
+                return True
+            return False
+
         for part in self.iter_parts():
-            if pos == stop:
-                if not found_char:
-                    raise IndexError(
-                        'Index out of bounds for non-escape code data.'
-                    )
+            if is_out_of_bounds():
                 break
             if part.is_code():
                 codeparts.append(part)
@@ -265,20 +297,21 @@ class ChainedBase(Sequence):
             chars = []
             for char in str(part)[::step]:
                 pos += step
-                if pos < start:
+                if (step > 0) and (pos < start):
+                    # Started negative on a positive step, but it's okay.
                     continue
                 if pos == stop:
                     break
-                parts.extend(
-                    p
-                    for p in codeparts
-                )
+                parts.extend(codeparts)
                 codeparts = []
                 chars.append(char)
-                found_char = True
 
             parts.append(''.join(chars))
-        return self.__class__(''.join(str(x) for x in parts))
+
+        s = ''.join(str(x) for x in parts)
+        # It's okay to return an empty ChainedBase,
+        # str() does it for slices like 'test'[45:].
+        return self.__class__(s)
 
     def __hash__(self):
         """ A ChainedBase's hash value is based on self.data. """
@@ -337,7 +370,7 @@ class ChainedBase(Sequence):
         return repr(self.data)
 
     def __str__(self):
-        return self.data
+        return str(self.data)
 
     def _str_just(
             self, methodname, width, fillchar=' ', squeeze=False,
@@ -592,7 +625,18 @@ class ChainedBase(Sequence):
     def write(self, file=sys.stdout, end='', delay=None):
         """ Write this control code str to a file, clear self.data, and
             return self.
-            Default: sys.stdout
+            Arguments:
+                file  : File object to write to.
+                        self.data is encoded using the default .encode()
+                        call before writing.
+                        Default: sys.stdout
+                end   : Line ending character/string.
+                        Default: '' (Nothing/Empty-String)
+                delay : Seconds to delay between calls to `write()`.
+                        Used in text animations.
+                        `delay` recalculated to accommodate whitespace chars
+                        and escape codes, and is passed to `time.sleep()`.
+                        Default: None
         """
         s = str(self)
         filebuf = getattr(file, 'buffer', file)
@@ -652,7 +696,7 @@ class ChainedPart(object):
         return str(self.data)
 
     def get_slice(self):
-        """ Return a `slice` object using thi ChainedPart's `start` and
+        """ Return a `slice` object using this ChainedPart's `start` and
             `stop` attribute.
         """
         return slice(self.start, self.stop)

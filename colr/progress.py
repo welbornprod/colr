@@ -76,6 +76,10 @@ from time import (
     time,
 )
 
+from typing import (
+    Tuple,
+)
+
 from .colr import Colr as C
 from .controls import Control
 from .progress_frames import (  # noqa
@@ -325,7 +329,7 @@ class StaticProgress(WriterProcess):
     """
     default_delay = 0.1
     default_format = ('{text}', )
-    default_format_time = ('{elapsed:>2.0f}s', '{text}')
+    default_format_time = ('{elapsed:>2.0f}s', '{text}')  # type: Tuple[str, ...]
     join_str = ' '
 
     def __init__(

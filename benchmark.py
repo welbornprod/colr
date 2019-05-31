@@ -10,6 +10,7 @@ import os
 import re
 import subprocess
 import sys
+from cProfile import Profile
 from timeit import Timer
 from types import FunctionType
 
@@ -17,14 +18,18 @@ from pygments import highlight
 from pygments.lexers import get_lexer_by_name
 from pygments.formatters import Terminal256Formatter
 
-from colr import (
-    AnimatedProgress,
-    Colr as C,
-    Frames,
-    docopt,
-)
 from easysettings import load_json_settings
 from printdebug import DebugColrPrinter
+from colr import (  # noqa (color is eval'd later)
+    AnimatedProgress,
+    Colr,
+    Frames,
+    color,
+    docopt,
+)
+
+# Shorter alias.
+C = Colr
 
 NAME = 'Colr - Benchmarks'
 VERSION = '0.0.1'
@@ -39,7 +44,8 @@ DEFAULT_NUMBER = 10000
 USAGESTR = """{versionstr}
     Usage:
         {script} -h | -v
-        {script} [-D] [-n num] [-r num] [-S] [PATTERN]
+        {script} [-D] -l
+        {script} [-D] [-n num] [-r num] [-p | -S] [PATTERN]
 
     Options:
         PATTERN              : Text/regex pattern to match against benchmark
@@ -47,10 +53,12 @@ USAGESTR = """{versionstr}
                                Only matching benchmark functions will run.
         -D,--debug           : Show some debug info while running.
         -h,--help            : Show this help message.
+        -l,--list            : List any previously saved benchmarks.
         -n num,--number num  : Number of code runs per time test.
                                Default: {default_num}
         -r num,--repeat num  : Number of time to repeat the time test.
                                Default: {default_repeat}
+        -p,--profile         : Profile the code while benchmarking.
         -S,--save            : Save the benchmark results in benchmarks.json.
         -v,--version         : Show version.
 """.format(
@@ -78,29 +86,66 @@ default_frames = (
     Frames.dots.prepend(' ' * 9).append(' ').as_rainbow()
 )
 
+# Difference between benchmarks before they are "marked".
+max_diff = 0.01
+
+# A Profile object, set when --profile is used.
+profiler = None
+
 
 def main(argd):
     """ Main entry point, expects docopt arg dict as argd. """
-    global git_branch
+    global git_branch, profiler
+
     debugprinter.enable(argd['--debug'])
+    if argd['--profile']:
+        profiler = Profile(subcalls=True)
+
     git_branch = get_git_branch()
     config['times'].setdefault(git_branch, {})
+    if argd['--list']:
+        return list_benchmarks()
     return run_benchmarks(
         pattern=try_repat(argd['PATTERN'], default=None),
-        repeat=parse_int(argd['--repeat'], default=DEFAULT_REPEAT),
-        number=parse_int(argd['--number'], default=DEFAULT_NUMBER),
+        repeat=max(1, parse_int(argd['--repeat'], default=DEFAULT_REPEAT)),
+        number=max(100, parse_int(argd['--number'], default=DEFAULT_NUMBER)),
         save=argd['--save'],
     )
 
 
 def bench_Colr(repeat=None, number=None):
     argsets = (
-        {'args': ('fore', 'red')},
-        {'args': ('fore bold', ), 'kwargs': {'style': 'bold'}},
+        {'args': ('this', 'red')},
+        {'args': ('this thing', ), 'kwargs': {'style': 'bold'}},
         (
-            {'args': ('fore', 'red')},
-            {'args': ('bold', ), 'kwargs': {'style': 'bold'}}
+            {'args': ('this', 'red')},
+            {'args': ('thing', ), 'kwargs': {'style': 'bold'}}
         ),
+        {
+            'args': ('this', 'red'),
+            'method': {
+                'bold': {'args': (' thing', )},
+            },
+        },
+        {
+            'method': {
+                'red': {
+                    'args': ('this', ),
+                    'method': {
+                        'bold': {'args': (' thing', )},
+                    },
+                },
+            }
+        },
+        {
+            'args': ('this', 'red'),
+            'method': {
+                '': {
+                    'args': (' thing', ),
+                    'kwargs': {'style': 'bold'},
+                },
+            },
+        },
     )
     for argset in argsets:
         if not isinstance(argset, (list, tuple)):
@@ -115,11 +160,11 @@ def bench_Colr(repeat=None, number=None):
 
 def bench_color(repeat=None, number=None):
     argsets = (
-        {'args': ('fore', 'red')},
-        {'args': ('fore bold', ), 'kwargs': {'style': 'bold'}},
+        {'args': ('this', 'red')},
+        {'args': ('this thing', ), 'kwargs': {'style': 'bold'}},
         (
-            {'args': ('fore', 'red')},
-            {'args': ('bold', ), 'kwargs': {'style': 'bold'}}
+            {'args': ('this', 'red')},
+            {'args': ('thing', ), 'kwargs': {'style': 'bold'}}
         ),
     )
     for argset in argsets:
@@ -142,7 +187,7 @@ def build_code_Colr(*argsets):
         return colrstrs[0]
 
     colrstr_code = ', '.join(colrstrs)
-    return f'C(\' \').join({colrstr_code})'
+    return f'Colr(\' \').join({colrstr_code})'
 
 
 def build_code_color(*argsets):
@@ -163,6 +208,21 @@ def build_code_color(*argsets):
 def format_code(s):
     """ Use pygments to syntax highlight python code. """
     return highlight(s, pygments_lexer, pygments_formatter).strip()
+
+
+def format_result(name, time, code, indent=4):
+    """ Format a timing result for printing. """
+    codefmt = format_code(code)
+    prevtime = config['times'][git_branch].get(name, {}).get(code, None)
+    if (prevtime is not None) and ((time - prevtime) > max_diff):
+        timeargs = {'fore': 'red', 'style': 'bright'}
+    else:
+        timeargs = {'fore': 'cyan'}
+    timefmt = C('').join(C(f'{time:>3.3f}', **timeargs), C('s', 'dimgrey'))
+    indent = ' ' * indent
+    eq = C('==', 'green')
+    coderesult = eval(code)
+    return f'{indent}{timefmt}: {codefmt} {eq} {coderesult}'
 
 
 def get_bench_name(func):
@@ -199,6 +259,30 @@ def get_git_branch():
     )))
 
 
+def list_benchmarks():
+    """ Print any previously saved benchmarks. """
+    count = 0
+    for branch in sorted(config['times']):
+        branchfmt = C(branch, 'blue', style='bright')
+        print(f'{branchfmt}:')
+        if not config['times'][branch]:
+            print(C(': ').join(
+                C('        No benchmarks saved for', 'red'),
+                branchfmt,
+            ))
+            continue
+        for name in sorted(config['times'][branch]):
+            namefmt = C(name, 'green', style='bright')
+            print(f'    {namefmt}:')
+            for code, time in config['times'][branch][name].items():
+                print(format_result(name, time, code, indent=8))
+                count += 1
+
+    if not count:
+        return 1
+    return 0
+
+
 def parse_int(s, default=None):
     """ Parse a string as an integer, returns `default` for falsey value.
         Raises InvalidArg with a message on invalid numbers.
@@ -227,20 +311,14 @@ def run_bench_set(func, repeat=None, number=None, save=False):
     namefmt = C(name, 'blue', style='bright')
     label = f'{namefmt}:'
     print(f'\n{label}')
-    for code, time in func():
-        codefmt = format_code(code)
-        prevtime = config['times'][git_branch][name].get(code, None)
-        if (prevtime is not None) and (time - prevtime > 0.0005):
-            timeargs = {'fore': 'red', 'style': 'bright'}
-        else:
-            timeargs = {'fore': 'cyan'}
-        timefmt = C('').join(C(f'{time:>3.3f}', **timeargs), C('s', 'dimgrey'))
-        print(f'    {timefmt}: {codefmt}')
+    for code, time in func(repeat=repeat, number=number):
+        print(format_result(name, time, code))
         if save:
             config['times'][git_branch][name][code] = time
 
 
 def run_benchmarks(pattern=None, repeat=None, number=None, save=False):
+    """ Run all bench_* functions, unless filtered by `pattern` """
     count = 0
     funcs = get_benchmark_funcs()
     for func in funcs:
@@ -255,6 +333,9 @@ def run_benchmarks(pattern=None, repeat=None, number=None, save=False):
     if save:
         debug(f'Saving benchmarks in: {CONFIG_FILE}')
         config.save()
+    if profiler is not None:
+        print(C('').join(C('\nProfile', 'blue', style='bright'), ':'))
+        profiler.print_stats()
     return 0 if count else 1
 
 
@@ -273,13 +354,17 @@ def time_code(code_builder, *argsets, repeat=None, number=None):
         frames=default_frames,
         show_time=False,
     )
+    repeat = repeat or DEFAULT_REPEAT
+    number = number or DEFAULT_NUMBER
     with progress:
-        result = min(
-            t.repeat(
-                repeat=repeat or DEFAULT_REPEAT,
-                number=number or DEFAULT_NUMBER,
-            )
+        if profiler:
+            profiler.run(code)
+        results = t.repeat(
+            repeat=repeat,
+            number=number,
         )
+        result = min(results)
+
     return code, result
 
 
@@ -332,10 +417,12 @@ class ArgStr(object):
         return f'{self.func_name}({fullargs})'
 
     def add_method(self, method_name, argset):
-        self.func_name = f'{str(self)}.{method_name}'
+        validate_argsets(argset)
+        joiner = '.' if method_name else ''
+        self.func_name = f'{str(self)}{joiner}{method_name}'
         self.args = argset.get('args', [])
         self.kwargs = argset.get('kwargs', {})
-        self.add_methods(argset.get('methods', {}))
+        self.add_methods(argset.get('method', {}))
         return self
 
     def add_methods(self, method_argsets):
@@ -350,7 +437,7 @@ class ArgStr(object):
             *(argset.get('args', [])),
             **(argset.get('kwargs', {})),
         )
-        return cls.add_methods(argset.get('methods', {}))
+        return cls.add_methods(argset.get('method', {}))
 
 
 class InvalidArg(ValueError):
