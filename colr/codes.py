@@ -47,6 +47,7 @@ _stylemap = (
 # A tuple of valid style numbers.
 _stylenums = tuple(str(t[0]) for t in _stylemap)  # type: Tuple[str, ...]
 
+
 # Build a module-level map of fore, back, and style names to escape code.
 codeformat = '\033[{}m'.format  # type: CodeFormatFunc
 extforeformat = '\033[38;5;{}m'.format  # type: CodeFormatFunc
@@ -71,6 +72,8 @@ def _build_code_nums() -> Dict[str, Dict[str, int]]:
         # Not using format_* functions here, no validation needed.
         built['fore'][name] = 30 + number
         built['back'][name] = 40 + number
+
+        # Light colors (90-97 for fore, and 100-107 for bg.)
         litename = 'light{}'.format(name)  # type: str
         built['fore'][litename] = 90 + number
         built['back'][litename] = 100 + number
@@ -154,3 +157,32 @@ def _build_codes_reverse(
 # Raw code map, available to users.
 codes = _build_codes()
 codes_reverse = _build_codes_reverse(codes)
+
+
+def _add_alias_names(d: Dict[str, Dict[str, str]]) -> None:
+    """ Add some short aliases for basic colors and light colors. """
+    aliases = {
+        'fore': {s[0]: s for s in basic_names},
+        'back': {s[0]: s for s in basic_names},
+    }
+    for codetype in ('fore', 'back'):
+        aliases[codetype].update({
+            'l{}'.format(s[0]): 'light{}'.format(s)
+            for s in basic_names
+        })
+        # Special case for blue/black because they start with the same char.
+        # Blue should have the one char alias because it is used more.
+        aliases[codetype]['b'] = 'blue'
+        aliases[codetype]['bl'] = 'black'
+        aliases[codetype]['blk'] = 'black'
+        aliases[codetype]['lb'] = 'lightblue'
+        aliases[codetype]['lbl'] = 'lightblack'
+        aliases[codetype]['lblk'] = 'lightblack'
+
+    # Update the codes dict with these aliases.
+    for codetype, aliasinfo in aliases.items():
+        for shortname, fullname in aliasinfo.items():
+            d[codetype][shortname] = d[codetype][fullname]
+
+
+_add_alias_names(codes)

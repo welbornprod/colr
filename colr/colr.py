@@ -710,7 +710,7 @@ class Colr(ChainedBase):
         """
         if not fmt:
             return str(self)
-        if not ('[' in fmt) and (']' in fmt):
+        if not (('[' in fmt) and (']' in fmt)):
             # No color specs found in the format.
             return super().__format__(fmt)
 
@@ -1094,7 +1094,7 @@ class Colr(ChainedBase):
         """ Parse a Colr spec such as 'fore=red, back=blue, style=bold' into
             useable Colr keyword arguments.
             Raises InvalidColrFormat on error.
-            Returns a dict of {'fore': name, 'back': name, style=name} on
+            Returns a dict of {'fore': name, 'back': name, 'style': name} on
             success.
             Arguments:
                 spec  : The format spec.
@@ -1471,7 +1471,7 @@ class Colr(ChainedBase):
         # Not a known color name/value, try rgb.
         try:
             r, g, b = (int(x) for x in value)
-            # This does not mean we have a 3 int tuple. It could '111'.
+            # This does not mean we have a 3 int tuple. It could be '111'.
             # The converter should catch it though.
         except (TypeError, ValueError):
             # Not an rgb value.

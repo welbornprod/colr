@@ -483,12 +483,19 @@ class ColrTests(ColrTestCase):
     def test_format_colr_keyless(self):
         """ Colr.__format__ should accept Colr argument specs without keys. """
         spec_args = (
+            # Simple
             ('red', ),
             ('red', 'black', ),
             ('red', 'black', 'bold'),
+            # Short
+            ('r', ),
+            ('r', 'b', ),
+            ('r', 'b', 'b'),
+            # RGB
             ('255;255;255', ),
             ('1;1;1,' '0;0;0', ),
             ('1;1;1', '0;0;0', 'bright'),
+            # Hex
             ('#ffffff', ),
             ('#ffffff', '#000000', ),
             ('#ffffff', '#000000', 'dim'),
@@ -639,6 +646,32 @@ class ColrTests(ColrTestCase):
             )
             with raisechk:
                 spec.format(**{test_key: Colr('Test')})
+
+    def test_format_colr_short(self):
+        """ Colr.__format__ should accept short form arg specs/colors. """
+        normalnames = ['b', 'bl', 'blk', 'c', 'g', 'm', 'r', 'w', 'y']
+        # Test light color short names also.
+        lightnames = ['l{}'.format(s) for s in normalnames]
+        shortnames = normalnames + lightnames
+        styles = ('b', 'd', 'i', 'u', 'f', 'h', 'n')
+        style_len = len(styles)
+        spec_args = [
+            'fore={}, back={}, style={}'.format(
+                name,
+                shortnames[-i],
+                styles[-(i % style_len)],
+            )
+            for i, name in enumerate(shortnames)
+        ]
+
+        c = Colr('test')
+        specs = [
+            '{{c:[{spec}]}}'.format(spec=spec)
+            for spec in spec_args
+        ]
+        for spec in specs:
+            # Should not raise.
+            spec.format(c=c)
 
     def test_format_spec(self):
         """ Colr.__format__ specs should match normal Colr use. """
