@@ -81,8 +81,7 @@ def get_code_indices(s: Union[str, 'ChainedBase']) -> Dict[int, str]:
     """
     indices = {}
     i = 0
-    codes = get_codes(s)
-    for code in codes:
+    for code in get_codes(s):
         codeindex = s.index(code)
         realindex = i + codeindex
         indices[realindex] = code
@@ -96,14 +95,14 @@ def get_indices(s: Union[str, 'ChainedBase']) -> Dict[int, str]:
     """ Retrieve a dict of characters and escape codes with their real index
         into the string as the key.
     """
-    codes = get_code_indices(s)
-    if not codes:
+    codeindices = get_code_indices(s)
+    if not codeindices:
         # This function is not for non-escape-code stuff, but okay.
         return {i: c for i, c in enumerate(s)}
 
     indices = {}
-    for codeindex in sorted(codes):
-        code = codes[codeindex]
+    for codeindex in sorted(codeindices):
+        code = codeindices[codeindex]
         if codeindex == 0:
             indices[codeindex] = code
             continue
@@ -687,7 +686,12 @@ class ChainedPart(object):
         )
 
     def __hash__(self):
-        return hash(self.data) + (self.start or 0) + (self.stop or 0)
+        return hash('<{} {!r}:start={}:stop={}>'.format(
+            type(self).__name__,
+            self.data,
+            self.start or 0,
+            self.stop or 0,
+        ))
 
     def __repr__(self):
         return '{}({!r})'.format(type(self).__name__, self.data)
