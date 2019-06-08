@@ -500,7 +500,7 @@ def view_coverage_browser():
             C(' '.join(cmd[1:]), 'blue'),
         ),
     ))
-    subprocess.Popen(cmd)
+    subprocess.Popen(cmd, stderr=subprocess.DEVNULL)
     return 0
 
 
