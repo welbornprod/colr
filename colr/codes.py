@@ -109,11 +109,6 @@ def _build_code_nums_reverse() -> Dict[str, Dict[int, str]]:
     return built
 
 
-# Make plain code numbers available to the user.
-code_nums = _build_code_nums()
-code_nums_reverse = _build_code_nums_reverse()
-
-
 def _build_codes() -> Dict[str, Dict[str, str]]:
     """ Build code map, encapsulated to reduce module-level globals. """
     built = {
@@ -154,11 +149,6 @@ def _build_codes_reverse(
     return built
 
 
-# Raw code map, available to users.
-codes = _build_codes()
-codes_reverse = _build_codes_reverse(codes)
-
-
 def _add_alias_names(d: Dict[str, Dict[str, str]]) -> None:
     """ Add some short aliases for basic colors and light colors. """
     aliases = {
@@ -185,4 +175,11 @@ def _add_alias_names(d: Dict[str, Dict[str, str]]) -> None:
             d[codetype][shortname] = d[codetype][fullname]
 
 
+# Make plain code numbers available to the user.
+code_nums = _build_code_nums()
+code_nums_reverse = _build_code_nums_reverse()
+# Raw code map, available to users.
+codes = _build_codes()
+codes_reverse = _build_codes_reverse(codes)
+# Short aliases are added for convenience.
 _add_alias_names(codes)
