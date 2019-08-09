@@ -74,7 +74,7 @@ USAGESTR = """{versionstr} (Colr v. {colr_version})
 
         Any output from the program will ruin the animation. You can silence
         stderr output with -e if you don't need it:
-            colr-run -e -- some-long-running-command
+            {script} -e -- some-long-running-command
 
     Exit Status:
         The exit status of {script} is the exit status of the command being

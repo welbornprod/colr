@@ -212,6 +212,33 @@ cat myfile.txt | colr --gradient red
 Also see [ccat](https://github.com/welbornprod/ccat).
 
 
+## Colr-run:
+
+A small command-runner is included, called `colr-run`. This
+program will run another program, printing an animated message instead of the
+normal output.
+
+It is used to turn "noisy" commands into a nice single-line animation.
+
+### Basic Example:
+
+To run a program with the default settings, `--` is still required:
+```bash
+colr-run -- bash -c 'x=0; while ((x<1000000)); do let x+=1; done'
+```
+
+Any stderr output from the program will ruin the animation, which may be fine
+if you are only looking for errors.
+
+You can silence stderr output with `-e` if you don't need it:
+```bash
+colr-run -e -- some-long-running-command
+```
+
+The exit status of `colr-run` is the exit status of the command being
+executed. For `colr-run` errors, the exit status is `1` for basic errors,
+and `2` for cancelled commands.
+
 ## Colr.docopt:
 
 Colr provides a wrapper for docopt that will automatically colorize usage

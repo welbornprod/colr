@@ -49,7 +49,7 @@ else:
 
 setup(
     name='Colr',
-    version='0.8.9',
+    version='0.9.0',
     author='Christopher Welborn',
     author_email='cj@welbornprod.com',
     packages=['colr'],
