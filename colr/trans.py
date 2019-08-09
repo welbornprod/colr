@@ -337,6 +337,40 @@ term2hex_map = {
 hex2term_map = {term2hex_map[k]: k for k in sorted(term2hex_map)}
 
 
+def create_hex2term_c_array(name=None, comment=False, rgb=False):
+    """ Returns a C-style array definition with indexes mapped to hex codes.
+        This is not used in Colr.
+        It is a helper function for another project, ColrC.
+    """
+    if not name:
+        name = 'term2{}_map'.format('rgb' if rgb else 'hex')
+    if rgb:
+        type_decl = 'const RGB {}[]'.format(name)
+    else:
+        type_decl = 'const char* {}[]'.format(name)
+    array_defs = []
+    for num in sorted(term2hex_map, key=int):
+        if rgb:
+            memberdef = '{{{}}},'.format(
+                ', '.join(
+                    str(x) for x in hex2rgb(term2hex_map[num])
+                )
+            )
+        else:
+            memberdef = '"{}",'.format(term2hex_map[num])
+        if comment:
+            memberdef = ' '.join((
+                memberdef,
+                '// Extended Value: {}'.format(int(num))
+            ))
+        array_defs.append(memberdef)
+
+    return '{} = {{\n    {}\n}};\n'.format(
+        type_decl,
+        '\n    '.join(array_defs)
+    )
+
+
 def fix_hex(hexval: str) -> str:
     hexval = hexval.strip().lstrip('#').lower()
     hexlen = len(hexval)

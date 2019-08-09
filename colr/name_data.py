@@ -1904,3 +1904,114 @@ names = {
         'rgb': (135, 215, 95),
     }
 }
+
+
+def create_term_name_c_array(name=None):
+    """ Returns a C-style array definition with indexes mapped to known names.
+        This is not used in Colr.
+        It is a helper function for another project, ColrC.
+    """
+    if not name:
+        name = 'term2name_map'
+    codes = {}
+    # Use first code found. Don't overwrite with duplicates.
+    for colorname, colorinfo in names.items():
+        codes.setdefault(colorinfo['code'], colorname)
+
+    type_decl = 'char* {}[]'.format(name)
+    array_defs = ['NULL,'] * 255
+    for code, colorname in codes.items():
+        array_defs[code] = '"{}",'.format(colorname)
+
+    return '{} = {{\n    {}\n}};\n'.format(
+        type_decl,
+        '\n    '.join(array_defs)
+    )
+
+
+def create_name_data_c_array(
+        name=None, struct=None, no_members=False, no_hex=False):
+    """ Returns a C-style array definition with indexes mapped to known name
+        info.
+        This is not used in Colr.
+        It is a helper function for another project, ColrC.
+    """
+    if not name:
+        name = 'colr_name_data'
+    if not struct:
+        struct = 'ColorNameData'
+
+    type_decl = 'const {} {}[]'.format(struct, name)
+    elements = []
+    struct_members = [
+        'char* name;',
+        'ExtendedValue ext;',
+        'char* hex;',
+        'RGB rgb;',
+    ]
+    if no_hex:
+        struct_members.pop(2)
+
+    struct_decl = '\n'.join((
+        'typedef struct {struct}_s {{',
+        '    {members}',
+        '}} {struct};'
+    )).format(struct=struct, members='\n    '.join(struct_members))
+
+    def create_elem_def(knownname, info):
+        if no_hex:
+            return '{{"{name}", {ext}, {{{r}, {g}, {b}}}}}'.format(
+                name=knownname,
+                ext=info['code'],
+                r=info['rgb'][0],
+                g=info['rgb'][1],
+                b=info['rgb'][2],
+            )
+        return '{{"{name}", {ext}, "{hexval}", {{{r}, {g}, {b}}}}}'.format(
+            name=knownname,
+            ext=info['code'],
+            hexval=info['hexval'],
+            r=info['rgb'][0],
+            g=info['rgb'][1],
+            b=info['rgb'][2],
+        )
+
+    def create_full_elem_def(knownname, info):
+        if no_hex:
+            return ' '.join((
+                '{{.name="{name}",',
+                '.ext={ext},',
+                '.rgb={{{r}, {g}, {b}}}}}',
+            )).format(
+                name=knownname,
+                ext=info['code'],
+                r=info['rgb'][0],
+                g=info['rgb'][1],
+                b=info['rgb'][2],
+            )
+        return ' '.join((
+            '{{.name="{name}",',
+            '.ext={ext},',
+            '.hex="{hexval}",',
+            '.rgb={{{r}, {g}, {b}}}}}',
+        )).format(
+            name=knownname,
+            ext=info['code'],
+            hexval=info['hexval'],
+            r=info['rgb'][0],
+            g=info['rgb'][1],
+            b=info['rgb'][2],
+        )
+
+    func = create_elem_def if no_members else create_full_elem_def
+    for colorname, colorinfo in names.items():
+        elements.append(func(colorname, colorinfo))
+
+    array_def = '{decl} = {{\n    {elems}\n}};'.format(
+        decl=type_decl,
+        elems=',\n    '.join(elements),
+    )
+    size_def = 'const size_t {nm}_len = sizeof({nm}) / sizeof({nm}[0]);'.format(
+        nm=name,
+    )
+    return '\n\n'.join((struct_decl, array_def, size_def))

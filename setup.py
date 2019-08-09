@@ -68,6 +68,7 @@ setup(
     entry_points={
         'console_scripts': [
             'colr = colr.__main__:entry_point',
+            'colr-run = colr.colr_run:entry_point',
         ]
     }
 )
