@@ -53,6 +53,8 @@ from typing.io import IO
 
 from .base import (
     ChainedBase,
+    CodePart,
+    TextPart,
     closing_code,
     get_codes,
     strip_codes,
@@ -84,6 +86,13 @@ from .name_data import names as name_data
 ColorArg = Union[str, int, Tuple[int, int, int]]
 # Acceptable format_* function args.
 FormatArg = Union[int, Tuple[int, int, int]]
+# (ColrCodePart/ColrTextPart).code_info() return type.
+ColrChainedPartInfo = Tuple[
+    Optional[str],
+    Optional[
+        Union[str, int, Tuple[int, int, int]]
+    ]
+]
 
 __all__ = [
     '_disabled',
@@ -104,6 +113,7 @@ __all__ = [
     'format_fore',
     'get_all_names',
     'get_code_num',
+    'get_code_num_rgb',
     'get_codes',
     'get_known_codes',
     'get_known_name',
@@ -710,7 +720,7 @@ class Colr(ChainedBase):
         """
         if not fmt:
             return str(self)
-        if not ('[' in fmt) and (']' in fmt):
+        if not (('[' in fmt) and (']' in fmt)):
             # No color specs found in the format.
             return super().__format__(fmt)
 
@@ -1094,7 +1104,7 @@ class Colr(ChainedBase):
         """ Parse a Colr spec such as 'fore=red, back=blue, style=bold' into
             useable Colr keyword arguments.
             Raises InvalidColrFormat on error.
-            Returns a dict of {'fore': name, 'back': name, style=name} on
+            Returns a dict of {'fore': name, 'back': name, 'style': name} on
             success.
             Arguments:
                 spec  : The format spec.
@@ -1471,7 +1481,7 @@ class Colr(ChainedBase):
         # Not a known color name/value, try rgb.
         try:
             r, g, b = (int(x) for x in value)
-            # This does not mean we have a 3 int tuple. It could '111'.
+            # This does not mean we have a 3 int tuple. It could be '111'.
             # The converter should catch it though.
         except (TypeError, ValueError):
             # Not an rgb value.
@@ -1704,6 +1714,22 @@ class Colr(ChainedBase):
                 raise InvalidColr(value)
         return self.chained(text=text, fore=colrval, back=back, style=style)
 
+    def iter_parts(self, text=None):
+        """ Iterate over ColrCodeParts and TextParts, in the order
+            they are discovered from `self.data`.
+
+            This overrides the `ChainedBase.iter_parts` to yield
+            `ColrCodeParts` instead of `CodeParts`. They contain more info
+            about the codes, like code type and color name/value.
+        """
+        for part in super().iter_parts(text=text):
+            if isinstance(part, CodePart):
+                # ColrCodePart will add some info about the code.
+                yield ColrCodePart.from_codepart(part)
+            else:
+                # Compatible attributes with ColrCodePart.
+                yield ColrTextPart.from_textpart(part)
+
     def join(self, *colrs, **colorkwargs):
         """ Like str.join, except it returns a Colr.
             Arguments:
@@ -1833,6 +1859,53 @@ class Colr(ChainedBase):
             self._str_strip('strip', chars),
             no_closing=chars and (closing_code in chars),
         )
+
+
+class ColrCodePart(CodePart):
+    """ A CodePart(ChainedPart) from base.py that adds more info about the
+        color code, like the code type (fore, back, style), and a known
+        color name.
+    """
+    def __init__(self, originstr, start=None, stop=None):
+        super().__init__(originstr, start=start, stop=stop)
+        self.code_type, self.code_name = self.code_info()
+
+    def code_info(self) -> ColrChainedPartInfo:
+        """ Find the code type and color name/value from self.data. """
+        if not self.data:
+            return (None, None)
+        known_info = get_known_name(self.data)
+        if known_info is None:
+            return (None, None)
+        return known_info
+
+    @classmethod
+    def from_codepart(cls, part: CodePart) -> 'ColrCodePart':
+        """ Copy the info from a CodePart, and return a new ColrCodePart. """
+        colrpart = cls('', start=part.start, stop=part.stop)
+        colrpart.data = part.data
+        colrpart.code_type, colrpart.code_name = colrpart.code_info()
+        return colrpart
+
+
+class ColrTextPart(TextPart):
+    """ A TextPart(ChainedPart) from base.py that is compatible with
+        the ColrCodePart.
+    """
+    def __init__(self, originstr, start=None, stop=None):
+        super().__init__(originstr, start=start, stop=stop)
+        self.code_type = None
+        self.code_name = None
+
+    def code_info(self) -> ColrChainedPartInfo:
+        return None, None
+
+    @classmethod
+    def from_textpart(cls, part: TextPart) -> 'ColrTextPart':
+        """ Copy the info from a TextPart, and return a new ColrTextPart. """
+        colrpart = cls('', start=part.start, stop=part.stop)
+        colrpart.data = part.data
+        return colrpart
 
 
 class InvalidArg(ValueError):

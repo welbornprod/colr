@@ -307,6 +307,12 @@ class FrameSetBase(object):
             clsargs[initarg] = getattr(self, initarg, None)
         return self.__class__(colrs, **clsargs)
 
+    def has_codes(self):
+        """ Returns True if one the frames in this FrameSet has an escape code
+            in it.
+        """
+        return any(s.startswith('\x1b[') for s in self)
+
 
 class FrameSet(FrameSetBase):
     """ A single spinner/progress frame list, with helper methods for
@@ -348,7 +354,7 @@ class FrameSet(FrameSetBase):
         """ Append a string to every frame. """
         app = str(append_str)
         self.data = tuple(
-            ''.join((s, app))
+            ''.join((str(s), app))
             for s in self.data
         )
         return self
@@ -414,7 +420,7 @@ class FrameSet(FrameSetBase):
         """ Prepend a string to every frame. """
         prep = str(prepend_str)
         self.data = tuple(
-            ''.join((prep, s))
+            ''.join((prep, str(s)))
             for s in self.data
         )
         return self

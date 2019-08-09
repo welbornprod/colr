@@ -41,7 +41,7 @@ function print_usage {
     Usage:
         $appscript -h | -v
         $appscript [-D] (-e | -E | -l)
-        $appscript [-D] [-p] [SNIPPET...]
+        $appscript [-D] [-p | -r] [SNIPPET...]
 
     Options:
         SNIPPET       : Python snippet to run.
@@ -51,12 +51,13 @@ function print_usage {
         -D,--debug    : Print some debugging info while running.
         -E,--edit     : Same as -e, but start with the last snippet you
                         saved with the editor.
-        -e,--editor   : Edit a snippet using ${EDITOR:an editor} and
+        -e,--editor   : Edit a snippet using ${EDITOR:-an editor} and
                         then run the snippet.
         -h,--help     : Show this message.
         -l,--last     : Re-run the last snippet you edited with -e or -E.
                         Only works if $snippet_file exists.
         -p,--print    : Wrap all arguments in a \`print()\` call.
+        -r,--repr     : Wrap all arguments in a \`print(repr())\` call.
         -v,--version  : Show $appname version and exit.
     "
 }
@@ -89,6 +90,11 @@ for arg; do
             ;;
         "-p" | "--print")
             do_print=1
+            do_repr=0
+            ;;
+        "-r" | "--repr")
+            do_repr=1
+            do_print=0
             ;;
         "-v" | "--version")
             echo -e "$appname v. $appversion\n"
@@ -135,6 +141,7 @@ def handle_err(typ, ex, tb):
 # Wrap args in print if wanted.
 argfmt="%s\n"
 ((do_print)) && argfmt="print(\n    %s\n)\n"
+((do_repr)) && argfmt="print(\n    repr(%s)\n)\n"
 
 # Using an editor to create the snippets?
 if ((do_editor)); then
