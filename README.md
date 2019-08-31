@@ -1,6 +1,6 @@
 # Colr
 
-A python module for using terminal colors in linux. It contains a simple
+A python module for using terminal colors. It contains a simple
 `color` function that accepts style and color names, and outputs a string
 with escape codes, but also has all colors and styles as chainable methods
 on the `Colr` object.
@@ -17,15 +17,11 @@ _______________________________________________________________________________
 
 ### Modules
 
-*There are no dependencies required for importing this library on Linux*, however:
+There are no dependencies required for importing this library, however:
 
 * [Docopt](https://github.com/docopt/docopt) -
-    Only required for the [command line tool](#colr-tool)
+    Only required for the command line tools ([colr](#colr-tool) and [colr-run](#colr-run))
     and the [colr.docopt wrapper](#colrdocopt), not the library itself.
-* [Colorama](https://github.com/tartley/colorama) -
-    [Windows only](#windows).
-    This is not required on linux.
-    It provides a helper for basic color support for Windows.
 
 ## Installation:
 
@@ -288,16 +284,13 @@ It wouldn't need too many changes, but I like the Python 3 features
 
 ### Windows
 
-Basic colors are supported on Windows through the
-[colorama](https://github.com/tartley/colorama) library.
-It is only imported if `platform.system() == 'Windows'`.
-It provides a wrapper around `stdout` and `stderr` to make basic ansi codes
-work. If the import fails, then all color codes are disabled
-(as if `colr.disable()` was called).
-I booted into Windows 8 for the first time in months to make this little
-feature happen, only to discover that the color situation for CMD and
-PowerShell really sucks. If you think you can help improve the `colr` package
-for windows, please see the [contributing](#contributing) section.
+Windows 10 finally has support for ANSI escape codes.
+Colr can now be used on Windows 10+ by calling `SetConsoleMode`.
+Older Windows versions are not supported and haven't been tested. If you are
+using Colr for a tool that needs to support older Windows versions, you will
+need to detect the current Windows version and call `colr.disable()` for those
+that aren't supported. Otherwise you will have "junk" characters printed to
+the screen.
 
 ### Misc.
 This library may be a little too flexible:

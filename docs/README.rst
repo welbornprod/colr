@@ -1,7 +1,7 @@
 Colr
 ====
 
-A python module for using terminal colors in linux. It contains a simple
+A python module for using terminal colors. It contains a simple
 ``color`` function that accepts style and color names, and outputs a
 string with escape codes, but also has all colors and styles as
 chainable methods on the ``Colr`` object.
@@ -24,11 +24,8 @@ Modules
 Linux*, however:
 
 -  `Docopt <https://github.com/docopt/docopt>`__ - Only required for the
-   `command line tool <#colr-tool>`__ and the `colr.docopt
+   `command line tools <#colr-tool>`__ and the `colr.docopt
    wrapper <#colrdocopt>`__, not the library itself.
--  `Colorama <https://github.com/tartley/colorama>`__ - `Windows
-   only <#windows>`__. This is not required on linux. It provides a
-   helper for basic color support for Windows.
 
 Installation:
 -------------
@@ -336,16 +333,13 @@ wouldn't need too many changes, but I like the Python 3 features
 Windows
 ~~~~~~~
 
-Basic colors are supported on Windows through the
-`colorama <https://github.com/tartley/colorama>`__ library. It is only
-imported if ``platform.system() == 'Windows'``. It provides a wrapper
-around ``stdout`` and ``stderr`` to make basic ansi codes work. If the
-import fails, then all color codes are disabled (as if
-``colr.disable()`` was called). I booted into Windows 8 for the first
-time in months to make this little feature happen, only to discover that
-the color situation for CMD and PowerShell really sucks. If you think
-you can help improve the ``colr`` package for windows, please see the
-`contributing <#contributing>`__ section.
+Windows 10 finally has support for ANSI escape codes. Colr can now be
+used on Windows 10+ by calling ``SetConsoleMode``. Older Windows
+versions are not supported and haven't been tested. If you are using
+Colr for a tool that needs to support older Windows versions, you will
+need to detect the current Windows version and call ``colr.disable()``
+for those that aren't supported. Otherwise you will have "junk"
+characters printed to the screen.
 
 Misc.
 ~~~~~
