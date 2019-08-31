@@ -20,11 +20,11 @@ System
 Modules
 ~~~~~~~
 
-*There are no dependencies required for importing this library on
-Linux*, however:
+There are no dependencies required for importing this library, however:
 
 -  `Docopt <https://github.com/docopt/docopt>`__ - Only required for the
-   `command line tools <#colr-tool>`__ and the `colr.docopt
+   command line tools (`colr <#colr-tool>`__ and
+   `colr-run <#colr-run>`__) and the `colr.docopt
    wrapper <#colrdocopt>`__, not the library itself.
 
 Installation:
