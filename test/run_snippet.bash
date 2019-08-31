@@ -3,7 +3,7 @@
 # A shortcut to python3 -c "from colr import Colr; SNIPPET"
 # -Christopher Welborn 02-27-2017
 appname="Colr - Snippet Runner"
-appversion="0.0.2"
+appversion="0.0.3"
 apppath="$(readlink -f "${BASH_SOURCE[0]}")"
 appscript="${apppath##*/}"
 appdir="${apppath%/*}"
@@ -138,7 +138,7 @@ def handle_err(typ, ex, tb):
     setupcode="import sys;${errhandler}sys.excepthook = handle_err"$'\n'"$setupcode"
 }
 
-# Wrap args in print if wanted.
+# Wrap args in print if wanted, these are printf fmt strings.
 argfmt="%s\n"
 ((do_print)) && argfmt="print(\n    %s\n)\n"
 ((do_repr)) && argfmt="print(\n    repr(%s)\n)\n"

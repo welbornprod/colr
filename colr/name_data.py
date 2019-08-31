@@ -2015,3 +2015,51 @@ def create_name_data_c_array(
         nm=name,
     )
     return '\n\n'.join((struct_decl, array_def, size_def))
+
+
+def get_x11_rgb(fix_names=False):
+    """ Reads /etc/X11/rgb.txt and returns a dict of {name: (r, g, b)}.
+        This is not used for `name_data`. Some of the values in `name_data`
+        don't match what is found in rgb.txt, and some names that are found in
+        rgb.txt are missing from `name_data` (names with a '1' appended,
+        `light slate grey`).
+
+        This is used for experimenting and easy access to X11 colors. If you
+        wanted to use this in a project, you would need to do something like
+        this:
+            from colr.name_data import get_x11_rgb
+            from colr import Colr
+            x_names = get_x11_rgb(fix_names=True)
+            print(Colr('test', x_names['aquamarine']))
+
+        Arguments:
+            fix_names  : Whether to lower-case and remove spaces from names.
+    """
+    data = {}
+    try:
+        with open('/etc/X11/rgb.txt', 'r') as f:
+            for line in f:
+                if line.startswith('!'):
+                    # The header.
+                    continue
+                try:
+                    rgbstr, _, name = line.split('\t')
+                    name = name.strip()
+                    if fix_names:
+                        name = name.replace(' ', '').lower()
+                except ValueError:
+                    # Not an rgb color line?
+                    continue
+                try:
+                    r, g, b = (int(s) for s in rgbstr.split(' '))
+                except ValueError:
+                    # Not an rgb str.
+                    continue
+                data[name] = (r, g, b)
+    except FileNotFoundError:
+        return {}
+    except EnvironmentError:
+        # This function isn't even used in Colr, so I'm not going to do
+        # any major error handling.
+        return {}
+    return data

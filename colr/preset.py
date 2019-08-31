@@ -41,10 +41,12 @@ class Preset(object):
 
     def __eq__(self, other):
         if not isinstance(other, Preset):
-            raise TypeError('Expecting a Preset instance, got: ({}) {!r}'.format(
-                type(other).__name__,
-                other,
-            ))
+            raise TypeError(
+                'Expecting a Preset instance, got: ({}) {!r}'.format(
+                    type(other).__name__,
+                    other,
+                )
+            )
         return (
             self.fore == other.fore and
             self.back == other.back and
@@ -56,10 +58,12 @@ class Preset(object):
 
     def __lt__(self, other):
         if not isinstance(other, Preset):
-            raise TypeError('Expecting a Preset instance, got: ({}) {!r}'.format(
-                type(other).__name__,
-                other,
-            ))
+            raise TypeError(
+                'Expecting a Preset instance, got: ({}) {!r}'.format(
+                    type(other).__name__,
+                    other,
+                )
+            )
         return (
             (self.fore, self.back, self.style) <
             (other.fore, other.back, other.style)

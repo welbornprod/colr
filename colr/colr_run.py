@@ -49,17 +49,22 @@ VERSIONSTR = '{} v. {}'.format(NAME, VERSION)
 SCRIPT = os.path.split(os.path.abspath(sys.argv[0]))[1]
 SCRIPTDIR = os.path.abspath(sys.path[0])
 
+# Default delay, in seconds, between animation frames.
+DEFAULT_DELAY = 0.3
+
 USAGESTR = """{versionstr} (Colr v. {colr_version})
     Runs a program, captures/silences stdout, and prints an animation instead.
 
     Usage:
         {script} -h | -v
         {script} -l
-        {script} [-a] [-e] [-f name] [-m msg] -- ARGS...
+        {script} [-a] [-e] [-d secs] [-f name] [-m msg] -- ARGS...
 
     Options:
         ARGS                   : Command and arguments to run.
         -a,--append            : Append command to message.
+        -d secs,--delay secs   : Delay, in seconds, between animation frames.
+                                 Default: {delay}s
         -e,--stderr            : Capture stderr also.
         -f name,--frames name  : Name of a frame set to use.
                                  Use -l to list known names.
@@ -81,7 +86,12 @@ USAGESTR = """{versionstr} (Colr v. {colr_version})
         executed. For {script} errors, the exit status is 1 for basic errors,
         and 2 for cancelled commands.
 
-""".format(script=SCRIPT, versionstr=VERSIONSTR, colr_version=colr_version)
+""".format(
+    script=SCRIPT,
+    versionstr=VERSIONSTR,
+    colr_version=colr_version,
+    delay=DEFAULT_DELAY,
+)
 
 
 def main(argd):
@@ -95,6 +105,7 @@ def main(argd):
         raise InvalidArg('not a known frame set: {}'.format(argd['--frames']))
     return run_cmd(
         argd['ARGS'],
+        delay=parse_float(argd['--delay'], default=DEFAULT_DELAY, minimum=0.1),
         msg=argd['--msg'],
         frameset=frameset,
         append=argd['--append'],
@@ -129,6 +140,29 @@ def list_frames():
     return 0
 
 
+def parse_float(s, default=None, minimum=None):
+    """ Parse a string as a float. If the argument is "falsey", `default` is
+        returned. On error, an InvalidArg is raised.
+
+        Arguments:
+            s        : String to parse.
+            default  : Default value, when a "falsey" argument is given.
+            minimum  : Minimum accepted value. InvalidArg is raised if this is
+                       set and the value is less than `minimum`.
+    """
+    if not s:
+        return default
+    try:
+        f = float(s)
+    except ValueError:
+        raise InvalidArg('not a float/number: {}'.format(s))
+    if (minimum is not None) and (f < minimum):
+        raise InvalidArg(
+            'below minimum value, {:.2f}: {:.2f}'.format(minimum, f)
+        )
+    return f
+
+
 def print_err(*args, **kwargs):
     """ A wrapper for print() that uses stderr by default.
         Colorizes messages, unless a Colr itself is passed in.
@@ -153,7 +187,9 @@ def print_err(*args, **kwargs):
     print(msg, **kwargs)
 
 
-def run_cmd(args, msg=None, frameset=None, append=False, stderr=False):
+def run_cmd(
+        args, msg=None, delay=None,
+        frameset=None, append=False, stderr=False):
     """ Run a command, but capture it's stdout. Show an animation instead.
     """
     cmdstr = ' '.join(args)
@@ -164,7 +200,7 @@ def run_cmd(args, msg=None, frameset=None, append=False, stderr=False):
         msg = cmdstr
     p = AnimatedProgress(
         msg,
-        delay=0.3,
+        delay=DEFAULT_DELAY if delay is None else delay,
         frames=(frameset or Frames.dots_rainbow).prepend(' '),
         show_time=True,
     )

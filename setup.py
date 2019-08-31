@@ -49,14 +49,14 @@ else:
 
 setup(
     name='Colr',
-    version='0.9.0',
+    version='0.9.1',
     author='Christopher Welborn',
     author_email='cj@welbornprod.com',
     packages=['colr'],
     url='https://github.com/welbornprod/colr',
     description=shortdesc,
     long_description=longdesc,
-    keywords=('python module library 2 3 linux terminal escape codes color'),
+    keywords=('python module library 2 3 terminal escape codes color'),
     classifiers=[
         'License :: OSI Approved :: MIT License',
         'Operating System :: POSIX :: Linux',

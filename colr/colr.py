@@ -30,9 +30,9 @@
 """
 from contextlib import suppress  # type: ignore
 from functools import partial
+import ctypes
 import math
 import os
-import platform
 import struct
 import sys
 
@@ -131,24 +131,29 @@ __all__ = [
     'rgbforeformat',
     'strip_codes',
 ]
-# Set with the enable/disable functions, or on Windows without colorama.
+# Set with the enable/disable functions.
 _disabled = False
 
-# Windows support relies on colorama (for now).
-# If the environment variable 'COLR_NO_COLORAMA' is set to anything,
-# it will be disabled and Colr will run as it does on linux.
-use_colorama = (
-    (platform.system() == 'Windows') and
-    (not os.environ.get('COLR_NO_COLORAMA', None))
-)
-if use_colorama:
+# Windows support relies on SetConsoleMode
+# These boolean flags are for debugging.
+has_windll = False
+has_setconsolemode = False
+try:
+    _kernel32 = ctypes.windll.kernel32  # noqa (attribute error during development)
+    has_windll = True
     try:
-        from colorama import init as colorama_init
-    except ImportError:
-        # Windows colors won't work without colorama (for now).
-        _disabled = True
-    else:
-        colorama_init()
+        _kernel32.SetConsoleMode(_kernel32.GetStdHandle(-11), 7)
+        has_setconsolemode = True
+    except Exception:
+        # Windows, but the new ansi code api is not supported.
+        # Library user will need to call colr.disable() to keep from spewing
+        # junk characters all over the screen.
+        pass
+    del _kernel32
+except AttributeError:
+    # No windll, probably linux. If the system doesn't support ansi escape
+    # codes the library user will need to call colr.disable().
+    pass
 
 
 def auto_disable(
