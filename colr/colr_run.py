@@ -203,6 +203,7 @@ def run_cmd(
         delay=DEFAULT_DELAY if delay is None else delay,
         frames=(frameset or Frames.dots_rainbow).prepend(' '),
         show_time=True,
+        auto_disable=True,
     )
     p.start()
     try:
