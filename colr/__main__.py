@@ -226,14 +226,22 @@ def dict_pop_or(d, key, default=None):
 
 def get_colr(txt, argd):
     """ Return a Colr instance based on user args. """
-    fore = parse_colr_arg(
-        get_name_arg(argd, '--fore', 'FORE', default=None),
-        rgb_mode=argd['--truecolor'],
-    )
-    back = parse_colr_arg(
-        get_name_arg(argd, '--back', 'BACK', default=None),
-        rgb_mode=argd['--truecolor'],
-    )
+    forearg = get_name_arg(argd, '--fore', 'FORE', default=None)
+    if forearg == 'rainbow':
+        fore = 'rainbow'
+    else:
+        fore = parse_colr_arg(forearg, rgb_mode=argd['--truecolor'])
+    backarg = get_name_arg(argd, '--back', 'BACK', default=None)
+    if backarg == 'rainbow':
+        back = 'rainbow'
+    else:
+        back = parse_colr_arg(backarg, rgb_mode=argd['--truecolor'])
+    if (back == 'rainbow') and (fore == 'rainbow'):
+        raise InvalidArg(
+            'rainbow',
+            label='Cannot be used for both FORE and BACK'
+        )
+
     style = get_name_arg(argd, '--style', 'STYLE', default=None)
     if argd['--gradient']:
         # Build a gradient from user args.
@@ -255,10 +263,10 @@ def get_colr(txt, argd):
             start=rgb_start,
             stop=rgb_stop,
         )
-    if argd['--rainbow']:
+    if argd['--rainbow'] or (fore == 'rainbow') or (back == 'rainbow'):
         return C(txt).rainbow(
-            fore=fore,
-            back=back,
+            fore=None if fore == 'rainbow' else fore,
+            back=None if back == 'rainbow' else back,
             style=style,
             freq=try_float(argd['--frequency'], 0.1, minimum=0),
             offset=try_int(argd['--offset'], randint(0, 255), minimum=0),
