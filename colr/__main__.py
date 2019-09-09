@@ -228,12 +228,16 @@ def get_colr(txt, argd):
     """ Return a Colr instance based on user args. """
     forearg = get_name_arg(argd, '--fore', 'FORE', default=None)
     if forearg == 'rainbow':
-        fore = 'rainbow'
+        fore = None
+        back = 'reset'
+        argd['--rainbow'] = True
     else:
         fore = parse_colr_arg(forearg, rgb_mode=argd['--truecolor'])
     backarg = get_name_arg(argd, '--back', 'BACK', default=None)
     if backarg == 'rainbow':
-        back = 'rainbow'
+        back = None
+        fore = fore or 'reset'
+        argd['--rainbow'] = True
     else:
         back = parse_colr_arg(backarg, rgb_mode=argd['--truecolor'])
     if (back == 'rainbow') and (fore == 'rainbow'):
@@ -263,10 +267,11 @@ def get_colr(txt, argd):
             start=rgb_start,
             stop=rgb_stop,
         )
-    if argd['--rainbow'] or (fore == 'rainbow') or (back == 'rainbow'):
+    if argd['--rainbow']:
+        debug('Fore: {!r}, Back: {!r}'.format(fore, back))
         return C(txt).rainbow(
-            fore=None if fore == 'rainbow' else fore,
-            back=None if back == 'rainbow' else back,
+            fore=fore,
+            back=back,
             style=style,
             freq=try_float(argd['--frequency'], 0.1, minimum=0),
             offset=try_int(argd['--offset'], randint(0, 255), minimum=0),
