@@ -1009,17 +1009,20 @@ class Colr(ChainedBase):
                 return n
             return r, g, b
 
-        for value in numbergen:
-            lastchar = pos + step
-            yield self.color(
-                text[pos:lastchar],
-                fore=make_color(value) if fore is None else fore,
-                back=make_color(value) if fore is not None else back,
-                style=style
-            )
-            if lastchar >= end:
-                numbergen.send(True)
-            pos = lastchar
+        try:
+            for value in numbergen:
+                lastchar = pos + step
+                yield self.color(
+                    text[pos:lastchar],
+                    fore=make_color(value) if fore is None else fore,
+                    back=make_color(value) if fore is not None else back,
+                    style=style
+                )
+                if lastchar >= end:
+                    numbergen.send(True)
+                pos = lastchar
+        except StopIteration:
+            return
 
     @staticmethod
     def _iter_wave(iterable, count=0):

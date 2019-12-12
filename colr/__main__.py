@@ -268,7 +268,6 @@ def get_colr(txt, argd):
             stop=rgb_stop,
         )
     if argd['--rainbow']:
-        debug('Fore: {!r}, Back: {!r}'.format(fore, back))
         return C(txt).rainbow(
             fore=fore,
             back=back,
