@@ -226,14 +226,26 @@ def dict_pop_or(d, key, default=None):
 
 def get_colr(txt, argd):
     """ Return a Colr instance based on user args. """
-    fore = parse_colr_arg(
-        get_name_arg(argd, '--fore', 'FORE', default=None),
-        rgb_mode=argd['--truecolor'],
-    )
-    back = parse_colr_arg(
-        get_name_arg(argd, '--back', 'BACK', default=None),
-        rgb_mode=argd['--truecolor'],
-    )
+    forearg = get_name_arg(argd, '--fore', 'FORE', default=None)
+    if forearg == 'rainbow':
+        fore = None
+        back = 'reset'
+        argd['--rainbow'] = True
+    else:
+        fore = parse_colr_arg(forearg, rgb_mode=argd['--truecolor'])
+    backarg = get_name_arg(argd, '--back', 'BACK', default=None)
+    if backarg == 'rainbow':
+        back = None
+        fore = fore or 'reset'
+        argd['--rainbow'] = True
+    else:
+        back = parse_colr_arg(backarg, rgb_mode=argd['--truecolor'])
+    if (back == 'rainbow') and (fore == 'rainbow'):
+        raise InvalidArg(
+            'rainbow',
+            label='Cannot be used for both FORE and BACK'
+        )
+
     style = get_name_arg(argd, '--style', 'STYLE', default=None)
     if argd['--gradient']:
         # Build a gradient from user args.
