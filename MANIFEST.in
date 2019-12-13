@@ -1,5 +1,10 @@
 include *.txt
 include *.md
+include *.py
 recursive-include docs *.txt
+recursive-include docs *.md
+recursive-include docs *.rst
+recursive-include examples *.md
+recursive-include examples *.py
 recursive-include test *.py
-
+recursive-include test *.bash
