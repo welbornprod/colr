@@ -12,6 +12,7 @@ from random import SystemRandom
 from colr import (
     __version__,
     Colr,
+    InvalidColr,
     Preset,
 )
 
@@ -22,6 +23,73 @@ random = SystemRandom()
 
 class PresetTests(ColrTestCase):
     """ Tests for the colr.Preset object. """
+    def test_code(self):
+        """ code() should return escape codes. """
+        valid = (
+            {'fore': 'red'},
+            {'fore': 'red', 'back': 'white'},
+            {'fore': 'red', 'back': 'white', 'style': 'bold'},
+        )
+        for argset in valid:
+            p = Preset(**argset)
+            self.assertEqual(
+                p.code('fore'),
+                str(Colr(fore='red')),
+                msg='Failed to generate valid fore code.'
+            )
+            if len(argset) > 1:
+                self.assertEqual(
+                    p.code('back'),
+                    str(Colr(back='white')),
+                    msg='Failed to generate valid back code.'
+                )
+            if len(argset) > 2:
+                self.assertEqual(
+                    p.code('style'),
+                    str(Colr(style='bold')),
+                    msg='Failed to generate valid style code.'
+                )
+        invalid = (
+            {'fore': 'blah', },
+            {'fore': 'red', 'back': 'blah', },
+            {'fore': 'red', 'back': 'white', 'style': 'blah'},
+        )
+        for argset in invalid:
+            p = Preset(**argset)
+            with self.assertRaises(InvalidColr):
+                p.code('fore')
+                if argset.get('back', None):
+                    p.code('back')
+                if argset.get('style', None):
+                    p.code('style')
+
+    def test_codes(self):
+        """ codes() should return escape codes. """
+        valid = (
+            {'fore': 'red'},
+            {'fore': 'red', 'back': 'white'},
+            {'fore': 'red', 'back': 'white', 'style': 'bold'},
+        )
+        for argset in valid:
+            p = Preset(**argset)
+            # Doing a weird equality check here because of argument order.
+            self.assertCallEqual(
+                str(sorted(p.codes())),
+                str(sorted(str(Colr(**argset)))),
+                func=p.codes,
+                kwargs=argset,
+                msg='Failed to generate correct escape codes.'
+            )
+        invalid = (
+            {'fore': 'blah', },
+            {'fore': 'red', 'back': 'blah', },
+            {'fore': 'red', 'back': 'white', 'style': 'blah'},
+        )
+        for argset in invalid:
+            p = Preset(**argset)
+            with self.assertRaises(InvalidColr):
+                p.codes()
+
     def test_eq(self):
         """ __eq__ should work for identical Presets. """
         cases = (

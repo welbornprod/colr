@@ -5,6 +5,8 @@ A python module for using terminal colors. It contains a simple
 with escape codes, but also has all colors and styles as chainable methods
 on the `Colr` object.
 
+See also: [ColrC](https://github.com/welbornprod/colrc) (a `C` library)
+
 _______________________________________________________________________________
 
 ## Dependencies:

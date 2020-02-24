@@ -8,7 +8,10 @@
 """
 
 from functools import total_ordering
-from .colr import Colr
+from .colr import (
+    Colr,
+    codes,
+)
 
 
 @total_ordering
@@ -86,6 +89,41 @@ class Preset(object):
         if self.style is not None:
             d['style'] = self.style
         return d
+
+    def code(self, codetype, default=None):
+        """ An attribute accessor with checks, to make sure valid color/style
+            names are set.
+        """
+        if codetype not in ('fore', 'back', 'style'):
+            raise ValueError(
+                f'Expecting \'fore\', \'back\', or \'style\'. Got: {codetype}'
+            )
+        val = getattr(self, codetype, None)
+        if val is None:
+            return default
+        fast = codes[codetype].get(val, None)
+        if fast:
+            # Simple color/style name/number.
+            return fast
+        # Calculated values.
+        kwargs = {codetype: val}
+        # This will trigger an InvalidColr/InvalidStyle if the Preset has a
+        # bad value set.
+        return str(Colr(**kwargs))
+
+    def codes(self):
+        """ Returns all escape codes needed to create this style.
+            For empty Presets, a empty string ('') is returned.
+            For invalid fore/back/style values InvalidColr/InvalidStyle is
+            raised.
+        """
+        codetypes = ('fore', 'back', 'style')
+        codes = [
+            self.code(s)
+            for s in codetypes
+            if getattr(self, s, None) is not None
+        ]
+        return ''.join(codes)
 
     def merge(self, styleobj, fore=None, back=None, style=None):
         """ Merge new Colr arguments with this Preset and return a new Preset.

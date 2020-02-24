@@ -42,7 +42,7 @@ from typing import (
     Union,
 )
 
-__version__ = '0.9.2'
+__version__ = '0.9.3'
 
 _codepats = (
     # Colors.
@@ -232,6 +232,7 @@ class ChainedBase(Sequence):
     def __getitem__(self, key):
         """ Allow subscripting self.data. This will ignore any escape codes,
             because otherwise it would be just about useless.
+            If you really wanted that, you could do `str(colr)[index]`.
             Returns another ChainedBase instance.
         """
         length = len(self.stripped())
