@@ -495,6 +495,15 @@ def get_known_name(s: str) -> Optional[Tuple[str, ColorArg]]:
 
 def get_terminal_size(default=(80, 35)):
     """ Return terminal (width, height) """
+    # We may not need all of this code.
+    try:
+        termsize = os.get_terminal_size()
+    except AttributeError:
+        pass
+    else:
+        return tuple(termsize)
+    
+    # The old-fashioned way, for Linux anyway.
     def ioctl_GWINSZ(fd):
         try:
             import fcntl
