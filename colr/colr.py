@@ -504,25 +504,31 @@ def get_terminal_size(default=(80, 35)):
         return tuple(termsize)
     
     # The old-fashioned way, for Linux anyway.
-    def ioctl_GWINSZ(fd):
-        try:
-            import fcntl
-            import termios
-            cr = struct.unpack(
-                'hh',
-                fcntl.ioctl(fd, termios.TIOCGWINSZ, '1234')
-            )
-            return cr
-        except (ImportError, EnvironmentError):
-            pass
-    cr = ioctl_GWINSZ(0) or ioctl_GWINSZ(1) or ioctl_GWINSZ(2)
-    if not cr:
-        try:
-            fd = os.open(os.ctermid(), os.O_RDONLY)
-            cr = ioctl_GWINSZ(fd)
-            os.close(fd)
-        except EnvironmentError:
-            pass
+    try:
+        ctermid = os.ctermid()
+    except AttributeError:
+        # Not gonna work.
+        cr = None
+    else:
+        def ioctl_GWINSZ(fd):
+            try:
+                import fcntl
+                import termios
+                cr = struct.unpack(
+                    'hh',
+                    fcntl.ioctl(fd, termios.TIOCGWINSZ, '1234')
+                )
+                return cr
+            except (ImportError, EnvironmentError):
+                pass
+        cr = ioctl_GWINSZ(0) or ioctl_GWINSZ(1) or ioctl_GWINSZ(2)
+        if not cr:
+            try:
+                fd = os.open(ctermid, os.O_RDONLY)
+                cr = ioctl_GWINSZ(fd)
+                os.close(fd)
+            except EnvironmentError:
+                pass
     if not cr:
         try:
             cr = os.environ['LINES'], os.environ['COLUMNS']
