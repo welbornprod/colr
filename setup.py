@@ -16,7 +16,7 @@ except ImportError:
 shortdesc = 'Easy terminal colors, with chainable methods.'
 try:
     with open('DESC.txt', 'r') as f:
-        shortdesc = f.read()
+        shortdesc = f.read().strip()
 except FileNotFoundError:
     pass
 
