@@ -16,7 +16,7 @@ except ImportError:
 shortdesc = 'Easy terminal colors, with chainable methods.'
 try:
     with open('DESC.txt', 'r') as f:
-        shortdesc = f.read()
+        shortdesc = f.read().strip()
 except FileNotFoundError:
     pass
 
@@ -49,7 +49,7 @@ else:
 
 setup(
     name='Colr',
-    version='0.9.1',
+    version='0.9.2',
     author='Christopher Welborn',
     author_email='cj@welbornprod.com',
     packages=['colr'],
