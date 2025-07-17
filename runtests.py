@@ -27,7 +27,7 @@ colr_auto_disable()
 APPNAME = 'Colr'
 APPVERSION = colr_version
 NAME = '{} Test Runner'.format(APPNAME)
-VERSION = '0.2.0'
+VERSION = '0.2.1'
 VERSIONSTR = '{} v. {}'.format(NAME, VERSION)
 SCRIPT = os.path.split(os.path.abspath(sys.argv[0]))[1]
 SCRIPTDIR = os.path.abspath(sys.path[0])
@@ -53,7 +53,7 @@ USAGESTR = """{versionstr}
         -l,--list            : List all test cases/names.
         -r,--run-coverage    : Run coverage.
         -R,--quiet-coverage  : Run coverage without stdout output.
-        -s,--stdout          : Allow stdout (removes -q from green args).
+        -s,--stdout          : Allow stdout (removes -q from green args)
                                in google-chrome.
         -v,--version         : Show version.
 """.format(script=SCRIPT, versionstr=VERSIONSTR)
@@ -141,6 +141,9 @@ def get_green_exe():
         s for s in os.environ.get('PATH', '').split(':')
         if s and os.path.isdir(s)
     )
+    venvpath = './bin/green'
+    if os.path.exists(venvpath):
+        return venvpath
     pyver = '{v.major}.{v.minor}'.format(v=sys.version_info)
     greenmajorexe = 'green{}'.format(sys.version_info.major)
     greenexe = 'green{}'.format(pyver)

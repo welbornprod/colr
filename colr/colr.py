@@ -49,7 +49,12 @@ from typing import (  # noqa
     Union,
     cast,
 )
-from typing.io import IO
+try:
+    # Issue #11, typing.io is no longer a namespace python 3.13+
+    from typing.io import IO
+except ImportError:
+    from typing import TextIO
+    IO = TextIO
 
 from .base import (
     ChainedBase,
